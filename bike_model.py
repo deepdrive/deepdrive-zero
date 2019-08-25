@@ -54,7 +54,7 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     process model
     input: state at time k, z[k] := [x[k], y[k], psi[k], v[k]]
     output: state at next time step z[k+1]
-    # Adapted from https://github.com/MPC-Berkeley/barc/blob/master/workspace/src/barc/src/estimation/system_models.py
+    # From https://github.com/MPC-Berkeley/barc/blob/master/workspace/src/barc/src/estimation/system_models.py
     """
 
     # get states / inputs
