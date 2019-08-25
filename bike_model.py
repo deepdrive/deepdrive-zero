@@ -1,19 +1,19 @@
-import typing
 from math import pi
 
 import numpy as np
-import attr
+
+MAX_BRAKE_G = 1
+G_ACCEL = 9.80665
 
 
 class BikeModel:
-    def __init__(self, x, y, width):
+    def __init__(self, x, y, width, add_rotational_friction):
         # Here x is right, y is straight
         self.vehicle_model = self.get_vehicle_model(width)
-        self.x = x
-        self.y = y
         self.width = width
         self.yaw_rate = 0
         self.velocity = 0
+        self.add_rotational_friction = add_rotational_friction
 
     @staticmethod
     def get_vehicle_model(width):
@@ -33,12 +33,20 @@ class BikeModel:
     def step(self, steer, accel, dt):
         steer = min(pi, steer)
         steer = max(-pi, steer)
-        state = [self.x, self.y, self.yaw_rate, self.velocity]
-        x, y, self.yaw_rate, self.velocity = \
+
+        # Set x and y to 0 so bike model gives the change in x,y.
+        x = 0
+        y = 0
+        state = [x, y, self.yaw_rate, self.velocity]
+
+        change_x, change_y, self.yaw_rate, self.velocity = \
             f_KinBkMdl(state, steer, accel, self.vehicle_model, dt)
-        change_x = x - self.x
-        change_y = y - self.y
+
+        if self.add_rotational_friction:
+            self.yaw_rate = self.yaw_rate * 0.95
+
         return change_x, change_y, self.yaw_rate, self.velocity
+
 
 # TODO: Numba @njit this
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
@@ -50,8 +58,8 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
 
     # get states / inputs
-    x = state[0]         # right
-    y = state[1]         # straight
+    x = state[0]         # straight
+    y = state[1]         # right
     yaw_rate = state[2]  # yaw rate
     speed = state[3]     # speed
 
@@ -66,6 +74,6 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     x_next = x + dt * (speed * np.cos(yaw_rate + slip_angle))
     y_next = y + dt * (speed * np.sin(yaw_rate + slip_angle))
     yaw_rate_next = yaw_rate + dt * speed / L_b * np.sin(slip_angle)
-    v_next = speed + dt * accel
+    speed_next = speed + dt * accel
 
-    return np.array([x_next, y_next, yaw_rate_next, v_next])
+    return np.array([x_next, y_next, yaw_rate_next, speed_next])
