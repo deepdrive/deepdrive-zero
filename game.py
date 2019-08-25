@@ -20,7 +20,8 @@ METERS_PER_FRAME_SPEED = PLAYER_MOVEMENT_SPEED * ROUGH_PIXELS_PER_METER
 
 
 class Spud(arcade.Window):
-    def __init__(self, add_rotational_friction=False):
+    def __init__(self, add_rotational_friction=False,
+                 add_longitudinal_friction=False):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -36,6 +37,7 @@ class Spud(arcade.Window):
         self.brake = False
         self.update_time = None
         self.add_rotational_friction = add_rotational_friction
+        self.add_longitudinal_friction = add_longitudinal_friction
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -50,7 +52,8 @@ class Spud(arcade.Window):
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
             width=self.player_sprite.width,
-            add_rotational_friction=self.add_rotational_friction
+            add_rotational_friction=self.add_rotational_friction,
+            add_longitudinal_friction=self.add_longitudinal_friction,
         )
         self.player_list.append(self.player_sprite)
         self.wall_list = arcade.SpriteList()
@@ -102,13 +105,13 @@ class Spud(arcade.Window):
         dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
-        log.debug(f'v:{self.bike_model.velocity}')
+        log.debug(f'v:{self.bike_model.speed}')
         log.debug(f'a:{self.accel}')
         log.debug(f'dt1:{dt}')
         log.debug(f'dt2:{_delta_time}')
 
         if self.brake:
-            self.bike_model.velocity = 0.97 * self.bike_model.velocity
+            self.bike_model.speed = 0.97 * self.bike_model.speed
             # self.accel = -min(
             #     2 * self.bike_model.velocity * METERS_PER_FRAME_SPEED,
             #     math.inf * MAX_BRAKE_G * G_ACCEL * ROUGH_PIXELS_PER_METER)
@@ -143,7 +146,9 @@ class Spud(arcade.Window):
 
 def main():
     window = Spud(
-        add_rotational_friction='--rotational-friction' in sys.argv)
+        add_rotational_friction='--rotational-friction' in sys.argv,
+        add_longitudinal_friction='--longitudinal-friction' in sys.argv,
+    )
     window.setup()
     arcade.run()
 

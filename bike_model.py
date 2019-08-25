@@ -7,13 +7,17 @@ G_ACCEL = 9.80665
 
 
 class BikeModel:
-    def __init__(self, x, y, width, add_rotational_friction):
+    def __init__(self, x, y, width, add_rotational_friction=True,
+                 add_longitudinal_friction=True):
         # Here x is right, y is straight
         self.vehicle_model = self.get_vehicle_model(width)
         self.width = width
         self.yaw_rate = 0
-        self.velocity = 0
+        self.speed = 0
+        self.x = 0
+        self.y = 0
         self.add_rotational_friction = add_rotational_friction
+        self.add_longitudinal_friction = add_longitudinal_friction
 
     @staticmethod
     def get_vehicle_model(width):
@@ -34,18 +38,18 @@ class BikeModel:
         steer = min(pi, steer)
         steer = max(-pi, steer)
 
-        # Set x and y to 0 so bike model gives the change in x,y.
-        x = 0
-        y = 0
-        state = [x, y, self.yaw_rate, self.velocity]
+        state = [self.x, self.y, self.yaw_rate, self.speed]
 
-        change_x, change_y, self.yaw_rate, self.velocity = \
+        self.x, self.y, self.yaw_rate, self.speed = \
             f_KinBkMdl(state, steer, accel, self.vehicle_model, dt)
 
         if self.add_rotational_friction:
             self.yaw_rate = self.yaw_rate * 0.95
 
-        return change_x, change_y, self.yaw_rate, self.velocity
+        change_x = self.x - state[0]
+        change_y = self.y - state[1]
+
+        return change_x, change_y, self.yaw_rate, self.speed
 
 
 # TODO: Numba @njit this
