@@ -45,6 +45,8 @@ class BikeModel:
 
         if self.add_rotational_friction:
             self.yaw_rate = self.yaw_rate * 0.95
+        if self.add_longitudinal_friction:
+            self.speed = self.speed * 0.999
 
         change_x = self.x - state[0]
         change_y = self.y - state[1]
