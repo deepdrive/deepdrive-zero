@@ -6,7 +6,7 @@ MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
 
 
-class BikeModel:
+class VehicleDynamics:
     def __init__(self, x, y, width, add_rotational_friction=True,
                  add_longitudinal_friction=True):
         # Here x is right, y is straight

@@ -7,7 +7,7 @@ import arcade
 from loguru import logger as log
 
 # Constants
-from bike_model import BikeModel
+from bike_model import VehicleDynamics
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 650
@@ -31,7 +31,7 @@ class Spud(arcade.Window):
         self.player_list = None
         self.wall_list = None
         self.physics_engine = None
-        self.bike_model: BikeModel = None
+        self.vehicle_dynamics: VehicleDynamics = None
         self.steer = 0
         self.accel = 0
         self.brake = False
@@ -48,7 +48,7 @@ class Spud(arcade.Window):
         self.player_sprite.center_y = 120
 
         # TODO: Map pixels to meters
-        self.bike_model = BikeModel(
+        self.vehicle_dynamics = VehicleDynamics(
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
             width=self.player_sprite.width,
@@ -105,13 +105,13 @@ class Spud(arcade.Window):
         dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
-        log.debug(f'v:{self.bike_model.speed}')
+        log.debug(f'v:{self.vehicle_dynamics.speed}')
         log.debug(f'a:{self.accel}')
         log.debug(f'dt1:{dt}')
         log.debug(f'dt2:{_delta_time}')
 
         if self.brake:
-            self.bike_model.speed = 0.97 * self.bike_model.speed
+            self.vehicle_dynamics.speed = 0.97 * self.vehicle_dynamics.speed
             # self.accel = -min(
             #     2 * self.bike_model.velocity * METERS_PER_FRAME_SPEED,
             #     math.inf * MAX_BRAKE_G * G_ACCEL * ROUGH_PIXELS_PER_METER)
@@ -119,7 +119,7 @@ class Spud(arcade.Window):
         # Swap x and y to rotate back into the arcade window's frame where
         # x is right and y is straight
         change_y, change_x, yaw_rate, velocity = \
-            self.bike_model.step(self.steer, self.accel, dt)
+            self.vehicle_dynamics.step(self.steer, self.accel, dt)
 
         log.debug(f'change_x:{change_x}')
         log.debug(f'change_y:{change_y}')
