@@ -1,4 +1,4 @@
-from math import pi
+from math import pi, cos, sin
 
 import numpy as np
 
@@ -7,15 +7,17 @@ G_ACCEL = 9.80665
 
 
 class VehicleDynamics:
-    def __init__(self, x, y, width, add_rotational_friction=True,
+    def __init__(self, x, y, width, height, angle, add_rotational_friction=True,
                  add_longitudinal_friction=True):
         # Here x is right, y is straight
         self.vehicle_model = self.get_vehicle_model(width)
         self.width = width
-        self.yaw_rate = 0
+        self.height = height
+        self.angle = angle  # Angle in radians
+        self.angle_change = 0
         self.speed = 0
-        self.x = 0
-        self.y = 0
+        self.x = x
+        self.y = y
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
 
@@ -34,24 +36,39 @@ class VehicleDynamics:
         return L_a, L_b
 
     # TODO: Numba @njit this
-    def step(self, steer, accel, dt):
+    def step(self, steer, accel, brake, dt):
         steer = min(pi, steer)
         steer = max(-pi, steer)
 
-        state = [self.x, self.y, self.yaw_rate, self.speed]
+        state = [self.x, self.y, self.angle_change, self.speed]
 
-        self.x, self.y, self.yaw_rate, self.speed = \
+        change_x, change_y, self.angle_change, self.speed = \
             f_KinBkMdl(state, steer, accel, self.vehicle_model, dt)
 
+        tuned_fps = 1 / 60  # The FPS we tuned friction ratios at
+        friction_exponent = (dt / tuned_fps)
         if self.add_rotational_friction:
-            self.yaw_rate = self.yaw_rate * 0.95
+            self.angle_change = 0.95 ** friction_exponent * self.angle_change
         if self.add_longitudinal_friction:
-            self.speed = self.speed * 0.999
+            self.speed = 0.999 ** friction_exponent * self.speed
+        if brake:
+            self.speed = 0.97 ** friction_exponent * self.speed
+            # self.speed = 0.97 * self.speed
 
-        change_x = self.x - state[0]
-        change_y = self.y - state[1]
+        theta1 = self.angle
+        theta2 = theta1 + pi / 2
+        world_change_x = change_x * cos(theta2) + change_y * cos(theta1)
+        world_change_y = change_x * sin(theta2) + change_y * sin(theta1)
 
-        return change_x, change_y, self.yaw_rate, self.speed
+        self.x += world_change_x
+        self.y += world_change_y
+
+        # self.player_sprite.center_x += world_change_x
+        # self.player_sprite.center_y += world_change_y
+        # self.player_sprite.angle += degrees(self.yaw_rate)
+        self.angle += self.angle_change
+
+        return self.x, self.y, self.angle
 
 
 # TODO: Numba @njit this
@@ -64,10 +81,10 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
 
     # get states / inputs
-    x = state[0]         # straight
-    y = state[1]         # right
-    yaw_rate = state[2]  # yaw rate
-    speed = state[3]     # speed
+    x = state[0]             # straight
+    y = state[1]             # right
+    angle_change = state[2]  # angle change
+    speed = state[3]         # speed
 
     # extract parameters
     # Distance from center of gravity to front and rear axles
@@ -77,9 +94,9 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     slip_angle = np.arctan(L_a / (L_a + L_b) * np.tan(steer_angle))
 
     # compute next state
-    x_next = x + dt * (speed * np.cos(yaw_rate + slip_angle))
-    y_next = y + dt * (speed * np.sin(yaw_rate + slip_angle))
-    yaw_rate_next = yaw_rate + dt * speed / L_b * np.sin(slip_angle)
+    change_x = dt * (speed * np.cos(angle_change + slip_angle))
+    change_y = dt * (speed * np.sin(angle_change + slip_angle))
+    angle_change = angle_change + dt * speed / L_b * np.sin(slip_angle)
     speed_next = speed + dt * accel
 
-    return np.array([x_next, y_next, yaw_rate_next, speed_next])
+    return np.array([change_x, change_y, angle_change, speed_next])

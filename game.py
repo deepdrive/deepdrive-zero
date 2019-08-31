@@ -1,13 +1,15 @@
 import math
 import sys
 import time
-from math import pi, cos, sin
 
-import arcade
 from loguru import logger as log
 
+import arcade
 # Constants
 from bike_model import VehicleDynamics
+
+# TODO: Calculate rectangle points and confirm corners are at same location in
+#   arcade.
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 650
@@ -42,7 +44,7 @@ class Spud(arcade.Window):
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
         self.player_list = arcade.SpriteList()
-        self.player_sprite = arcade.Sprite("images/tesla.png",
+        self.player_sprite = arcade.Sprite("images/tesla-up.png",
                                            CHARACTER_SCALING)
         self.player_sprite.center_x = 64
         self.player_sprite.center_y = 120
@@ -52,6 +54,8 @@ class Spud(arcade.Window):
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
             width=self.player_sprite.width,
+            height=self.player_sprite.height,
+            angle=self.player_sprite.angle,
             add_rotational_friction=self.add_rotational_friction,
             add_longitudinal_friction=self.add_longitudinal_friction,
         )
@@ -95,8 +99,6 @@ class Spud(arcade.Window):
     # TODO: njit this
     def update(self, _delta_time):
         """ Movement and game logic """
-        # TODO: Move the angle to the bike model
-
         if self.update_time is None:
             # init
             self.update_time = time.time()
@@ -105,42 +107,23 @@ class Spud(arcade.Window):
         dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
-        log.debug(f'v:{self.vehicle_dynamics.speed}')
-        log.debug(f'a:{self.accel}')
-        log.debug(f'dt1:{dt}')
-        log.debug(f'dt2:{_delta_time}')
+        log.trace(f'v:{self.vehicle_dynamics.speed}')
+        log.trace(f'a:{self.accel}')
+        log.trace(f'dt1:{dt}')
+        log.trace(f'dt2:{_delta_time}')
 
-        if self.brake:
-            self.vehicle_dynamics.speed = 0.97 * self.vehicle_dynamics.speed
-            # self.accel = -min(
-            #     2 * self.bike_model.velocity * METERS_PER_FRAME_SPEED,
-            #     math.inf * MAX_BRAKE_G * G_ACCEL * ROUGH_PIXELS_PER_METER)
+        x, y, angle = self.vehicle_dynamics.step(self.steer,
+                                                 self.accel, self.brake, dt)
 
-        # Swap x and y to rotate back into the arcade window's frame where
-        # x is right and y is straight
-        change_y, change_x, yaw_rate, velocity = \
-            self.vehicle_dynamics.step(self.steer, self.accel, dt)
+        self.player_sprite.center_x = x
+        self.player_sprite.center_y = y
+        self.player_sprite.angle = math.degrees(angle)
 
-        log.debug(f'change_x:{change_x}')
-        log.debug(f'change_y:{change_y}')
-        log.debug(f'yaw_rate:{yaw_rate}')
-
-        # self.player_sprite.center_x += self.bike_model.velocity
-
-        theta1 = self.player_sprite.radians
-        theta2 = theta1 - pi / 2
-        world_change_x = change_x * cos(theta2) + change_y * cos(theta1)
-        world_change_y = change_x * sin(theta2) + change_y * sin(theta1)
-        self.player_sprite.center_x += world_change_x
-        self.player_sprite.center_y += world_change_y
-        self.player_sprite.angle += math.degrees(yaw_rate)
+        log.trace(f'x:{x}')
+        log.trace(f'y:{y}')
+        log.trace(f'angle:{angle}')
 
         # TODO: Change rotation axis to rear axle (now at center)
-
-        # self.player_sprite.x = velocity * math.cos(
-        #     self.player_sprite.radians)
-        # self.player_sprite.change_y = velocity * math.sin(
-        #     self.player_sprite.radians)
         self.update_time = time.time()
 
 
