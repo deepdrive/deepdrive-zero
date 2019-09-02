@@ -7,13 +7,16 @@ G_ACCEL = 9.80665
 
 
 class VehicleDynamics:
-    def __init__(self, x, y, width, height, angle, add_rotational_friction=True,
+    def __init__(self, x, y, width, height, angle, map_box,
+                 add_rotational_friction=True,
                  add_longitudinal_friction=True):
-        # Here x is right, y is straight
+        # x is right, y is straight
         self.vehicle_model = self.get_vehicle_model(width)
         self.width = width
         self.height = height
         self.angle = angle  # Angle in radians
+        self.map_width = map_box[0]
+        self.map_height = map_box[1]
         self.angle_change = 0
         self.speed = 0
         self.x = x
