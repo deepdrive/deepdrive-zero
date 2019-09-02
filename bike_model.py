@@ -1,6 +1,9 @@
+import time
 from math import pi, cos, sin
 
 import numpy as np
+from loguru import logger as log
+from numba import njit
 
 MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
@@ -38,43 +41,62 @@ class VehicleDynamics:
         L_a = front_axle - cog
         return L_a, L_b
 
-    # TODO: Numba @njit this
     def step(self, steer, accel, brake, dt):
-        steer = min(pi, steer)
-        steer = max(-pi, steer)
-
-        state = [self.x, self.y, self.angle_change, self.speed]
-
-        change_x, change_y, self.angle_change, self.speed = \
-            f_KinBkMdl(state, steer, accel, self.vehicle_model, dt)
-
-        tuned_fps = 1 / 60  # The FPS we tuned friction ratios at
-        friction_exponent = (dt / tuned_fps)
-        if self.add_rotational_friction:
-            self.angle_change = 0.95 ** friction_exponent * self.angle_change
-        if self.add_longitudinal_friction:
-            self.speed = 0.999 ** friction_exponent * self.speed
-        if brake:
-            self.speed = 0.97 ** friction_exponent * self.speed
-            # self.speed = 0.97 * self.speed
-
-        theta1 = self.angle
-        theta2 = theta1 + pi / 2
-        world_change_x = change_x * cos(theta2) + change_y * cos(theta1)
-        world_change_y = change_x * sin(theta2) + change_y * sin(theta1)
-
-        self.x += world_change_x
-        self.y += world_change_y
-
-        # self.player_sprite.center_x += world_change_x
-        # self.player_sprite.center_y += world_change_y
-        # self.player_sprite.angle += degrees(self.yaw_rate)
-        self.angle += self.angle_change
-
+        # TODO: Car lists with collision detection
+        start = time.time()
+        self.x, self.y, self.angle, self.angle_change, self.speed = \
+            bike_with_friction_step(
+                steer=steer, accel=accel, brake=brake, dt=dt,
+                x=self.x, y=self.y, angle=self.angle,
+                angle_change=self.angle_change,
+                speed=self.speed,
+                add_rotational_friction=self.add_rotational_friction,
+                add_longitudinal_friction=self.add_longitudinal_friction,
+                vehicle_model=self.vehicle_model,
+            )
+        log.debug(f'time {time.time() - start}')
         return self.x, self.y, self.angle
 
 
-# TODO: Numba @njit this
+@njit(cache=True, nogil=True)
+def bike_with_friction_step(
+        steer, accel, brake, dt,
+        x, y, angle, angle_change, speed, add_rotational_friction,
+        add_longitudinal_friction, vehicle_model):
+    steer = min(pi, steer)
+    steer = max(-pi, steer)
+    state = [x, y, angle_change, speed]
+
+    change_x, change_y, angle_change, speed = \
+        f_KinBkMdl(state, steer, accel, vehicle_model, dt)
+
+    tuned_fps = 1 / 60  # The FPS we tuned friction ratios at
+    friction_exponent = (dt / tuned_fps)
+    if add_rotational_friction:
+        angle_change = 0.95 ** friction_exponent * angle_change
+    if add_longitudinal_friction:
+        speed = 0.999 ** friction_exponent * speed
+    if brake:
+        speed = 0.97 ** friction_exponent * speed
+        # self.speed = 0.97 * self.speed
+
+    theta1 = angle
+    theta2 = theta1 + pi / 2
+    world_change_x = change_x * cos(theta2) + change_y * cos(theta1)
+    world_change_y = change_x * sin(theta2) + change_y * sin(theta1)
+
+    x += world_change_x
+    y += world_change_y
+
+    # self.player_sprite.center_x += world_change_x
+    # self.player_sprite.center_y += world_change_y
+    # self.player_sprite.angle += degrees(self.yaw_rate)
+    angle += angle_change
+
+    return x, y, angle, angle_change, speed
+
+
+@njit(cache=True, nogil=True)
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
     process model
