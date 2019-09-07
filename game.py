@@ -53,6 +53,7 @@ class Spud(arcade.Window):
         self.update_time = None
         self.map = None
         self.angle = None
+        self.background = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -66,8 +67,7 @@ class Spud(arcade.Window):
                                screen_margin=SCREEN_MARGIN)
         self.map = list(zip(list(map_x), list(map_y)))
 
-        self.player_sprite.center_x = map_screen_x[0]
-        self.player_sprite.center_y = map_screen_y[0]
+        self.background = arcade.load_texture("images/map.png")
 
         self.player_sprite.center_x = map_x[0]
         self.player_sprite.center_y = map_y[0]
@@ -93,11 +93,18 @@ class Spud(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
-        # TODO: Create a background image as this takes 97% CPU time and reduces
-        #  FPS from 60 to 20 and sometimes ~1 FPS.
-        arcade.draw_lines(self.map, arcade.color.ORANGE, 3)
-        arcade.draw_point(self.heading_x, self.heading_y,
-                          arcade.color.WHITE, 10)
+        # Draw the background texture
+        bg_scale = 1.1
+        arcade.draw_texture_rectangle(
+            MAP_WIDTH // 2 + SCREEN_MARGIN,
+            MAP_HEIGHT // 2 + SCREEN_MARGIN,
+            MAP_WIDTH * bg_scale,
+            MAP_HEIGHT * bg_scale,
+            self.background)
+
+        # arcade.draw_lines(self.map, arcade.color.ORANGE, 3)
+        # arcade.draw_point(self.heading_x, self.heading_y,
+        #                   arcade.color.WHITE, 10)
         self.player_list.draw()
 
     def on_key_press(self, key, modifiers):
@@ -164,6 +171,10 @@ def main():
     )
     window.setup()
     arcade.run()
+
+
+def play():
+    texture = arcade.load_texture("images/tesla-up.png")
 
 
 if __name__ == "__main__":
