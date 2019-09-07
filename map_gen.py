@@ -71,6 +71,13 @@ def gen_map(should_plot=False, num_course_points=3, resolution=25,
 
         retx = xequi
         rety = yequi
+    # retx = (retx - retx.min()) / (retx.max() - retx.min())
+    # rety = (rety - rety.min()) / (rety.max() - rety.min())
+
+    if map_width is not None:
+        retx = retx * map_width + screen_margin
+        rety = rety * map_height + screen_margin
+
     return retx, rety
 
 
