@@ -1,3 +1,4 @@
+import math
 import time
 from math import pi, cos, sin
 
@@ -5,27 +6,55 @@ import numpy as np
 from loguru import logger as log
 from numba import njit
 
+from utils import angle_between
+
 MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
 
 
-class VehicleDynamics:
-    def __init__(self, x, y, width, height, angle, map_box,
+class Dynamics:
+    def __init__(self, x, y, width, height,
                  add_rotational_friction=True,
-                 add_longitudinal_friction=True):
+                 add_longitudinal_friction=True,
+                 angle=None,
+                 map=None):
         # x is right, y is straight
+
+        if angle and map:
+            raise RuntimeError('Cannot specify both angle and map')
+
         self.vehicle_model = self.get_vehicle_model(width)
         self.width = width
         self.height = height
         self.angle = angle  # Angle in radians
-        self.map_width = map_box[0]
-        self.map_height = map_box[1]
         self.angle_change = 0
         self.speed = 0
         self.x = x
         self.y = y
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
+        self.map = map
+
+        interp_dist_pixels = map.width / len(map.x)
+        angle_waypoint_meters = 1
+
+        # angle_waypoint_index = round(
+        #     (angle_waypoint_meters * ROUGH_PIXELS_PER_METER) /
+        #     interp_dist_pixels) + 1
+        angle_waypoint_index = 6
+        x1 = map.x[0]
+        y1 = map.y[0]
+        x2 = map.x[angle_waypoint_index]
+        y2 = map.y[angle_waypoint_index]
+        self.heading_x = x2
+        self.heading_y = y2
+        angle = -angle_between(np.array([0, 1]), np.array([x2-x1, y2-y1]))
+        if (map.height - y1) / map.height <= 0.5 and \
+                abs(angle) < (math.pi * 0.001):
+            # TODO: Reproduce problem where car is backwards along spline
+            #  and make sure this fixes it.
+            angle += math.pi  # On top so, face down
+        self.angle = angle
 
     @staticmethod
     def get_vehicle_model(width):
@@ -33,12 +62,12 @@ class VehicleDynamics:
         # https://www.fcausfleet.com/content/dam/fca-fleet/na/fleet/en_us/chrysler/2017/pacifica/vlp/docs/Pacifica_Specifications.pdf
         bias_towards_front = .05 * width
         # Center of gravity
-        cog = (width / 2) + bias_towards_front
+        center_of_gravity = (width / 2) + bias_towards_front
         # Approximate axles to be 1/8 (1/4 - 1/8) from ends of car
         rear_axle = width * 1 / 8
         front_axle = width - rear_axle
-        L_b = cog - rear_axle
-        L_a = front_axle - cog
+        L_b = center_of_gravity - rear_axle
+        L_a = front_axle - center_of_gravity
         return L_a, L_b
 
     def step(self, steer, accel, brake, dt):
@@ -54,7 +83,7 @@ class VehicleDynamics:
                 add_longitudinal_friction=self.add_longitudinal_friction,
                 vehicle_model=self.vehicle_model,
             )
-        log.debug(f'time {time.time() - start}')
+        log.trace(f'time {time.time() - start}')
         return self.x, self.y, self.angle
 
 

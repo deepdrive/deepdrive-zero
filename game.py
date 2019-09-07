@@ -2,16 +2,13 @@ import math
 import sys
 import time
 
-import numpy as np
+from box import Box
 from loguru import logger as log
 
 import arcade
-# Constants
-from bike_model import VehicleDynamics
-# TODO: Calculate rectangle points and confirm corners are at same location in
-#   arcade.
 from map_gen import gen_map
-from utils import angle_between
+# Constants
+from world_model import Dynamics
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 1000
@@ -44,7 +41,7 @@ class Spud(arcade.Window):
         self.player_list = None
         self.wall_list = None
         self.physics_engine = None
-        self.vehicle_dynamics: VehicleDynamics = None
+        self.dynamics: Dynamics = None
         self.steer = 0
         self.accel = 0
         self.brake = False
@@ -58,37 +55,27 @@ class Spud(arcade.Window):
         self.player_sprite = arcade.Sprite("images/tesla-up.png",
                                            CHARACTER_SCALING)
 
-        map_x, map_y = gen_map(should_plot=False)
-        map_screen_x = map_x * MAP_WIDTH + SCREEN_MARGIN
-        map_screen_y = map_y * MAP_HEIGHT + SCREEN_MARGIN
-        self.map = list(zip(list(map_screen_x), list(map_screen_y)))
+        map_x, map_y = gen_map(should_save=True,
+                               map_width=MAP_WIDTH,
+                               map_height=MAP_HEIGHT,
+                               screen_margin=SCREEN_MARGIN)
+        self.map = list(zip(list(map_x), list(map_y)))
 
         self.player_sprite.center_x = map_screen_x[0]
         self.player_sprite.center_y = map_screen_y[0]
 
-        interp_dist_pixels = MAP_WIDTH / len(map_screen_x)
-        angle_waypoint_meters = 1
+        self.player_sprite.center_x = map_x[0]
+        self.player_sprite.center_y = map_y[0]
 
-        # TODO: Fix this
-        angle_waypoint_index = round(
-            (angle_waypoint_meters * ROUGH_PIXELS_PER_METER) /
-            interp_dist_pixels) + 1
-        angle_waypoint_index = 6
-        x1 = map_screen_x[0]
-        y1 = map_screen_y[0]
-        x2 = map_screen_x[angle_waypoint_index]
-        y2 = map_screen_y[angle_waypoint_index]
-        self.heading_x = x2
-        self.heading_y = y2
-        angle = -angle_between(np.array([0, 1]), np.array([x2-x1, y2-y1]))
-
-        self.vehicle_dynamics = VehicleDynamics(
+        self.dynamics = Dynamics(
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
             width=self.player_sprite.width,
             height=self.player_sprite.height,
-            angle=angle,
-            map_box=(MAP_WIDTH, MAP_HEIGHT),
+            map=Box(x=map_x,
+                    y=map_y,
+                    width=MAP_WIDTH,
+                    height=MAP_HEIGHT),
             add_rotational_friction=self.add_rotational_friction,
             add_longitudinal_friction=self.add_longitudinal_friction,
         )
@@ -145,13 +132,13 @@ class Spud(arcade.Window):
         dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
-        log.trace(f'v:{self.vehicle_dynamics.speed}')
+        log.trace(f'v:{self.dynamics.speed}')
         log.trace(f'a:{self.accel}')
-        log.trace(f'dt1:{dt}')
+        log.debug(f'dt1:{dt}')
         log.trace(f'dt2:{_delta_time}')
 
-        x, y, angle = self.vehicle_dynamics.step(self.steer,
-                                                 self.accel, self.brake, dt)
+        x, y, angle = self.dynamics.step(self.steer,
+                                         self.accel, self.brake, dt)
 
         self.player_sprite.center_x = x
         self.player_sprite.center_y = y
