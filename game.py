@@ -27,6 +27,11 @@ ROUGH_PIXELS_PER_METER = VEHICLE_LENGTH / 4.694
 METERS_PER_FRAME_SPEED = PLAYER_MOVEMENT_SPEED * ROUGH_PIXELS_PER_METER
 
 
+# TODO: Calculate rectangle points and confirm corners are at same location in
+#   arcade.
+
+# TODO: Calculate lane deviation
+
 class Spud(arcade.Window):
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False):
