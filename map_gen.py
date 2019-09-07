@@ -5,13 +5,20 @@ GAP_M = 1
 
 
 # TODO: @njit
-def gen_map(should_plot=False, num_course_points=4, resolution=25,
-            make_equidistant=True) -> np.array:
+def gen_map(should_plot=False, num_course_points=3, resolution=25,
+            make_equidistant=True, should_save=True,
+            map_width=None,
+            map_height=None,
+            screen_margin=None) -> np.array:
     # TODO: Linear interp with 2 points for straight roads
     # TODO: Randomize spacing
     # TODO: Different interpolations
     # TODO: Randomize num course points
-    x = np.linspace(0, 1, num=num_course_points + 1,
+    min_x = 0
+    max_x = 1
+    min_y = 0.1
+    max_y = 0.9
+    x = np.linspace(min_x, max_x, num=num_course_points + 1,
                     endpoint=True)
     y = np.array(list(np.random.rand(num_course_points + 1)))
     linear_interp = interp1d(x, y)
@@ -19,16 +26,25 @@ def gen_map(should_plot=False, num_course_points=4, resolution=25,
     # TODO: Remove first interpolation if making equidistant
     cubic_interp = interp1d(x, y, kind='cubic')
 
-    xnew = np.linspace(0, 1, num=num_course_points * resolution, endpoint=True)
+    xnew = np.linspace(min_x, max_x,
+                       num=num_course_points * resolution, endpoint=True)
+
     ynew = cubic_interp(xnew)
 
+    # Normalize 0->1
+    ynew = (ynew - ynew.min()) / (ynew.max() - ynew.min())
+
     if not make_equidistant:
-        if should_plot:
+        if should_plot or should_save:
             import matplotlib.pyplot as plt
-            plt.plot(x, y, 'o', xnew, linear_interp(xnew), '-',
-                     xnew, ynew, '--')
-            plt.legend(['data', 'linear', 'cubic'], loc='best')
-            plt.show()
+            if should_plot:
+                plt.plot(x, y, 'o', xnew, linear_interp(xnew), '-',
+                         xnew, ynew, '--')
+                plt.legend(['data', 'linear', 'cubic'], loc='best')
+                plt.show()
+            elif should_save:
+                plt.plot(xnew, ynew, '--')
+                plt.savefig('images/map.png')
         retx = xnew
         rety = ynew
     else:
@@ -38,12 +54,20 @@ def gen_map(should_plot=False, num_course_points=4, resolution=25,
         xequi = equidistant[:, 0]
         yequi = equidistant[:, 1]
 
-        if should_plot:
+        if should_plot or should_save:
             import matplotlib.pyplot as plt
-            plt.plot(x, y, 'o', xequi, linear_interp(xequi), '-', xequi, yequi,
-                     '--')
-            plt.legend(['data', 'linear', 'cubic'], loc='best')
-            plt.show()
+
+            if should_plot:
+                plt.plot(x, y, 'o', xequi, linear_interp(xequi), '-', xequi,
+                         yequi,
+                         '--')
+                plt.legend(['data', 'linear', 'cubic'], loc='best')
+                plt.show()
+            elif should_save:
+                plt.plot(xnew, ynew, '--')
+                plt.axis('off')
+
+                plt.savefig('images/map.png', bbox_inches='tight', pad_inches=0)
 
         retx = xequi
         rety = yequi
@@ -74,4 +98,4 @@ def interpolate_equidistant(points: np.array,
 
 
 if __name__ == '__main__':
-    gen_map(should_plot=True)
+    gen_map(should_plot=True, make_equidistant=False)
