@@ -18,8 +18,6 @@ from map_gen import gen_map
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
 
-# TODO: Calculate lane deviation
-
 class Spud(arcade.Window):
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False):
@@ -154,9 +152,8 @@ class Spud(arcade.Window):
 
         obz = self.env.step(self.steer, self.accel, self.brake, dt)
 
-        self.player_sprite.center_x = x
-        self.player_sprite.center_y = y
-        self.player_sprite.angle = math.degrees(angle)
+        log.debug(f'Deviation: {obz.lane_deviation / self.rough_pixels_per_meter} '
+                  f'Closest point {obz.closest_map_point}')
 
         self.player_sprite.center_x = obz.x
         self.player_sprite.center_y = obz.y
