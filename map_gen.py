@@ -67,15 +67,17 @@ def gen_map(should_plot=False, num_course_points=3, resolution=25,
                 plt.legend(['data', 'linear', 'cubic'], loc='best')
                 plt.show()
             elif should_save:
-                plt.plot(xnew, ynew, '--')
+                plt.plot(xnew, ynew, '--', color='xkcd:orange', linewidth=1)
                 plt.axis('off')
-
-                plt.savefig('images/map.png', bbox_inches='tight', pad_inches=0)
+                start_save = time.time()
+                plt.savefig('images/map.png', bbox_inches='tight', pad_inches=0,
+                            facecolor='xkcd:cornflower blue',
+                            edgecolor='xkcd:cornflower blue',
+                            dpi=200)
+                log.debug(f'Save image time {time.time() - start_save}')
 
         retx = xequi
         rety = yequi
-    # retx = (retx - retx.min()) / (retx.max() - retx.min())
-    # rety = (rety - rety.min()) / (rety.max() - rety.min())
 
     if map_width is not None:
         retx = retx * map_width + screen_margin
