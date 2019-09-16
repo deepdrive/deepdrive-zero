@@ -6,25 +6,13 @@ from box import Box
 from loguru import logger as log
 
 import arcade
-from map_gen import gen_map
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, MAP_WIDTH, \
+    MAP_HEIGHT, PLAYER_TURN_RADIANS_PER_KEYSTROKE, SCREEN_TITLE, \
+    CHARACTER_SCALING, PLAYER_MOVEMENT_SPEED, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
+    USE_VOYAGE, VEHICLE_PNG
 # Constants
-from world_model import Dynamics
-
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 1000
-SCREEN_MARGIN = 50
-MAP_WIDTH = SCREEN_WIDTH - SCREEN_MARGIN * 2
-MAP_HEIGHT = SCREEN_HEIGHT - SCREEN_MARGIN * 2
-SCREEN_TITLE = 'spud'  # self-play unreal driving?
-
-# TODO: Move these into instance properties
-CHARACTER_SCALING = 1/4
-PLAYER_MOVEMENT_SPEED = 5  # pixels per frame Pacifica Hybrid
-# PLAYER_MOVEMENT_SPEED = 10  # pixels per frame Model 3
-VEHICLE_LENGTH = 320
-VEHICLE_WIDTH = 217
-ROUGH_PIXELS_PER_METER = VEHICLE_LENGTH / 4.694
-METERS_PER_FRAME_SPEED = PLAYER_MOVEMENT_SPEED * ROUGH_PIXELS_PER_METER
+from env import Environment
+from map_gen import gen_map
 
 
 # TODO: Calculate rectangle points and confirm corners are at same location in
@@ -58,7 +46,7 @@ class Spud(arcade.Window):
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
         self.player_list = arcade.SpriteList()
-        self.player_sprite = arcade.Sprite("images/tesla-up.png",
+        self.player_sprite = arcade.Sprite(VEHICLE_PNG,
                                            CHARACTER_SCALING)
 
         map_x, map_y = gen_map(should_save=True,
@@ -102,6 +90,8 @@ class Spud(arcade.Window):
             MAP_HEIGHT * bg_scale,
             self.background)
 
+        # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
+        #                  arcade.color.WHITE)
         # arcade.draw_lines(self.map, arcade.color.ORANGE, 3)
         # arcade.draw_point(self.heading_x, self.heading_y,
         #                   arcade.color.WHITE, 10)
