@@ -42,6 +42,8 @@ class Spud(arcade.Window):
         self.map = None
         self.angle = None
         self.background = None
+        self.meters_per_frame_speed = None
+        self.rough_pixels_per_meter = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -60,7 +62,17 @@ class Spud(arcade.Window):
         self.player_sprite.center_x = map_x[0]
         self.player_sprite.center_y = map_y[0]
 
-        self.dynamics = Dynamics(
+        vehicle_length = self.player_sprite.height
+        vehicle_width = self.player_sprite.width
+        if USE_VOYAGE:
+            vehicle_length_meters = VOYAGE_VAN_LENGTH
+        else:
+            vehicle_length_meters = TESLA_LENGTH
+        self.rough_pixels_per_meter = vehicle_length / TESLA_LENGTH
+        self.meters_per_frame_speed = \
+            PLAYER_MOVEMENT_SPEED * self.rough_pixels_per_meter
+
+        self.env = Environment(
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
             vehicle_width=self.player_sprite.width,
@@ -101,15 +113,15 @@ class Spud(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = METERS_PER_FRAME_SPEED
+            self.accel = self.meters_per_frame_speed
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -METERS_PER_FRAME_SPEED
+            self.accel = -self.meters_per_frame_speed
         elif key == arcade.key.SPACE:
             self.brake = True
         elif key == arcade.key.LEFT or key == arcade.key.A:
-            self.steer = math.pi / 16
+            self.steer = math.pi * PLAYER_TURN_RADIANS_PER_KEYSTROKE
         elif key == arcade.key.RIGHT or key == arcade.key.D:
-            self.steer = -math.pi / 16
+            self.steer = -math.pi * PLAYER_TURN_RADIANS_PER_KEYSTROKE
 
     def on_key_release(self, key, modifiers):
         """Called when the user releases a key. """
