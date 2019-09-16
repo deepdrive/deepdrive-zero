@@ -34,7 +34,7 @@ class Spud(arcade.Window):
         self.player_list = None
         self.wall_list = None
         self.physics_engine = None
-        self.dynamics: Dynamics = None
+        self.env: Environment = None
         self.steer = 0
         self.accel = 0
         self.brake = False
@@ -63,10 +63,11 @@ class Spud(arcade.Window):
         self.dynamics = Dynamics(
             x=self.player_sprite.center_x,
             y=self.player_sprite.center_y,
-            width=self.player_sprite.width,
-            height=self.player_sprite.height,
+            vehicle_width=self.player_sprite.width,
+            vehicle_height=self.player_sprite.height,
             map=Box(x=map_x,
                     y=map_y,
+                    arr=self.map,
                     width=MAP_WIDTH,
                     height=MAP_HEIGHT),
             add_rotational_friction=self.add_rotational_friction,
@@ -134,20 +135,23 @@ class Spud(arcade.Window):
         dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
-        log.trace(f'v:{self.dynamics.speed}')
+        log.trace(f'v:{self.env.speed}')
         log.trace(f'a:{self.accel}')
-        log.debug(f'dt1:{dt}')
+        log.trace(f'dt1:{dt}')
         log.trace(f'dt2:{_delta_time}')
 
-        x, y, angle = self.dynamics.step(self.steer,
-                                         self.accel, self.brake, dt)
+        obz = self.env.step(self.steer, self.accel, self.brake, dt)
 
         self.player_sprite.center_x = x
         self.player_sprite.center_y = y
         self.player_sprite.angle = math.degrees(angle)
 
-        log.trace(f'x:{x}')
-        log.trace(f'y:{y}')
+        self.player_sprite.center_x = obz.x
+        self.player_sprite.center_y = obz.y
+        self.player_sprite.angle = math.degrees(obz.angle)
+
+        log.trace(f'x:{obz.x}')
+        log.trace(f'y:{obz.y}')
         log.trace(f'angle:{self.player_sprite.angle}')
 
         # TODO: Change rotation axis to rear axle (now at center)
