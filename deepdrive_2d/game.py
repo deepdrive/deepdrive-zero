@@ -1,4 +1,5 @@
 import math
+import os
 import sys
 import time
 
@@ -6,13 +7,13 @@ from box import Box
 from loguru import logger as log
 
 import arcade
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, MAP_WIDTH, \
-    MAP_HEIGHT, PLAYER_TURN_RADIANS_PER_KEYSTROKE, SCREEN_TITLE, \
-    CHARACTER_SCALING, PLAYER_MOVEMENT_SPEED, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
+from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
+    MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, SCREEN_TITLE, \
+    CHARACTER_SCALING, PIXELS_PER_FRAME_SPEED, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
     USE_VOYAGE, VEHICLE_PNG
 # Constants
-from env import Environment
-from map_gen import gen_map
+from deepdrive_2d.envs.env import Deepdrive2DEnv
+from deepdrive_2d.map_gen import gen_map
 
 
 # TODO: Calculate rectangle points and confirm corners are at same location in
@@ -32,16 +33,15 @@ class Spud(arcade.Window):
         self.player_list = None
         self.wall_list = None
         self.physics_engine = None
-        self.env: Environment = None
+        self.env: Deepdrive2DEnv = None
         self.steer = 0
         self.accel = 0
         self.brake = False
-        self.update_time = None
         self.map = None
         self.angle = None
         self.background = None
         self.meters_per_frame_speed = None
-        self.rough_pixels_per_meter = None
+        self.px_per_m = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -49,40 +49,31 @@ class Spud(arcade.Window):
         self.player_sprite = arcade.Sprite(VEHICLE_PNG,
                                            CHARACTER_SCALING)
 
-        map_x, map_y = gen_map(should_save=True,
-                               map_width=MAP_WIDTH,
-                               map_height=MAP_HEIGHT,
-                               screen_margin=SCREEN_MARGIN)
-        self.map = list(zip(list(map_x), list(map_y)))
-
-        self.background = arcade.load_texture("images/map.png")
-
-        self.player_sprite.center_x = map_x[0]
-        self.player_sprite.center_y = map_y[0]
-
-        vehicle_length = self.player_sprite.height
-        vehicle_width = self.player_sprite.width
+        vehicle_length_pixels = self.player_sprite.height
+        vehicle_width_pixels = self.player_sprite.width
         if USE_VOYAGE:
             vehicle_length_meters = VOYAGE_VAN_LENGTH
         else:
             vehicle_length_meters = TESLA_LENGTH
-        self.rough_pixels_per_meter = vehicle_length / TESLA_LENGTH
-        self.meters_per_frame_speed = \
-            PLAYER_MOVEMENT_SPEED * self.rough_pixels_per_meter
+        self.px_per_m = vehicle_length_pixels / vehicle_length_meters
+        self.meters_per_frame_speed = PIXELS_PER_FRAME_SPEED / self.px_per_m
 
-        self.env = Environment(
-            x=self.player_sprite.center_x,
-            y=self.player_sprite.center_y,
-            vehicle_width=self.player_sprite.width,
-            vehicle_height=self.player_sprite.height,
-            map=Box(x=map_x,
-                    y=map_y,
-                    arr=self.map,
-                    width=MAP_WIDTH,
-                    height=MAP_HEIGHT),
+        width_pixels = self.player_sprite.width
+        height_pixels = self.player_sprite.height
+
+        self.env = Deepdrive2DEnv(
+            vehicle_width=width_pixels / self.px_per_m,
+            vehicle_height=height_pixels / self.px_per_m,
+            px_per_m=self.px_per_m,
             add_rotational_friction=self.add_rotational_friction,
             add_longitudinal_friction=self.add_longitudinal_friction,
-        )
+            return_observation_as_array=False)
+
+        self.background = arcade.load_texture("images/map.png")
+
+        self.player_sprite.center_x = self.env.map.x_pixels[0]
+        self.player_sprite.center_y = self.env.map.y_pixels[0]
+
         self.player_list.append(self.player_sprite)
         self.wall_list = arcade.SpriteList()
 
@@ -95,10 +86,10 @@ class Spud(arcade.Window):
         # Draw the background texture
         bg_scale = 1.1
         arcade.draw_texture_rectangle(
-            MAP_WIDTH // 2 + SCREEN_MARGIN,
-            MAP_HEIGHT // 2 + SCREEN_MARGIN,
-            MAP_WIDTH * bg_scale,
-            MAP_HEIGHT * bg_scale,
+            MAP_WIDTH_PX // 2 + SCREEN_MARGIN,
+            MAP_HEIGHT_PX // 2 + SCREEN_MARGIN,
+            MAP_WIDTH_PX * bg_scale,
+            MAP_HEIGHT_PX * bg_scale,
             self.background)
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
@@ -137,34 +128,28 @@ class Spud(arcade.Window):
 
     def update(self, _delta_time):
         """ Movement and game logic """
-        if self.update_time is None:
-            # init
-            self.update_time = time.time()
-            return
-
-        dt = time.time() - self.update_time
 
         # self.bike_model.velocity += self.accel
         log.trace(f'v:{self.env.speed}')
         log.trace(f'a:{self.accel}')
-        log.trace(f'dt1:{dt}')
         log.trace(f'dt2:{_delta_time}')
 
-        obz = self.env.step(self.steer, self.accel, self.brake, dt)
+        obz, reward, done, info = self.env.step(
+            [self.steer, self.accel, self.brake])
 
-        log.debug(f'Deviation: {obz.lane_deviation / self.rough_pixels_per_meter} '
-                  f'Closest point {obz.closest_map_point}')
+        if obz:
+            # log.debug(f'Deviation: '
+            #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
 
-        self.player_sprite.center_x = obz.x
-        self.player_sprite.center_y = obz.y
-        self.player_sprite.angle = math.degrees(obz.angle)
+            self.player_sprite.center_x = obz.x * self.px_per_m
+            self.player_sprite.center_y = obz.y * self.px_per_m
+            self.player_sprite.angle = math.degrees(obz.angle)
 
-        log.trace(f'x:{obz.x}')
-        log.trace(f'y:{obz.y}')
-        log.trace(f'angle:{self.player_sprite.angle}')
+            log.trace(f'x:{obz.x}')
+            log.trace(f'y:{obz.y}')
+            log.trace(f'angle:{self.player_sprite.angle}')
 
-        # TODO: Change rotation axis to rear axle (now at center)
-        self.update_time = time.time()
+            # TODO: Change rotation axis to rear axle (now at center)
 
 
 def main():
@@ -173,6 +158,10 @@ def main():
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
     )
     window.setup()
+    if 'DISABLE_GC' in os.environ:
+        import gc
+        log.warning('Disabling garbage collection!')
+        gc.disable()
     arcade.run()
 
 
