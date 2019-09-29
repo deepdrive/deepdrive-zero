@@ -1,3 +1,4 @@
+import os
 import time
 
 import numpy as np
@@ -5,6 +6,7 @@ from loguru import logger as log
 from scipy.interpolate import interp1d
 
 GAP_M = 1
+DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 # TODO: @njit
@@ -54,7 +56,8 @@ def gen_map(should_plot=False, num_course_points=3, resolution=25,
             plt.axis('off')
             start_save = time.time()
             # TODO: Specify height and width
-            plt.savefig('images/map.png', bbox_inches='tight', pad_inches=0,
+            plt.savefig(f'{DIR}/images/map.png', bbox_inches='tight',
+                        pad_inches=0,
                         facecolor='xkcd:cornflower blue',
                         edgecolor='xkcd:cornflower blue',
                         dpi=200)
