@@ -9,7 +9,7 @@ from loguru import logger as log
 import arcade
 from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
     MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, SCREEN_TITLE, \
-    CHARACTER_SCALING, PIXELS_PER_FRAME_SPEED, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
+    CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
     USE_VOYAGE, VEHICLE_PNG
 # Constants
 from deepdrive_2d.envs.env import Deepdrive2DEnv
@@ -40,7 +40,7 @@ class Spud(arcade.Window):
         self.map = None
         self.angle = None
         self.background = None
-        self.meters_per_frame_speed = None
+        self.max_accel = None
         self.px_per_m = None
 
     def setup(self):
@@ -67,7 +67,12 @@ class Spud(arcade.Window):
             px_per_m=self.px_per_m,
             add_rotational_friction=self.add_rotational_friction,
             add_longitudinal_friction=self.add_longitudinal_friction,
-            return_observation_as_array=False)
+            return_observation_as_array=False,
+            ignore_brake=False,
+            expect_normalized_actions=False,
+            decouple_step_time=False,
+        )
+        self.env.reset()
 
         self.background = arcade.load_texture("images/map.png")
 
@@ -156,7 +161,7 @@ class Spud(arcade.Window):
 
 
 def main():
-    window = Spud(
+    window = Deepdrive2DPlayer(
         add_rotational_friction='--rotational-friction' in sys.argv,
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
     )
