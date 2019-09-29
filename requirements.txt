@@ -5,3 +5,4 @@ loguru
 python-box
 numba
 matplotlib
+gym
