@@ -143,13 +143,16 @@ class Spud(arcade.Window):
 
             self.player_sprite.center_x = obz.x * self.px_per_m
             self.player_sprite.center_y = obz.y * self.px_per_m
+
+            # TODO: Change rotation axis to rear axle (now at center)
             self.player_sprite.angle = math.degrees(obz.angle)
 
             log.trace(f'x:{obz.x}')
             log.trace(f'y:{obz.y}')
             log.trace(f'angle:{self.player_sprite.angle}')
 
-            # TODO: Change rotation axis to rear axle (now at center)
+        if done:
+            self.close()
 
 
 def main():
