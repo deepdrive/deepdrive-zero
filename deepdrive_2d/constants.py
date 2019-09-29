@@ -1,3 +1,5 @@
+from box import Box
+
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 1000
 SCREEN_MARGIN = 50
@@ -7,13 +9,21 @@ PLAYER_TURN_RADIANS_PER_KEYSTROKE = 1 / 64
 SCREEN_TITLE = 'spud'  # self-play unreal driving?
 CHARACTER_SCALING = 1/4
 USE_VOYAGE = True
+PX_PER_M = 19.559472386854488
 
 if USE_VOYAGE:
-    PIXELS_PER_FRAME_SPEED = 200  # pixels per frame Pacifica Hybrid
+    # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
+    # Pacifica Hybrid Max accel m/s^2 = 3.625
+    MAX_METERS_PER_SEC_SQ = 3.625
+    VEHICLE_WIDTH = 2.300675555555556
+    VEHICLE_HEIGHT = 5.17652
     VEHICLE_PNG = "images/voyage-van-up.png"
 else:
-    PIXELS_PER_FRAME_SPEED = 400  # pixels per frame Model 3
+    MAX_METERS_PER_SEC_SQ = 4.79
     VEHICLE_PNG = "images/tesla-up.png"
+    # TODO: Run player to determine width and height
+
+MAX_PIXELS_PER_SEC_SQ = MAX_METERS_PER_SEC_SQ * PX_PER_M
 TESLA_LENGTH = 4.694
 VOYAGE_VAN_LENGTH = 5.17652
 

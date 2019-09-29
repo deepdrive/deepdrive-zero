@@ -19,7 +19,9 @@ from deepdrive_2d.map_gen import gen_map
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
 
-class Spud(arcade.Window):
+
+# noinspection PyAbstractClass
+class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False):
 
@@ -56,7 +58,7 @@ class Spud(arcade.Window):
         else:
             vehicle_length_meters = TESLA_LENGTH
         self.px_per_m = vehicle_length_pixels / vehicle_length_meters
-        self.meters_per_frame_speed = PIXELS_PER_FRAME_SPEED / self.px_per_m
+        self.max_accel = MAX_PIXELS_PER_SEC_SQ / self.px_per_m
 
         width_pixels = self.player_sprite.width
         height_pixels = self.player_sprite.height
@@ -107,9 +109,9 @@ class Spud(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = self.meters_per_frame_speed
+            self.accel = self.max_accel
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -self.meters_per_frame_speed
+            self.accel = -self.max_accel
         elif key == arcade.key.SPACE:
             self.brake = True
         elif key == arcade.key.LEFT or key == arcade.key.A:
