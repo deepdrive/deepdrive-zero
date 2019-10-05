@@ -7,10 +7,4 @@ Something is very wrong with the critic losses, varying between 10k and 166M on 
 Add sign to lane deviation to signal right left. Angle ahead prob accounts for this.
 
 
-Record the distance travelled along route / last map point.
-
-Make map straight.
-
-Make the speed constant.
-
 Allow replaying episode x,y's in arcade

@@ -342,7 +342,7 @@ class Deepdrive2DEnv(gym.Env):
     def get_reward(self, lane_deviation) -> float:
         if '--distance-only-reward' in sys.argv:
             if self.episode_distance > self.prev_episode_distance:
-                reward = self.speed
+                reward = 1
             else:
                 reward = 0
         elif lane_deviation < 1 and self.speed > 2:  # ~5mph
