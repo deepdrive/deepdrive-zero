@@ -61,3 +61,16 @@ to allow running the sim quickly without rendering. We use Numba to speed
 up physics calculations which allows iterating in Python (with the option
 to do ahead of time compilation on predefined numeric types) while maintaining
 the performance of a compiled binary. 
+
+## EXPERIMENTAL NOTEBOOK
+* Spinning up SAC was not able to accurately match (80%) even a single input, whereas pytorch SAC is able to get 99.68% at 10k steps and 99.14% at 240 steps, fluctuating in between.
+
+* Spinning up SAC does much better at matching input when entropy (alpha) is zero, going from 65% to 80%.
+Pytorch SAC does best when auto entropy tuning is on (which spinning up does not have) - you really don’t want any entropy in the loss when matching a single input as no generalization is required. However, I think entropy tuning *may* help counter the stochasticity of the policy in some weird way, as it is learned jointly with the mean and variance of the policy - and could be working together to achieve optimality.
+* Matching a corrective action (essentially reversing and scaling the input) converges more slowly to 98.25% at 1840 steps (vs 240 steps for matching to get to 99.14%) than just matching the input, achieving 98.96% at 10k steps
+Passing in the previous action in stable tracking helps achieve 1% higher performance from 97% to 98% and (I believe) much more quickly
+* dd2d.a Something is very wrong with the critic losses, varying between 10k and 166M on critic 1 and between 100k and 2.35B on critic 2.  This coincided with a rise in the entropy temperature to 40 from zero and brought back down when the entropy temp came down to around 2.k. So the critics are just giving poor value approximations to the policy which thinks it's doing amazing - and the critics are somehow being negatively affected by the entropy tuning despite entropy tuning leading to better results in the gym-match-continuous envs. It may just be that there is nothing to learn, like feeding noise for targets and so the thing is flailing around looking for something that works. So we should try two things
+* dd2d.b Giving a speed only reward when above 2m/s and within lane deviation of 1, results in well behaved critic and policy losses. We diverge towards the end of training, but mostly due to reduced variance and get 562/~900 total possible reward. However, not much distances is accrued as the agent learns that turning fast gives it more immediate speed reward and therefore drives off the track every episode.
+* dd2d.c Making the reward dependent on distance advancing along route and equal to speed vs gating it with lane_deviation and speed is working *much* better on a static map. Not quite sure why this is, perhaps because I didn’t require a minimum speed like before. However, this diverged when the agent started to prefer high speed rewards again over staying on the track for longer.
+* dd2d.d In the next experiment, I tried the same distance advance gating, but with zero or one reward. This learned more slowly, but did not diverge. It seems like we should try giving continuous reward that is confined by giving a max of 1 at the max desired speed. I tried this before and it did terribly, but it was gated by lane deviation and minimum speed. However, giving rewards of just 0 or 1, or -1 seems to be a thing in Rl.
+
