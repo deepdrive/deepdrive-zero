@@ -38,9 +38,12 @@ def get_angles_ahead(angle, closest_map_index, map_points,
     min_first_point_dist = 2
     first_index = closest_map_index + points_per_meter * min_first_point_dist
     first_index = int(round(first_index))
+    first_index = min(first_index, len(map_points) - 1)
     last_index = closest_map_index + points_per_index * num_indices
+    last_index = min(last_index, len(map_points))
     points = map_points[int(first_index):last_index:points_per_index]
     points = list(points)
+
 
     while len(points) < num_indices:
         # Append last point where we're at the end
@@ -49,7 +52,6 @@ def get_angles_ahead(angle, closest_map_index, map_points,
     cp = map_points[closest_map_index]
     angles = [get_heading(cp, p) for p in points]
     angles = angle - np.array(angles)
-    log.debug(angles)
     return angles
 
 
