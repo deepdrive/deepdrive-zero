@@ -340,7 +340,6 @@ class Deepdrive2DEnv(gym.Env):
             dt = self.target_dt
         else:
             dt = time.time() - self.last_step_time
-        self.total_episode_time += dt
         return dt
 
     def get_done(self, closest_map_point,
@@ -414,6 +413,7 @@ class Deepdrive2DEnv(gym.Env):
                 )
 
         obs_step_time = dt * self.physics_steps_per_observation
+        self.total_episode_time += obs_step_time
         pos_change = np.array([self.x - prev_x, self.y - prev_y])
         prev_velocity = self.velocity
         self.velocity = pos_change / obs_step_time
