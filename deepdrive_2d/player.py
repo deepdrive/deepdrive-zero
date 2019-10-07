@@ -109,9 +109,9 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = self.max_accel
+            self.accel = 9.807 / 10
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -self.max_accel
+            self.accel = -9.807 / 10
         elif key == arcade.key.SPACE:
             self.brake = True
         elif key == arcade.key.LEFT or key == arcade.key.A:

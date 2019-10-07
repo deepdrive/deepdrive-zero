@@ -4,6 +4,7 @@ import sys
 import time
 from collections import deque
 from math import pi, cos, sin
+from typing import Tuple
 
 import gym
 import numpy as np
@@ -58,7 +59,8 @@ class Deepdrive2DEnv(gym.Env):
         # For faster / slower than real-time stepping
         self.decouple_step_time = decouple_step_time
 
-        self.step_num: int = 0
+        self.episode_steps: int = 0
+        self.total_steps: int = 0
         self.last_step_time = None
         self._max_episode_steps = 10 ** 3
         self.num_actions = 3  # Steer, throttle, brake
@@ -69,9 +71,14 @@ class Deepdrive2DEnv(gym.Env):
         self.map_query_seconds_ahead = np.array([0.5, 1, 1.5, 2, 2.5, 3])
         self.target_dt = 1 / 60  # Allows replaying in player at same rate
         self.total_episode_time = 0
-        self.episode_distance = 0
-        self.prev_episode_distance = 0
-
+        self.distance = 0
+        self.prev_distance = 0
+        self.furthest_distance = 0
+        self.velocity = [0, 0]
+        self.angular_velocity = 0
+        self.physics_steps_per_observation = 1
+        self.acceleration = [0, 0]
+        self.gforce = 0
 
         self.map = None
         self.x = None
@@ -137,7 +144,7 @@ class Deepdrive2DEnv(gym.Env):
                 y=self.y,
                 angle=self.angle,
                 speed=self.speed,
-                distance=self.episode_distance,
+                distance=self.distance,
                 angle_change=self.angle_change,
                 closest_map_point_x=closest_map_point[0],
                 closest_map_point_y=closest_map_point[1],
@@ -145,7 +152,7 @@ class Deepdrive2DEnv(gym.Env):
                 vehicle_width=self.vehicle_width,
                 vehicle_height=self.vehicle_height,
                 cog_to_front_axle=self.vehicle_model[0],
-                cog_to_rear_axle=self.vehicle_model[1],)
+                cog_to_rear_axle=self.vehicle_model[1], )
         if self.return_observation_as_array:
             observation = np.array(observation.values())
             observation = np.concatenate((observation, angles_ahead), axis=None)
@@ -169,8 +176,7 @@ class Deepdrive2DEnv(gym.Env):
         return observation
 
     def reset(self):
-
-        self.step_num = 0
+        self.episode_steps = 0
         self.angle = self.start_angle
         self.angle_change = 0
         self.x = self.start_x
@@ -179,8 +185,13 @@ class Deepdrive2DEnv(gym.Env):
         self.speed = 0
         self.episode_reward = 0
         self.total_episode_time = 0
-        self.episode_distance = 0
-        self.prev_episode_distance = 0
+        self.distance = 0
+        self.prev_distance = 0
+        self.furthest_distance = 0
+        self.velocity = [0, 0]
+        self.angular_velocity = 0
+        self.acceleration = [0, 0]
+        self.gforce = 0
 
         # TODO: Regen map every so often
         if self.map is None:
@@ -282,6 +293,8 @@ class Deepdrive2DEnv(gym.Env):
         info.tfx.accel = accel
         info.tfx.brake = brake
         info.tfx.speed = self.speed
+        info.tfx.episode_time = self.total_episode_time
+
 
         if self.last_step_time is None:
             # init
@@ -294,8 +307,8 @@ class Deepdrive2DEnv(gym.Env):
             # TODO: Car lists with collision detection
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
-            reward = self.get_reward(lane_deviation)
-            done = self.get_done(closest_map_point, lane_deviation, info)
+            done, won, lost = self.get_done(closest_map_point, lane_deviation)
+            reward = self.get_reward(lane_deviation, lost)
             info.tfx.lane_deviation = lane_deviation
 
 
@@ -303,7 +316,15 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_reward += reward
 
         self.prev_action = action
-        self.step_num += 1
+        self.episode_steps += 1
+
+        if done:
+            log.debug(f'Episode score {self.episode_reward}, '
+                      f'Steps: {self.episode_steps}, '
+                      f'Distance {self.distance}, '
+                      f'Angular velocity {self.angular_velocity}, '
+                      f'Speed: {self.speed}, ')
+
         return observation, reward, done, info.to_dict()
 
     def normalize_actions(self, accel, steer):
@@ -322,29 +343,32 @@ class Deepdrive2DEnv(gym.Env):
         self.total_episode_time += dt
         return dt
 
-    def get_done(self, closest_map_point, lane_deviation, info) -> bool:
+    def get_done(self, closest_map_point,
+                 lane_deviation) -> Tuple[bool, bool, bool]:
         done = False
-
+        won = False
+        lost = False
         if lane_deviation > 1.1:
             # You lose!
-            log.debug(f'Drifted out of lane, game over. '
-                      f'Steps: {self.step_num} '
-                      f'Score: {self.episode_reward} '
-                      f'Distance {self.episode_distance}')
+            log.trace(f'Drifted out of lane, game over.')
             done = True
-        if list(self.map.arr[-1]) == list(closest_map_point):
+            lost = True
+        elif list(self.map.arr[-1]) == list(closest_map_point):
             # You win!
             log.success(f'Reached destination! '
-                        f'Steps: {self.step_num} Score: {self.episode_reward}')
+                        f'Steps: {self.episode_steps}')
             done = True
-        return done
+            won = True
+        return done, won, lost
 
-    def get_reward(self, lane_deviation) -> float:
+    def get_reward(self, lane_deviation: float, lost: bool) -> float:
         if '--distance-only-reward' in sys.argv:
-            if self.episode_distance > self.prev_episode_distance:
+            if self.distance > self.furthest_distance:
                 reward = 1
             else:
                 reward = 0
+            self.furthest_distance = max(self.furthest_distance,
+                                         self.distance)
         elif lane_deviation < 1 and self.speed > 2:  # ~5mph
             # TODO: Double check these are meters
             if '--speed-only-reward' in sys.argv:
@@ -355,28 +379,51 @@ class Deepdrive2DEnv(gym.Env):
                 reward = (self.speed - min_desired_speed) / (
                         max_desired_speed - min_desired_speed)
                 reward = min(reward, 1)
-                log.debug(f'Reward: {reward}')
+                log.trace(f'Reward: {reward}')
             else:
                 reward = 1
         else:
             # Avoid negative rewards due to
             # http://bit.ly/mistake_importance_scaling
             reward = 0
+
+        if '--penalize-loss' in sys.argv and lost:
+            reward = -1
+
         return reward
 
     def get_observation(self, steer, accel, brake, dt, info):
         if self.ignore_brake:
             brake = False
-        self.x, self.y, self.angle, self.angle_change, self.speed = \
-            bike_with_friction_step(
-                steer=steer, accel=accel, brake=brake, dt=dt,
-                x=self.x, y=self.y, angle=self.angle,
-                angle_change=self.angle_change,
-                speed=self.speed,
-                add_rotational_friction=self.add_rotational_friction,
-                add_longitudinal_friction=self.add_longitudinal_friction,
-                vehicle_model=self.vehicle_model,
-            )
+        if self.speed > 100:
+            accel = 0
+
+        prev_x, prev_y, prev_angle, prev_angle_change = \
+            self.x, self.y, self.angle, self.angle_change
+
+        for _ in range(self.physics_steps_per_observation):
+            self.x, self.y, self.angle, self.angle_change, self.speed = \
+                bike_with_friction_step(
+                    steer=steer, accel=accel, brake=brake, dt=dt,
+                    x=self.x, y=self.y, angle=self.angle,
+                    angle_change=self.angle_change,
+                    speed=self.speed,
+                    add_rotational_friction=self.add_rotational_friction,
+                    add_longitudinal_friction=self.add_longitudinal_friction,
+                    vehicle_model=self.vehicle_model,
+                )
+
+        obs_step_time = dt * self.physics_steps_per_observation
+        pos_change = np.array([self.x - prev_x, self.y - prev_y])
+        prev_velocity = self.velocity
+        self.velocity = pos_change / obs_step_time
+        self.acceleration = (self.velocity - prev_velocity) / obs_step_time
+        self.angular_velocity = (self.angle - prev_angle) / obs_step_time
+        self.gforce = np.linalg.norm(self.acceleration) / 9.807
+
+        if self.gforce > 0.4:
+            log.debug(f'Jarring G-force: {self.gforce}')
+
         closest_map_point, closest_map_index, lane_deviation = \
             get_closest_point((self.x, self.y), self.map_kd_tree)
 
@@ -386,9 +433,8 @@ class Deepdrive2DEnv(gym.Env):
         info.tfx.closest_map_index = closest_map_index
         info.tfx.distance = self.map.distances[closest_map_index]
 
-        self.prev_episode_distance = self.episode_distance
-
-        self.episode_distance = self.map.distances[closest_map_index]
+        self.prev_distance = self.distance
+        self.distance = self.map.distances[closest_map_index]
 
         observation = self.populate_observation(closest_map_point=closest_map_point,
                                                 lane_deviation=lane_deviation,

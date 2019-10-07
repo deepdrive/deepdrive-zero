@@ -12,7 +12,7 @@ USE_VOYAGE = True
 PX_PER_M = 19.559472386854488
 
 if USE_VOYAGE:
-    # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
+    # https://www.convert-me.com/en/convert/acceleration    /ssixtymph_1.html?u=ssixtymph_1&v=7.4
     # Pacifica Hybrid Max accel m/s^2 = 3.625
     MAX_METERS_PER_SEC_SQ = 3.625
     VEHICLE_WIDTH = 2.300675555555556

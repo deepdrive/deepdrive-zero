@@ -4,7 +4,23 @@ Something is very wrong with the critic losses, varying between 10k and 166M on 
 2) Just give a reward for speed - end of episode is 10k steps. If we can't get this, there's a bug somewhere.e
 
 
-Add sign to lane deviation to signal right left. Angle ahead prob accounts for this.
+Try making the distance rewards more granular, right now at slow speeds, they
+are very sparse. (Maybe distance to next way point). There still need to be a 
+threshold distance achieved so that speed is rewarded. 
 
+Add g-force to reward
 
 Allow replaying episode x,y's in arcade
+
+Figure out why resume seems to be diverging and starts less performant
+ - Adam internals (momentum, rmsprop) (save optimizer)
+ - Start steps?
+ - Replay memory? But we don't diverge right away.
+ - torch.manual_seed?
+ - call .eval() after load so we're not in train mode?
+
+Add sign to lane deviation to signal right left. Angle ahead prob accounts for this.
+
+Try random maps every episode
+
+Log to file
