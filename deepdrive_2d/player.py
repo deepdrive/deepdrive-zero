@@ -72,7 +72,8 @@ class Deepdrive2DPlayer(arcade.Window):
             return_observation_as_array=False,
             ignore_brake=False,
             expect_normalized_actions=False,
-            decouple_step_time=False,
+            decouple_step_time=True,
+            physics_steps_per_observation=1,
         )
         self.env.reset()
 
