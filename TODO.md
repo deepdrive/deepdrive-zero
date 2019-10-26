@@ -1,3 +1,6 @@
+Try to make initial trajectories in curriculum IID by distributing training across curvatures and initial velocities.
+The first stage of this curriculum should be a turn that encompasses the agents horizon per gamma, so 100 steps at 10APS would be a 10 second episode.
+
 Write gforce to tfx, to get an idea of average instead of just max.
 
 Do gradient clipping using std deviation of recent 100 gradient norms instead of hardcoding at 100.

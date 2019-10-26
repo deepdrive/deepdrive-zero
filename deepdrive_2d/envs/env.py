@@ -45,7 +45,7 @@ class Deepdrive2DEnv(gym.Env):
                  ignore_brake=True,
                  expect_normalized_actions=True,
                  decouple_step_time=True,
-                 static_map=True,
+                 static_map=False,
                  physics_steps_per_observation=6):
 
         # All units in meters and radians unless otherwise specified
@@ -110,48 +110,7 @@ class Deepdrive2DEnv(gym.Env):
         # to the observation. Should change frame rate?
         self.experience_buffer = None
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
-
-
-
-    def setup(self):
-        log.info('Setting up deepdrive-2d env')
-
         np.random.seed(self.seed_value)
-
-        self.map = self.generate_map()
-
-        self.x = self.map.x[0]
-        self.y = self.map.y[0]
-
-        self.start_x = self.x
-        self.start_y = self.y
-
-        # Physics properties
-        # x is right, y is straight
-        self.map_kd_tree = spatial.KDTree(self.map.arr)
-        self.vehicle_model = self.get_vehicle_model(self.vehicle_width)
-
-        self.map_flat = flatten_points(self.map.arr)
-        self.angle = self.get_start_angle()
-        self.start_angle = self.angle
-
-        # Action space: ----
-        # Accel, Brake, Steer
-        if self.expect_normalized_actions:
-            self.action_space = spaces.Box(low=-1, high=1,
-                                           shape=(self.num_actions,))
-        else:
-            # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
-            # Max voyage accel m/s/f = 3.625 * FPS = 217.5 m/s/f
-            # TODO: Set steering limits as well
-            self.action_space = spaces.Box(low=-10.2, high=10.2,
-                                           shape=(self.num_actions,))
-
-        self.experience_buffer = ExperienceBuffer()
-        blank_obz = self.get_blank_observation()
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(len(blank_obz),))
-        return blank_obz
 
     def populate_observation(self, closest_map_point, lane_deviation,
                              angles_ahead, steer, brake, accel, harmful_gs,
@@ -225,18 +184,32 @@ class Deepdrive2DEnv(gym.Env):
         self.max_gforce = 0
         self.closest_map_index = 0
         self.trip_pct = 0
-
         # TODO: Regen map every so often
-        if self.map is None:
-            obz = self.setup()
-        else:
-            self.experience_buffer.reset()
-            obz = self.get_blank_observation()
-
-        if self.static_map:
-            np.random.seed(self.seed_value)
+        if self.map is None or not self.static_map:
+            self.generate_map()
+        if self.observation_space is None:
+            self.setup_action_spaces()
+        self.experience_buffer.reset()
+        obz = self.get_blank_observation()
 
         return obz
+
+    def setup_action_spaces(self):
+        # Action space: ----
+        # Accel, Brake, Steer
+        if self.expect_normalized_actions:
+            self.action_space = spaces.Box(low=-1, high=1,
+                                           shape=(self.num_actions,))
+        else:
+            # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
+            # Max voyage accel m/s/f = 3.625 * FPS = 217.5 m/s/f
+            # TODO: Set steering limits as well
+            self.action_space = spaces.Box(low=-10.2, high=10.2,
+                                           shape=(self.num_actions,))
+        self.experience_buffer = ExperienceBuffer()
+        blank_obz = self.get_blank_observation()
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                            shape=(len(blank_obz),))
 
     @staticmethod
     def blank_gforce_levels():
@@ -258,7 +231,16 @@ class Deepdrive2DEnv(gym.Env):
         return ret
 
     def generate_map(self):
-        x, y = gen_map(should_save=True)
+        # Generate one waypoint map
+        if '--one-waypoint-map' in sys.argv:
+            x1 = 0.1
+            y1 = 0.5
+            x2 = x1 + np_rand() * 0.3 + 0.1
+            y2 = y1 + (2 * np_rand() - 1) * 0.3
+            x = np.array([x1, x2])
+            y = np.array([y1, y2])
+        else:
+            x, y = gen_map(should_save=True)
 
         x_pixels = x * MAP_WIDTH_PX + SCREEN_MARGIN
         y_pixels = y * MAP_HEIGHT_PX + SCREEN_MARGIN
@@ -271,16 +253,33 @@ class Deepdrive2DEnv(gym.Env):
         distances = np.cumsum(np.linalg.norm(np.diff(arr, axis=0), axis=1))
         distances = np.concatenate((np.array([0]), distances))
 
-        ret = Box(x=x_meters,
-                  y=y_meters,
-                  x_pixels=x_pixels,
-                  y_pixels=y_pixels,
-                  arr=arr,
-                  distances=distances,
-                  length=distances[-1],
-                  width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
-                  height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m, )
-        return ret
+        self.map = Box(x=x_meters,
+                       y=y_meters,
+                       x_pixels=x_pixels,
+                       y_pixels=y_pixels,
+                       arr=arr,
+                       distances=distances,
+                       length=distances[-1],
+                       width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
+                       height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,)
+
+        self.x = self.map.x[0]
+        self.y = self.map.y[0]
+
+        self.start_x = self.x
+        self.start_y = self.y
+
+        # Physics properties
+        # x is right, y is straight
+        self.map_kd_tree = spatial.KDTree(self.map.arr)
+        self.vehicle_model = self.get_vehicle_model(self.vehicle_width)
+
+        self.map_flat = flatten_points(self.map.arr)
+        if '--one-waypoint-map' in sys.argv:
+            self.angle = -math.pi / 2
+        else:
+            self.angle = self.get_start_angle()
+        self.start_angle = self.angle
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
@@ -291,7 +290,7 @@ class Deepdrive2DEnv(gym.Env):
         # angle_waypoint_index = round(
         #     (angle_waypoint_meters * ROUGH_PIXELS_PER_METER) /
         #     interp_dist_pixels) + 1
-        angle_waypoint_index = 6
+        angle_waypoint_index = min(6, len(self.map.x) - 1)
         x1 = self.map.x[0]
         y1 = self.map.y[0]
         x2 = self.map.x[angle_waypoint_index]
@@ -305,6 +304,8 @@ class Deepdrive2DEnv(gym.Env):
             #  and make sure this fixes it.
             log.warning('Flipped car to avoid being upside down. Did it work?')
             angle += math.pi  # On top so, face down
+        log.info(f'Start angle is {angle}')
+
         return angle
 
     @staticmethod
@@ -328,7 +329,7 @@ class Deepdrive2DEnv(gym.Env):
     @log.catch
     def step(self, action):
         try:
-            return self.do_step(action)
+            return self._step(action)
         except:
             log.exception('Caught exception in step, ending episode')
         obz = self.get_blank_observation()
@@ -341,13 +342,14 @@ class Deepdrive2DEnv(gym.Env):
         return obz, reward, done, info
 
     @log.catch
-    def do_step(self, action):
+    def _step(self, action):
         # Retry added to deal with weird kd_tree exception where index was beyond
         # length of 135 when length should have been 175
-
+        dt = self.get_dt()
         info = Box(default_box=True)
         steer, accel, brake = action
-        accel, steer = self.normalize_actions(accel, steer)
+        accel, steer = self.denormalize_actions(accel, steer)
+        # accel *= dt
         info.tfx.steer = steer
         info.tfx.accel = accel
         info.tfx.brake = brake
@@ -362,7 +364,6 @@ class Deepdrive2DEnv(gym.Env):
             done = False
             observation = self.get_blank_observation()
         else:
-            dt = self.get_dt()
             # TODO: Car lists with collision detection
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
@@ -397,7 +398,7 @@ class Deepdrive2DEnv(gym.Env):
         self.total_steps += 1
         return observation, reward, done, info.to_dict()
 
-    def normalize_actions(self, accel, steer):
+    def denormalize_actions(self, accel, steer):
         # TODO: Numba this
         if self.expect_normalized_actions:
             if not (-1 <= accel <= 1):
@@ -409,7 +410,7 @@ class Deepdrive2DEnv(gym.Env):
                 steer = max(-1, steer)
                 steer = min(1, steer)
 
-            steer = steer * pi
+            steer = steer * pi / 6  # About 33 degrees max steer
 
             # Forward only for now
             accel = MAX_METERS_PER_SEC_SQ * ((1 + accel) / 2)
@@ -427,9 +428,9 @@ class Deepdrive2DEnv(gym.Env):
         done = False
         won = False
         lost = False
-        if lane_deviation > 1.1:
+        if lane_deviation > 1.1 and '--one-waypoint-map' not in sys.argv:
             # You lose!
-            log.trace(f'Drifted out of lane, game over.')
+            log.debug(f'Drifted out of lane, game over.')
             done = True
             lost = True
         elif self.gforce_levels.harmful and \
@@ -454,7 +455,7 @@ class Deepdrive2DEnv(gym.Env):
     def should_give_gforce_penalty(self, min_trip_complete: float = 0):
         if '--curriculum-gforce' in sys.argv:
             prob = self.avg_trip_pct / 100 - min_trip_complete
-            ret = np.random.rand(1)[0] < prob
+            ret = np_rand() < prob
         else:
             ret = True
         return ret
@@ -511,6 +512,7 @@ class Deepdrive2DEnv(gym.Env):
 
         for _ in range(self.physics_steps_per_observation):
             # TODO: Numba this
+            # log.info(f'steer {steer} accel {accel} brake {brake} vel {self.velocity}')
             self.x, self.y, self.angle, self.angle_change, self.speed = \
                 bike_with_friction_step(
                     steer=steer, accel=accel, brake=brake, dt=dt,
@@ -522,7 +524,7 @@ class Deepdrive2DEnv(gym.Env):
                     vehicle_model=self.vehicle_model,)
             self.check_for_nan(accel, brake, dt, info, steer)
 
-            self.set_gforce_levels(dt,  prev_angle, prev_x, prev_y, info)
+            self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
 
         closest_map_point, closest_map_index, lane_deviation = \
             get_closest_point((self.x, self.y), self.map_kd_tree)
@@ -553,7 +555,7 @@ class Deepdrive2DEnv(gym.Env):
 
         return lane_deviation, observation, closest_map_point
 
-    def set_gforce_levels(self, dt, prev_angle, prev_x, prev_y, info):
+    def get_gforce_levels(self, dt, prev_angle, prev_x, prev_y, info):
         # TODO: Numba this
         lvls = self.gforce_levels
         self.total_episode_time += dt
@@ -563,8 +565,11 @@ class Deepdrive2DEnv(gym.Env):
         self.acceleration = (self.velocity - prev_velocity) / dt
         self.angular_velocity = (self.angle - prev_angle) / dt
         gforce = np.linalg.norm(self.acceleration) / 9.807
+        if gforce > self.max_gforce:
+            log.warning(f'New max gforce {gforce}')
         self.max_gforce = max(gforce, self.max_gforce)
         info.tfx.max_gforce = self.max_gforce
+        info.tfx.gforce = gforce
         if gforce > 1:
             lvls.harmful = True
             info.tfx.episode_gforce_level = 3
@@ -692,6 +697,10 @@ def get_closest_point(point, kd_tree):
         index = kd_tree.n - 1
     point = kd_tree.data[index]
     return point, index, distance
+
+
+def np_rand():
+    return np.random.rand(1)[0]
 
 
 def main():

@@ -10,7 +10,7 @@ DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 # TODO: @njit
-def gen_map(should_plot=False, num_course_points=3, resolution=25,
+def gen_map(should_plot=False, num_course_points=3, resolution=10,
             should_save=True) -> np.array:
     # TODO: Linear interp with 2 points for straight roads
     # TODO: Randomize spacing

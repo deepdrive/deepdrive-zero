@@ -8,9 +8,10 @@ from loguru import logger as log
 
 import arcade
 from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
-    MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, SCREEN_TITLE, \
+    MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
+    SCREEN_TITLE, \
     CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
-    USE_VOYAGE, VEHICLE_PNG
+    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ
 # Constants
 from deepdrive_2d.envs.env import Deepdrive2DEnv
 from deepdrive_2d.map_gen import gen_map
@@ -91,14 +92,18 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
-        # Draw the background texture
-        bg_scale = 1.1
-        arcade.draw_texture_rectangle(
-            MAP_WIDTH_PX // 2 + SCREEN_MARGIN,
-            MAP_HEIGHT_PX // 2 + SCREEN_MARGIN,
-            MAP_WIDTH_PX * bg_scale,
-            MAP_HEIGHT_PX * bg_scale,
-            self.background)
+        if '--one-waypoint-map' in sys.argv:
+            arcade.draw_point(self.env.map.x_pixels[1], self.env.map.y_pixels[1],
+                              arcade.color.WHITE, 10)
+        else:
+            # Draw the background texture
+            bg_scale = 1.1
+            arcade.draw_texture_rectangle(
+                MAP_WIDTH_PX // 2 + SCREEN_MARGIN,
+                MAP_HEIGHT_PX // 2 + SCREEN_MARGIN,
+                MAP_WIDTH_PX * bg_scale,
+                MAP_HEIGHT_PX * bg_scale,
+                self.background)
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
         #                  arcade.color.WHITE)
@@ -110,9 +115,9 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = 9.807 / 10
+            self.accel = MAX_METERS_PER_SEC_SQ
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -9.807 / 10
+            self.accel = -MAX_METERS_PER_SEC_SQ
         elif key == arcade.key.SPACE:
             self.brake = True
         elif key == arcade.key.LEFT or key == arcade.key.A:
@@ -160,7 +165,7 @@ class Deepdrive2DPlayer(arcade.Window):
             log.trace(f'angle:{self.player_sprite.angle}')
 
         if done:
-            self.close()
+            self.env.reset()
 
 
 def main():
