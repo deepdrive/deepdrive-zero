@@ -49,6 +49,9 @@ def get_angles_ahead(angle, closest_map_index, map_points,
         # Append last point where we're at the end
         points.append(points[-1])
 
+    # TODO: Fix this! Doesn't make sense to get angles along trajectory if not
+    #   on trajectory, and doesn't make sense to correct with current angle
+    #   by subtracting it when not on trajectory.
     cp = map_points[closest_map_index]
     angles = [get_heading(cp, p) for p in points]
     angles = angle - np.array(angles)

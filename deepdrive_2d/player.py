@@ -1,6 +1,7 @@
 import math
 import os
 import sys
+import threading
 import time
 
 from box import Box
@@ -11,7 +12,7 @@ from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
     MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
     SCREEN_TITLE, \
     CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
-    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ
+    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
 # Constants
 from deepdrive_2d.envs.env import Deepdrive2DEnv
 from deepdrive_2d.map_gen import gen_map
@@ -24,7 +25,7 @@ from deepdrive_2d.map_gen import gen_map
 # noinspection PyAbstractClass
 class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=False,
-                 add_longitudinal_friction=False):
+                 add_longitudinal_friction=False, env=None):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -36,7 +37,8 @@ class Deepdrive2DPlayer(arcade.Window):
         self.player_list = None
         self.wall_list = None
         self.physics_engine = None
-        self.env: Deepdrive2DEnv = None
+        self.human_controlled = False if env else True
+        self.env: Deepdrive2DEnv = env
         self.steer = 0
         self.accel = 0
         self.brake = False
@@ -64,21 +66,22 @@ class Deepdrive2DPlayer(arcade.Window):
         width_pixels = self.player_sprite.width
         height_pixels = self.player_sprite.height
 
-        self.env = Deepdrive2DEnv(
-            vehicle_width=width_pixels / self.px_per_m,
-            vehicle_height=height_pixels / self.px_per_m,
-            px_per_m=self.px_per_m,
-            add_rotational_friction=self.add_rotational_friction,
-            add_longitudinal_friction=self.add_longitudinal_friction,
-            return_observation_as_array=False,
-            ignore_brake=False,
-            expect_normalized_actions=False,
-            decouple_step_time=True,
-            physics_steps_per_observation=1,
-        )
+        if self.env is None:
+            self.env = Deepdrive2DEnv(
+                vehicle_width=width_pixels / self.px_per_m,
+                vehicle_height=height_pixels / self.px_per_m,
+                px_per_m=self.px_per_m,
+                add_rotational_friction=self.add_rotational_friction,
+                add_longitudinal_friction=self.add_longitudinal_friction,
+                return_observation_as_array=False,
+                ignore_brake=False,
+                expect_normalized_actions=False,
+                decouple_step_time=True,
+                physics_steps_per_observation=1,)
+
         self.env.reset()
 
-        self.background = arcade.load_texture("images/map.png")
+        self.background = arcade.load_texture(MAP_IMAGE)
 
         self.player_sprite.center_x = self.env.map.x_pixels[0]
         self.player_sprite.center_y = self.env.map.y_pixels[0]
@@ -93,8 +96,11 @@ class Deepdrive2DPlayer(arcade.Window):
         arcade.start_render()
 
         if '--one-waypoint-map' in sys.argv:
-            arcade.draw_point(self.env.map.x_pixels[1], self.env.map.y_pixels[1],
-                              arcade.color.WHITE, 10)
+            arcade.draw_circle_filled(
+                center_x=self.env.map.x_pixels[1],
+                center_y=self.env.map.y_pixels[1],
+                radius=20,
+                color=arcade.color.ORANGE)
         else:
             # Draw the background texture
             bg_scale = 1.1
@@ -147,43 +153,46 @@ class Deepdrive2DPlayer(arcade.Window):
         log.trace(f'a:{self.accel}')
         log.trace(f'dt2:{_delta_time}')
 
-        obz, reward, done, info = self.env.step(
-            [self.steer, self.accel, self.brake])
+        if self.human_controlled:
+            obz, reward, done, info = self.env.step(
+                [self.steer, self.accel, self.brake])
+            if done:
+                self.env.reset()
+                return
 
-        if obz:
-            # log.debug(f'Deviation: '
-            #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
+        # log.debug(f'Deviation: '
+        #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
 
-            self.player_sprite.center_x = obz.x * self.px_per_m
-            self.player_sprite.center_y = obz.y * self.px_per_m
+        self.player_sprite.center_x = self.env.x * self.px_per_m
+        self.player_sprite.center_y = self.env.y * self.px_per_m
 
-            # TODO: Change rotation axis to rear axle (now at center)
-            self.player_sprite.angle = math.degrees(obz.angle)
+        # TODO: Change rotation axis to rear axle (now at center)
+        self.player_sprite.angle = math.degrees(self.env.angle)
 
-            log.trace(f'x:{obz.x}')
-            log.trace(f'y:{obz.y}')
-            log.trace(f'angle:{self.player_sprite.angle}')
-
-        if done:
-            self.env.reset()
+        log.trace(f'x:{self.env.x}')
+        log.trace(f'y:{self.env.y}')
+        log.trace(f'angle:{self.player_sprite.angle}')
 
 
-def main():
-    window = Deepdrive2DPlayer(
+
+
+def start(env=None):
+    player = Deepdrive2DPlayer(
         add_rotational_friction='--rotational-friction' in sys.argv,
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
+        env=env
     )
-    window.setup()
+    player.setup()
     if 'DISABLE_GC' in os.environ:
         import gc
         log.warning('Disabling garbage collection!')
         gc.disable()
-    arcade.run()
 
+    if env is None:
+        arcade.run()
 
-def play():
-    texture = arcade.load_texture("images/tesla-up.png")
+    return player
 
 
 if __name__ == "__main__":
-    main()
+    start()

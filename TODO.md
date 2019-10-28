@@ -1,3 +1,10 @@
+Interpolate steering, accel, and brake across physics frames per sec
+
+Add an action duration, i.e. number of steps to repeat action (needs interrupt tho)
+
+Repeat previous action inputs to have more than one weight, a la CONV kernels. (Could give more opportunities to learn important input).
+
+
 Try to make initial trajectories in curriculum IID by distributing training across curvatures and initial velocities.
 The first stage of this curriculum should be a turn that encompasses the agents horizon per gamma, so 100 steps at 10APS would be a 10 second episode.
 
