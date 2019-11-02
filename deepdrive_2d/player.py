@@ -25,10 +25,12 @@ from deepdrive_2d.map_gen import gen_map
 # noinspection PyAbstractClass
 class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=False,
-                 add_longitudinal_friction=False, env=None):
+                 add_longitudinal_friction=False, env=None,
+                 fps=60):
 
         # Call the parent class and set up the window
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
+                         update_rate=1/fps)
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
 
@@ -176,11 +178,12 @@ class Deepdrive2DPlayer(arcade.Window):
 
 
 
-def start(env=None):
+def start(env=None, fps=60):
     player = Deepdrive2DPlayer(
         add_rotational_friction='--rotational-friction' in sys.argv,
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
-        env=env
+        env=env,
+        fps=fps
     )
     player.setup()
     if 'DISABLE_GC' in os.environ:

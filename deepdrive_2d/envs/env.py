@@ -6,7 +6,7 @@ import time
 from collections import deque
 from math import pi, cos, sin
 from typing import Tuple, List
-
+import random
 import arcade
 import gym
 import numpy as np
@@ -29,7 +29,7 @@ from deepdrive_2d.utils import flatten_points, get_angles_ahead, \
 MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
 CONTINUOUS_REWARD = True
-GAME_OVER_PENALTY = 0
+GAME_OVER_PENALTY = -1
 
 
 class Deepdrive2DEnv(gym.Env):
@@ -46,7 +46,6 @@ class Deepdrive2DEnv(gym.Env):
                  ignore_brake=True,
                  expect_normalized_actions=True,
                  decouple_step_time=True,
-                 static_map=False,
                  physics_steps_per_observation=6):
 
         # All units in meters and radians unless otherwise specified
@@ -59,7 +58,7 @@ class Deepdrive2DEnv(gym.Env):
         self.seed_value: int = seed_value
         self.add_rotational_friction: bool = add_rotational_friction
         self.add_longitudinal_friction: bool = add_longitudinal_friction
-        self.static_map: bool = static_map
+        self.static_map: bool = '--static-map' in sys.argv
         self.physics_steps_per_observation: int = physics_steps_per_observation
 
         # For faster / slower than real-time stepping
@@ -78,21 +77,26 @@ class Deepdrive2DEnv(gym.Env):
         self.speed: float = 0
         self.angle_change: float = 0
         self.map_query_seconds_ahead: np.array = np.array([0.5, 1, 1.5, 2, 2.5, 3])
-        self.target_dt: float = 1 / 60  # Allows replaying in player at same rate
+        self.fps: int = 60
+        self.target_dt: float = 1 / self.fps
         self.total_episode_time: float = 0
         self.distance: float = 0
         self.prev_distance: float = 0
         self.furthest_distance: float = 0
         self.velocity: List[float] = [0, 0]
         self.angular_velocity: float = 0
+        self.gforce: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
         self.closest_map_index: int = 0
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
+        self.angles_ahead: List[float] = []
 
-        if '--one-waypoint-map' in sys.argv:
+        if '--no-timeout' in sys.argv:
+            max_seconds = 100000
+        elif '--one-waypoint-map' in sys.argv:
             max_seconds = 10
         else:
             max_seconds = 60
@@ -123,10 +127,15 @@ class Deepdrive2DEnv(gym.Env):
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
         np.random.seed(self.seed_value)
 
+        # Actions per second
+        self.aps = self.fps / self.physics_steps_per_observation
+
         self.render = '--render' in sys.argv
         if self.render:
             from deepdrive_2d import player
-            self.player = player.start(env=self)
+            self.player = player.start(
+                env=self,
+                fps=self.fps)
             pyglet.app.event_loop.has_exit = False
             pyglet.app.event_loop._legacy_setup()
             pyglet.app.platform_event_loop.start()
@@ -157,6 +166,8 @@ class Deepdrive2DEnv(gym.Env):
                 cog_to_front_axle=self.vehicle_model[0],
                 cog_to_rear_axle=self.vehicle_model[1],)
         if self.return_observation_as_array:
+            if '--match-angle-only' in sys.argv:
+                return [angles_ahead[0]]
             observation = np.array(observation.values())
             observation = np.concatenate((observation, angles_ahead), axis=None)
 
@@ -201,10 +212,12 @@ class Deepdrive2DEnv(gym.Env):
         self.velocity = [0, 0]
         self.angular_velocity = 0
         self.acceleration = [0, 0]
+        self.gforce = 0
         self.gforce_levels = self.blank_gforce_levels()
         self.max_gforce = 0
         self.closest_map_index = 0
         self.trip_pct = 0
+        self.angles_ahead = []
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
             self.generate_map()
@@ -253,10 +266,16 @@ class Deepdrive2DEnv(gym.Env):
     def generate_map(self):
         # Generate one waypoint map
         if '--one-waypoint-map' in sys.argv:
+            self.max_single_waypoint_mult = 0.1
+            m = self.max_single_waypoint_mult
             x1 = 0.1
             y1 = 0.5
-            x2 = x1 + np_rand() * 0.3 + 0.1
-            y2 = y1 + (2 * np_rand() - 1) * 0.3
+            if self.static_map:
+                x2 = x1 + 0.2 * m + 0.1
+                y2 = y1 + (2 * 0.2 - 1) * m
+            else:
+                x2 = x1 + np_rand() * m + 0.1
+                y2 = y1 + (2 * np_rand() - 1) * m
             x = np.array([x1, x2])
             y = np.array([y1, y2])
         else:
@@ -303,6 +322,7 @@ class Deepdrive2DEnv(gym.Env):
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
+        random.seed(seed)
 
     def get_start_angle(self):
         interp_dist_pixels = self.map.width / len(self.map.x)
@@ -370,7 +390,14 @@ class Deepdrive2DEnv(gym.Env):
         info = Box(default_box=True)
         steer, accel, brake = action
         steer, accel, brake = self.denormalize_actions(steer, accel, brake)
-        # accel *= dt
+        if '--straight-test' in sys.argv:
+            steer = 0
+        elif '--simple-steer' in sys.argv and self.angles_ahead:
+            accel = MAX_METERS_PER_SEC_SQ * 0.7
+            steer = -self.angles_ahead[0]
+        elif '--match-angle-only' in sys.argv:
+            accel = MAX_METERS_PER_SEC_SQ * 0.7
+
         info.tfx.steer = steer
         info.tfx.accel = accel
         info.tfx.brake = brake
@@ -388,7 +415,7 @@ class Deepdrive2DEnv(gym.Env):
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
             done, won, lost = self.get_done(closest_map_point, lane_deviation)
-            reward = self.get_reward(lane_deviation, won, lost, info)
+            reward = self.get_reward(lane_deviation, won, lost, info, accel)
             info.tfx.lane_deviation = lane_deviation
             if done:
                 info.tfx.all_time.won = won
@@ -419,12 +446,6 @@ class Deepdrive2DEnv(gym.Env):
         self.prev_steer = steer
         self.prev_accel = accel
         self.prev_brake = brake
-
-        if self.render:
-            platform_event_loop = pyglet.app.platform_event_loop
-            # pyglet_event_loop = pyglet.app.event_loop
-            timeout = pyglet.app.event_loop.idle()
-            platform_event_loop.step(timeout)
 
         return observation, reward, done, info.to_dict()
 
@@ -470,12 +491,12 @@ class Deepdrive2DEnv(gym.Env):
             log.debug(f'Drifted out of lane, game over.')
             done = True
             lost = True
-        # elif self.gforce_levels.harmful and \
-        #         self.should_give_gforce_penalty(min_trip_complete=0.25):
-        #     # Only end on g-force once we've learned to complete part of the trip.
-        #     log.warning(f'Harmful g-forces, game over')
-        #     done = True
-        #     lost = True
+        elif self.gforce_levels.harmful and \
+                self.should_penalize_gforce(min_trip_complete=0.25):
+            # Only end on g-force once we've learned to complete part of the trip.
+            log.warning(f'Harmful g-forces, game over')
+            done = True
+            lost = True
         elif (self.episode_steps + 1) % self._max_episode_steps == 0:
             log.warning(f'Time up, game over.')
             done = True
@@ -504,7 +525,7 @@ class Deepdrive2DEnv(gym.Env):
             won = True
         return done, won, lost
 
-    def should_give_gforce_penalty(self, min_trip_complete: float = 0):
+    def should_penalize_gforce(self, min_trip_complete: float = 0):
         if '--curriculum-gforce' in sys.argv:
             prob = self.avg_trip_pct / 100 - min_trip_complete
             ret = np_rand() < prob
@@ -513,19 +534,33 @@ class Deepdrive2DEnv(gym.Env):
         return ret
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
-                   info: Box) -> float:
+                   info: Box, accel: float) -> float:
         reward = 0
-        if self.distance > self.furthest_distance:
-            reward += 1
-            self.furthest_distance = self.distance
+        target_mps = 15
 
-        if self.gforce_levels.jarring and self.should_give_gforce_penalty():
-            # log.warning(f'Jarring g-forces, no reward')
-            reward -= 1
-        elif self.gforce_levels.uncomfortable and \
-                self.should_give_gforce_penalty():
-            # log.warning(f'Uncomfortable g-forces, half reward')
-            reward -= 0.5
+        if '--match-angle-only' in sys.argv:
+            return 2 * pi - abs(self.angles_ahead[0])
+
+        if self.gforce_levels.jarring and self.should_penalize_gforce():
+            # log.warning(f'Jarring g-forces')
+            reward = -1
+        elif self.gforce_levels.uncomfortable and self.should_penalize_gforce():
+            # log.warning(f'Uncomfortable g-forces')
+            reward = -0.5
+        elif self.distance > self.furthest_distance and \
+                '--award-win-only' not in sys.argv:
+            target_per_frame_distance = target_mps / self.aps
+            frame_distance = self.distance - self.furthest_distance
+            if 0 <= frame_distance <= target_per_frame_distance:
+                # Positive progress made under speed limit
+                reward = frame_distance / target_per_frame_distance
+            elif frame_distance > target_per_frame_distance:
+                # Over desired speed
+                reward = 0
+            else:
+                # Negative progress
+                reward = -0.5
+            self.furthest_distance = self.distance
         else:
             reward = 0
 
@@ -546,7 +581,7 @@ class Deepdrive2DEnv(gym.Env):
             # e.g.
             # say gamma is 0.99
             # then the discounted reward in 100 steps will be 0.36
-            reward = 100
+            reward = self.map.length
 
         return reward
 
@@ -567,22 +602,23 @@ class Deepdrive2DEnv(gym.Env):
             get_closest_point((self.x, self.y), self.map_kd_tree)
 
         self.closest_map_index = closest_map_index
-        self.trip_pct = 100 * closest_map_index / (len(self.map.arr) - 1)
+        self.prev_distance = self.distance
+        self.get_distance(closest_map_index)
 
         if '--one-waypoint-map' in sys.argv:
             angles_ahead = self.get_one_waypoint_angle_ahead()
+            self.trip_pct = 100 * self.distance / self.map.length
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
         else:
+            self.trip_pct = 100 * closest_map_index / (len(self.map.arr) - 1)
             angles_ahead = self.get_angles_ahead(closest_map_index)
+
+        self.angles_ahead = angles_ahead
 
         info.tfx.closest_map_index = closest_map_index
         info.tfx.trip_pct = self.trip_pct
-        info.tfx.distance = self.map.distances[closest_map_index]
-
-        self.prev_distance = self.distance
-
-        self.get_distance(closest_map_index)
+        info.tfx.distance = self.distance
 
         observation = self.populate_observation(
             closest_map_point=closest_map_point,
@@ -611,13 +647,18 @@ class Deepdrive2DEnv(gym.Env):
     def step_physics(self, dt, steer, accel, brake, prev_x, prev_y, prev_angle,
                      info):
         n = self.physics_steps_per_observation
+        self.gforce_levels = self.blank_gforce_levels()
         for i in range(n):
             interp = (i + 1) / n
             i_steer = self.prev_steer + interp * (steer - self.prev_steer)
             i_accel = self.prev_accel + interp * (accel - self.prev_accel)
-            i_brake = self.prev_brake + interp * (float(brake) - self.prev_brake)
+            if brake:
+                i_brake = self.prev_brake + interp * (float(brake) - self.prev_brake)
+            else:
+                i_brake = 0
             # TODO: Numba this
             # log.info(f'steer {steer} accel {accel} brake {brake} vel {self.velocity}')
+            prev_x, prev_y, prev_angle = self.x, self.y, self.angle
             self.x, self.y, self.angle, self.angle_change, self.speed = \
                 bike_with_friction_step(
                     steer=i_steer, accel=i_accel, brake=i_brake, dt=dt,
@@ -626,13 +667,24 @@ class Deepdrive2DEnv(gym.Env):
                     speed=self.speed,
                     add_rotational_friction=self.add_rotational_friction,
                     add_longitudinal_friction=self.add_longitudinal_friction,
-                    vehicle_model=self.vehicle_model, )
+                    vehicle_model=self.vehicle_model,)
             self.check_for_nan(dt, i_steer, i_accel, i_brake, info)
 
             self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
 
+            self.step_renderer()
+
+    def step_renderer(self):
+        if self.render:
+            platform_event_loop = pyglet.app.platform_event_loop
+            # pyglet_event_loop = pyglet.app.event_loop
+            timeout = pyglet.app.event_loop.idle()
+            platform_event_loop.step(timeout)
+
     def get_distance(self, closest_map_index):
-        if '--one-waypoint-map' in sys.argv:
+        if '--straight-test' in sys.argv:
+            self.distance = self.x - self.start_x
+        elif '--one-waypoint-map' in sys.argv:
             end = np.array([self.map.x[-1], self.map.y[-1]])
             pos = np.array([self.x, self.y])
             distance_to_end = np.linalg.norm(end - pos)
@@ -649,7 +701,8 @@ class Deepdrive2DEnv(gym.Env):
         self.velocity = pos_change / dt
         self.acceleration = (self.velocity - prev_velocity) / dt
         self.angular_velocity = (self.angle - prev_angle) / dt
-        gforce = np.linalg.norm(self.acceleration) / 9.807
+        accel_magnitude = np.linalg.norm(self.acceleration)
+        gforce = accel_magnitude / 9.807
         if gforce > self.max_gforce:
             log.trace(f'New max gforce {gforce}')
         self.max_gforce = max(gforce, self.max_gforce)
@@ -672,6 +725,7 @@ class Deepdrive2DEnv(gym.Env):
                       f'speed: {self.speed}')
         elif not (lvls.harmful or lvls.jarring or lvls.uncomfortable):
             info.tfx.episode_gforce_level = 0
+        self.gforce = gforce
 
 
     def check_for_nan(self, dt, steer, accel, brake, info):
@@ -710,7 +764,7 @@ steer, accel, brake, dt, info
             pyglet.app.platform_event_loop.stop()
 
 
-@njit(cache=True, nogil=True)
+# @njit(cache=True, nogil=True)
 def bike_with_friction_step(
         steer, accel, brake, dt,
         x, y, angle, angle_change, speed, add_rotational_friction,
@@ -748,7 +802,7 @@ def bike_with_friction_step(
     return x, y, angle, angle_change, speed
 
 
-@njit(cache=True, nogil=True)
+# @njit(cache=True, nogil=True)
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
     process model

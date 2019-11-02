@@ -1,4 +1,18 @@
-Interpolate steering, accel, and brake across physics frames per sec
+Measure steering accuracy in simple-steer
+
+Measure gforce due to inaccurate steering
+
+Measure gforce due to accurate steering
+
+Try automatic entropy tuning with simple-steer
+
+Try gforce penalties with simple-steer
+
+Add n-step returns to prevent divergence
+
+Make sure seeds determine all randomness and that we have complete determinism per seed
+
+Only give distance rewards every x meters for single waypoint map.
 
 Add an action duration, i.e. number of steps to repeat action (needs interrupt tho)
 
