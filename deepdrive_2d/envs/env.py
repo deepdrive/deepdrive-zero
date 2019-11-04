@@ -93,6 +93,7 @@ class Deepdrive2DEnv(gym.Env):
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
         self.angles_ahead: List[float] = []
+        self.angle_accuracies: List[float] = []
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -218,6 +219,7 @@ class Deepdrive2DEnv(gym.Env):
         self.closest_map_index = 0
         self.trip_pct = 0
         self.angles_ahead = []
+        self.angle_accuracies = []
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
             self.generate_map()
@@ -431,15 +433,16 @@ class Deepdrive2DEnv(gym.Env):
             self.num_episodes += 1
             self._trip_pct_total += self.trip_pct
             self.avg_trip_pct = self._trip_pct_total / self.num_episodes
-            log.debug(f'Episode score {self.episode_reward}, '
+            episode_angle_accuracy = np.array(self.angle_accuracies).mean()
+            log.debug(f'Episode score {round(self.episode_reward, 2)}, '
                       f'Steps: {self.episode_steps}, '
-                      f'Closest map indx: {self.closest_map_index}, '
-                      f'Distance {self.distance}, '
-                      f'Angular velocity {self.angular_velocity}, '
-                      f'Speed: {self.speed}, '
-                      f'Max gforce: {self.max_gforce}, '
-                      f'Trip pct {self.trip_pct}, '
-                      f'Avg trip pct {self.avg_trip_pct}, '
+                      # f'Closest map indx: {self.closest_map_index}, '
+                      f'Distance {round(self.distance, 2)}, '
+                      f'Angular velocity {round(self.angular_velocity, 2)}, '
+                      f'Speed: {round(self.speed, 2)}, '
+                      f'Max gforce: {round(self.max_gforce, 2)}, '
+                      f'Trip pct {round(self.trip_pct, 2)}, '
+                      f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
                       f'Num episodes {self.num_episodes}')
 
         self.total_steps += 1
@@ -539,7 +542,13 @@ class Deepdrive2DEnv(gym.Env):
         target_mps = 15
 
         if '--match-angle-only' in sys.argv:
-            return 2 * pi - abs(self.angles_ahead[0])
+            ret = 2 * pi - abs(self.angles_ahead[0])
+            if ret < 0:
+                angle_accuracy = 0
+            else:
+                angle_accuracy = ret / (2 * pi)
+            self.angle_accuracies.append(angle_accuracy)
+            return ret
 
         if self.gforce_levels.jarring and self.should_penalize_gforce():
             # log.warning(f'Jarring g-forces')

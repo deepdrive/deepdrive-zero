@@ -61,3 +61,4 @@ def get_angles_ahead(angle, closest_map_index, map_points,
 def get_heading(p1, p2):
     return -angle_between(np.array([0, 1]), np.array([p2[0] - p1[0],
                                                       p2[1] - p1[1]]))
+

@@ -1,3 +1,7 @@
+Don't overwrite saved models.
+
+Allow playing a saved model.
+
 Measure steering accuracy in simple-steer
 
 Measure gforce due to inaccurate steering
@@ -28,10 +32,6 @@ Do gradient clipping using std deviation of recent 100 gradient norms instead of
 
 Max gforce of 200 seems wrong, maybe
 during a GC or something IDK - or perhaps it's a problem with reset.
-
-Gforce
-- Add g-force to reward, -1 if we over 0.4
-- Record gforce levels to tensorboard
 
 
 Randomly shorten map to 50-100% of current to reduce overfitting
