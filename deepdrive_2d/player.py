@@ -97,7 +97,7 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
-        if '--one-waypoint-map' in sys.argv:
+        if self.env.one_waypoint_map:
             arcade.draw_circle_filled(
                 center_x=self.env.map.x_pixels[1],
                 center_y=self.env.map.y_pixels[1],

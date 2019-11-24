@@ -46,7 +46,9 @@ class Deepdrive2DEnv(gym.Env):
                  ignore_brake=True,
                  expect_normalized_actions=True,
                  decouple_step_time=True,
-                 physics_steps_per_observation=6):
+                 physics_steps_per_observation=6,
+                 one_waypoint_map=False,
+                 match_angle_only=False):
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
@@ -94,10 +96,14 @@ class Deepdrive2DEnv(gym.Env):
         self._trip_pct_total: float = 0
         self.angles_ahead: List[float] = []
         self.angle_accuracies: List[float] = []
+        self.episode_gforces: List[float] = []
+        self.match_angle_only = match_angle_only
+        self.one_waypoint_map = one_waypoint_map
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
-        elif '--one-waypoint-map' in sys.argv:
+        elif one_waypoint_map in sys.argv:
+            self.one_waypoint_map = True
             max_seconds = 10
         else:
             max_seconds = 60
@@ -143,6 +149,8 @@ class Deepdrive2DEnv(gym.Env):
             pyglet.app.event_loop.dispatch_event('on_enter')
             pyglet.app.event_loop.is_running = True
 
+        self.reset()
+
     def populate_observation(self, closest_map_point, lane_deviation,
                              angles_ahead, steer, brake, accel, harmful_gs,
                              jarring_gs, uncomfortable_gs, is_blank=False):
@@ -167,8 +175,8 @@ class Deepdrive2DEnv(gym.Env):
                 cog_to_front_axle=self.vehicle_model[0],
                 cog_to_rear_axle=self.vehicle_model[1],)
         if self.return_observation_as_array:
-            if '--match-angle-only' in sys.argv:
-                return [angles_ahead[0]]
+            if self.match_angle_only:
+                return np.array([angles_ahead[0], self.prev_steer])
             observation = np.array(observation.values())
             observation = np.concatenate((observation, angles_ahead), axis=None)
 
@@ -220,16 +228,17 @@ class Deepdrive2DEnv(gym.Env):
         self.trip_pct = 0
         self.angles_ahead = []
         self.angle_accuracies = []
+        self.episode_gforces = []
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
             self.generate_map()
         if self.observation_space is None:
-            self.setup_action_spaces()
+            self.setup_spaces()
         self.experience_buffer.reset()
         obz = self.get_blank_observation()
         return obz
 
-    def setup_action_spaces(self):
+    def setup_spaces(self):
         # Action space: ----
         # Accel, Brake, Steer
         if self.expect_normalized_actions:
@@ -267,7 +276,7 @@ class Deepdrive2DEnv(gym.Env):
 
     def generate_map(self):
         # Generate one waypoint map
-        if '--one-waypoint-map' in sys.argv:
+        if self.one_waypoint_map:
             self.max_single_waypoint_mult = 0.1
             m = self.max_single_waypoint_mult
             x1 = 0.1
@@ -316,7 +325,7 @@ class Deepdrive2DEnv(gym.Env):
         self.vehicle_model = self.get_vehicle_model(self.vehicle_width)
 
         self.map_flat = flatten_points(self.map.arr)
-        if '--one-waypoint-map' in sys.argv:
+        if self.one_waypoint_map:
             self.angle = -math.pi / 2
         else:
             self.angle = self.get_start_angle()
@@ -397,7 +406,7 @@ class Deepdrive2DEnv(gym.Env):
         elif '--simple-steer' in sys.argv and self.angles_ahead:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
             steer = -self.angles_ahead[0]
-        elif '--match-angle-only' in sys.argv:
+        elif self.match_angle_only:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
 
         info.tfx.steer = steer
@@ -417,7 +426,7 @@ class Deepdrive2DEnv(gym.Env):
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
             done, won, lost = self.get_done(closest_map_point, lane_deviation)
-            reward = self.get_reward(lane_deviation, won, lost, info, accel)
+            reward, info = self.get_reward(lane_deviation, won, lost, info, accel)
             info.tfx.lane_deviation = lane_deviation
             if done:
                 info.tfx.all_time.won = won
@@ -434,6 +443,7 @@ class Deepdrive2DEnv(gym.Env):
             self._trip_pct_total += self.trip_pct
             self.avg_trip_pct = self._trip_pct_total / self.num_episodes
             episode_angle_accuracy = np.array(self.angle_accuracies).mean()
+            episode_gforce_avg = np.array(self.episode_gforces).mean()
             log.debug(f'Episode score {round(self.episode_reward, 2)}, '
                       f'Steps: {self.episode_steps}, '
                       # f'Closest map indx: {self.closest_map_index}, '
@@ -441,6 +451,7 @@ class Deepdrive2DEnv(gym.Env):
                       f'Angular velocity {round(self.angular_velocity, 2)}, '
                       f'Speed: {round(self.speed, 2)}, '
                       f'Max gforce: {round(self.max_gforce, 2)}, '
+                      f'Avg gforce: {round(episode_gforce_avg, 2)}, '
                       f'Trip pct {round(self.trip_pct, 2)}, '
                       f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
                       f'Num episodes {self.num_episodes}')
@@ -456,15 +467,15 @@ class Deepdrive2DEnv(gym.Env):
         # TODO: Numba this
         if self.expect_normalized_actions:
             if not (-1 <= accel <= 1):
-                log.warning(f'Found accel outside -1=>1 of {accel}')
+                log.trace(f'Found accel outside -1=>1 of {accel}')
                 accel = max(-1, accel)
                 accel = min(1, accel)
             if not (-1 <= steer <= 1):
-                log.warning(f'Found steer outside -1=>1 of {steer}')
+                log.trace(f'Found steer outside -1=>1 of {steer}')
                 steer = max(-1, steer)
                 steer = min(1, steer)
             if not (-1 <= brake <= 1):
-                log.warning(f'Found steer outside -1=>1 of {brake}')
+                log.trace(f'Found steer outside -1=>1 of {brake}')
                 brake = max(-1, brake)
                 brake = min(1, brake)
 
@@ -489,7 +500,7 @@ class Deepdrive2DEnv(gym.Env):
         done = False
         won = False
         lost = False
-        if lane_deviation > 1.1 and '--one-waypoint-map' not in sys.argv:
+        if lane_deviation > 1.1 and not self.one_waypoint_map:
             # You lose!
             log.debug(f'Drifted out of lane, game over.')
             done = True
@@ -503,7 +514,7 @@ class Deepdrive2DEnv(gym.Env):
         elif (self.episode_steps + 1) % self._max_episode_steps == 0:
             log.warning(f'Time up, game over.')
             done = True
-        elif '--one-waypoint-map' in sys.argv:
+        elif self.one_waypoint_map:
             if abs(math.degrees(self.angle)) > 200:
                 done = True
                 lost = True
@@ -537,18 +548,25 @@ class Deepdrive2DEnv(gym.Env):
         return ret
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
-                   info: Box, accel: float) -> float:
+                   info: Box, accel: float) -> Tuple[float, Box]:
         reward = 0
         target_mps = 15
 
-        if '--match-angle-only' in sys.argv:
-            ret = 2 * pi - abs(self.angles_ahead[0])
+        if self.match_angle_only:
+            ret = 2 * pi - abs(self.angles_ahead[0])  # Angle reward
             if ret < 0:
                 angle_accuracy = 0
             else:
                 angle_accuracy = ret / (2 * pi)
+            ret -= 8 * pi * self.gforce  # G-force penalty
             self.angle_accuracies.append(angle_accuracy)
-            return ret
+            info.tfx.angle_accuracy = angle_accuracy
+
+            # TODO: To approximate MPC scoring, penalize overshooting.
+            #   So, if we've hit the target angle, any change in angle from
+            #   there on should be penalized.
+
+            return ret, info
 
         if self.gforce_levels.jarring and self.should_penalize_gforce():
             # log.warning(f'Jarring g-forces')
@@ -592,7 +610,7 @@ class Deepdrive2DEnv(gym.Env):
             # then the discounted reward in 100 steps will be 0.36
             reward = self.map.length
 
-        return reward
+        return reward, info
 
     def get_observation(self, steer, accel, brake, dt, info):
         if self.ignore_brake:
@@ -614,7 +632,7 @@ class Deepdrive2DEnv(gym.Env):
         self.prev_distance = self.distance
         self.get_distance(closest_map_index)
 
-        if '--one-waypoint-map' in sys.argv:
+        if self.one_waypoint_map:
             angles_ahead = self.get_one_waypoint_angle_ahead()
             self.trip_pct = 100 * self.distance / self.map.length
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
@@ -682,6 +700,7 @@ class Deepdrive2DEnv(gym.Env):
             self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
 
             self.step_renderer()
+        self.episode_gforces.append(self.gforce)
 
     def step_renderer(self):
         if self.render:
@@ -693,7 +712,7 @@ class Deepdrive2DEnv(gym.Env):
     def get_distance(self, closest_map_index):
         if '--straight-test' in sys.argv:
             self.distance = self.x - self.start_x
-        elif '--one-waypoint-map' in sys.argv:
+        elif self.one_waypoint_map:
             end = np.array([self.map.x[-1], self.map.y[-1]])
             pos = np.array([self.x, self.y])
             distance_to_end = np.linalg.norm(end - pos)
