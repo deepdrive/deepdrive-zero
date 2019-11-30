@@ -33,6 +33,7 @@ class Deepdrive2DPlayer(arcade.Window):
                          update_rate=1/fps)
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
+        self.fps = fps
 
         arcade.set_background_color(arcade.csscolor.CORNFLOWER_BLUE)
         self.player_sprite: arcade.Sprite = None
@@ -79,7 +80,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 ignore_brake=False,
                 expect_normalized_actions=False,
                 decouple_step_time=True,
-                physics_steps_per_observation=1,)
+                physics_steps_per_observation=6,)
 
         self.env.reset()
 

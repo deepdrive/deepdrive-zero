@@ -137,19 +137,22 @@ class Deepdrive2DEnv(gym.Env):
         # Actions per second
         self.aps = self.fps / self.physics_steps_per_observation
 
-        self.render = '--render' in sys.argv
-        if self.render:
-            from deepdrive_2d import player
-            self.player = player.start(
-                env=self,
-                fps=self.fps)
-            pyglet.app.event_loop.has_exit = False
-            pyglet.app.event_loop._legacy_setup()
-            pyglet.app.platform_event_loop.start()
-            pyglet.app.event_loop.dispatch_event('on_enter')
-            pyglet.app.event_loop.is_running = True
+        self.player = None
 
         self.reset()
+
+    def enable_render(self):
+        from deepdrive_2d import player
+        self.player = player.start(
+            env=self,
+            fps=self.fps / self.physics_steps_per_observation)
+        pyglet.app.event_loop.has_exit = False
+        pyglet.app.event_loop._legacy_setup()
+        pyglet.app.platform_event_loop.start()
+        pyglet.app.event_loop.dispatch_event('on_enter')
+        pyglet.app.event_loop.is_running = True
+
+        self.should_render = True
 
     def populate_observation(self, closest_map_point, lane_deviation,
                              angles_ahead, steer, brake, accel, harmful_gs,
@@ -415,9 +418,10 @@ class Deepdrive2DEnv(gym.Env):
         info.tfx.speed = self.speed
         info.tfx.episode_time = self.total_episode_time
 
+        now = time.time()
         if self.last_step_time is None:
             # init
-            self.last_step_time = time.time()
+            self.last_step_time = now
             reward = 0
             done = False
             observation = self.get_blank_observation()
@@ -428,11 +432,14 @@ class Deepdrive2DEnv(gym.Env):
             done, won, lost = self.get_done(closest_map_point, lane_deviation)
             reward, info = self.get_reward(lane_deviation, won, lost, info, accel)
             info.tfx.lane_deviation = lane_deviation
+            step_time = now - self.last_step_time
+            log.info(f'step time {round(step_time, 3)}')
+
             if done:
                 info.tfx.all_time.won = won
 
 
-        self.last_step_time = time.time()
+        self.last_step_time = now
         self.episode_reward += reward
 
         self.prev_action = action
@@ -699,15 +706,13 @@ class Deepdrive2DEnv(gym.Env):
 
             self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
 
-            self.step_renderer()
         self.episode_gforces.append(self.gforce)
 
-    def step_renderer(self):
-        if self.render:
-            platform_event_loop = pyglet.app.platform_event_loop
-            # pyglet_event_loop = pyglet.app.event_loop
-            timeout = pyglet.app.event_loop.idle()
-            platform_event_loop.step(timeout)
+    def render(self, mode='human'):
+        platform_event_loop = pyglet.app.platform_event_loop
+        # pyglet_event_loop = pyglet.app.event_loop
+        timeout = pyglet.app.event_loop.idle()
+        platform_event_loop.step(timeout)
 
     def get_distance(self, closest_map_index):
         if '--straight-test' in sys.argv:
@@ -782,11 +787,8 @@ steer, accel, brake, dt, info
                                 seconds_ahead=self.map_query_seconds_ahead,
                                 closest_map_index=closest_map_index)
 
-    def render(self, mode='human'):
-        pass
-
     def close(self):
-        if self.render:
+        if self.should_render:
             pyglet.app.is_running = False
             pyglet.app.dispatch_event('on_exit')
             pyglet.app.platform_event_loop.stop()
