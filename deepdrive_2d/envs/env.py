@@ -100,11 +100,13 @@ class Deepdrive2DEnv(gym.Env):
         self.match_angle_only = match_angle_only
         self.one_waypoint_map = one_waypoint_map
 
+        self.max_one_waypoint_mult = 0.5
+
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
         elif one_waypoint_map in sys.argv:
             self.one_waypoint_map = True
-            max_seconds = 10
+            max_seconds = self.max_one_waypoint_mult * 200
         else:
             max_seconds = 60
         self._max_episode_steps = \
@@ -178,8 +180,12 @@ class Deepdrive2DEnv(gym.Env):
                 cog_to_front_axle=self.vehicle_model[0],
                 cog_to_rear_axle=self.vehicle_model[1],)
         if self.return_observation_as_array:
-            if self.match_angle_only:
-                return np.array([angles_ahead[0], self.prev_steer])
+            if self.one_waypoint_map:
+                if self.match_angle_only:
+                    return np.array([angles_ahead[0], self.prev_steer])
+                else:
+                    return np.array([angles_ahead[0], self.prev_steer,
+                                     self.prev_accel, self.speed])
             observation = np.array(observation.values())
             observation = np.concatenate((observation, angles_ahead), axis=None)
 
@@ -280,8 +286,7 @@ class Deepdrive2DEnv(gym.Env):
     def generate_map(self):
         # Generate one waypoint map
         if self.one_waypoint_map:
-            self.max_single_waypoint_mult = 0.1
-            m = self.max_single_waypoint_mult
+            m = self.max_one_waypoint_mult
             x1 = 0.1
             y1 = 0.5
             if self.static_map:
@@ -433,7 +438,7 @@ class Deepdrive2DEnv(gym.Env):
             reward, info = self.get_reward(lane_deviation, won, lost, info, accel)
             info.tfx.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
-            log.info(f'step time {round(step_time, 3)}')
+            # log.trace(f'step time {round(step_time, 3)}')
 
             if done:
                 info.tfx.all_time.won = won
@@ -559,13 +564,34 @@ class Deepdrive2DEnv(gym.Env):
         reward = 0
         target_mps = 15
 
-        if self.match_angle_only:
+        if self.one_waypoint_map:
             ret = 2 * pi - abs(self.angles_ahead[0])  # Angle reward
+
             if ret < 0:
                 angle_accuracy = 0
             else:
                 angle_accuracy = ret / (2 * pi)
-            ret -= 8 * pi * self.gforce  # G-force penalty
+
+            # Add speed reward (TODO: Make this same as minimizing trip time)
+            # if ret > 0:
+            #     if self.speed == 0:
+            #         ret = 0
+            #     else:
+            #         ret += self.speed * 8 * pi
+            frame_distance = self.distance - self.furthest_distance
+            if frame_distance > 0:
+                # With distance:
+                # 32: Speed 1.54, max-g: 0.5, 16: speed 1, max-g: 0.1
+                # 8: Speed 0.1, max-g: 0.03
+                # Waypoint mult 0.5: 8: Speed 0.3, avg-g: 0.01, max-g: 0.1
+                #
+                # With speed * 8 * pi: Speed 3.8, max-g: 0.71
+                ret += frame_distance * 8 * pi
+                self.furthest_distance = self.distance
+
+
+            if self.gforce > 0.05:
+                ret -= 8 * pi * self.gforce  # G-force penalty
             self.angle_accuracies.append(angle_accuracy)
             info.tfx.angle_accuracy = angle_accuracy
 
