@@ -46,7 +46,7 @@ class Deepdrive2DEnv(gym.Env):
                  ignore_brake=True,
                  expect_normalized_actions=True,
                  decouple_step_time=True,
-                 physics_steps_per_observation=6,
+                 physics_steps_per_observation=1,
                  one_waypoint_map=False,
                  match_angle_only=False):
 
@@ -70,7 +70,10 @@ class Deepdrive2DEnv(gym.Env):
         self.num_episodes: int = 0
         self.total_steps: int = 0
         self.last_step_time: float = None
-        self.num_actions: int = 3  # Steer, throttle, brake
+        if 'STRAIGHT_TEST' in os.environ:
+            self.num_actions = 1  # Accel
+        else:
+            self.num_actions: int = 3  # Steer, accel, brake
         self.prev_action: List[float] = [0] * self.num_actions
         self.prev_steer: float = 0
         self.prev_accel: float = 0
@@ -100,7 +103,8 @@ class Deepdrive2DEnv(gym.Env):
         self.match_angle_only = match_angle_only
         self.one_waypoint_map = one_waypoint_map
 
-        self.max_one_waypoint_mult = 0.5
+        # 0.22 m/s on 0.1
+        self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -183,6 +187,8 @@ class Deepdrive2DEnv(gym.Env):
             if self.one_waypoint_map:
                 if self.match_angle_only:
                     return np.array([angles_ahead[0], self.prev_steer])
+                elif 'STRAIGHT_TEST' in os.environ:
+                    return np.array([self.speed])
                 else:
                     return np.array([angles_ahead[0], self.prev_steer,
                                      self.prev_accel, self.speed])
@@ -407,8 +413,20 @@ class Deepdrive2DEnv(gym.Env):
         # length of 135 when length should have been 175
         dt = self.get_dt()
         info = Box(default_box=True)
-        steer, accel, brake = action
+        if 'STRAIGHT_TEST' in os.environ:
+            accel = action[0]
+            steer = 0
+            brake = 0
+        else:
+            steer, accel, brake = action
+
         steer, accel, brake = self.denormalize_actions(steer, accel, brake)
+
+        if 'STRAIGHT_TEST' in os.environ:
+            steer = 0
+            brake = 0
+            # accel = MAX_METERS_PER_SEC_SQ
+
         if '--straight-test' in sys.argv:
             steer = 0
         elif '--simple-steer' in sys.argv and self.angles_ahead:
@@ -462,8 +480,8 @@ class Deepdrive2DEnv(gym.Env):
                       f'Distance {round(self.distance, 2)}, '
                       f'Angular velocity {round(self.angular_velocity, 2)}, '
                       f'Speed: {round(self.speed, 2)}, '
-                      f'Max gforce: {round(self.max_gforce, 2)}, '
-                      f'Avg gforce: {round(episode_gforce_avg, 2)}, '
+                      f'Max gforce: {round(self.max_gforce, 4)}, '
+                      f'Avg gforce: {round(episode_gforce_avg, 4)}, '
                       f'Trip pct {round(self.trip_pct, 2)}, '
                       f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
                       f'Num episodes {self.num_episodes}')
@@ -565,12 +583,16 @@ class Deepdrive2DEnv(gym.Env):
         target_mps = 15
 
         if self.one_waypoint_map:
-            ret = 2 * pi - abs(self.angles_ahead[0])  # Angle reward
 
-            if ret < 0:
+            if 'STRAIGHT_TEST' in os.environ:
+                angle_reward = 0
+            else:
+                angle_reward = 2 * pi - abs(self.angles_ahead[0])
+
+            if angle_reward < 0:
                 angle_accuracy = 0
             else:
-                angle_accuracy = ret / (2 * pi)
+                angle_accuracy = angle_reward / (2 * pi)
 
             # Add speed reward (TODO: Make this same as minimizing trip time)
             # if ret > 0:
@@ -579,6 +601,7 @@ class Deepdrive2DEnv(gym.Env):
             #     else:
             #         ret += self.speed * 8 * pi
             frame_distance = self.distance - self.furthest_distance
+            speed_reward = 0
             if frame_distance > 0:
                 # With distance:
                 # 32: Speed 1.54, max-g: 0.5, 16: speed 1, max-g: 0.1
@@ -586,14 +609,29 @@ class Deepdrive2DEnv(gym.Env):
                 # Waypoint mult 0.5: 8: Speed 0.3, avg-g: 0.01, max-g: 0.1
                 #
                 # With speed * 8 * pi: Speed 3.8, max-g: 0.71
-                ret += frame_distance * 8 * pi
+                speed_reward = frame_distance * 8 * pi
                 self.furthest_distance = self.distance
 
 
+            gforce_reward = 0
             if self.gforce > 0.05:
-                ret -= 8 * pi * self.gforce  # G-force penalty
+                gforce_reward = 0
+            else:
+                gforce_reward = self.gforce * 1 / 0.05
+                # gforce_reward = -8 * pi * self.gforce  # G-force penalty
             self.angle_accuracies.append(angle_accuracy)
             info.tfx.angle_accuracy = angle_accuracy
+
+            # ret = angle_reward + speed_reward + gforce_reward
+            ret = gforce_reward
+            # ret = angle_reward + speed_reward
+            # ret = self.speed
+            # ret = self.gforce
+
+            # log.trace(f'reward {ret} '
+            #          f'angle {angle_reward} '
+            #          f'speed {speed_reward} '
+            #          f'gforce {gforce_reward}')
 
             # TODO: To approximate MPC scoring, penalize overshooting.
             #   So, if we've hit the target angle, any change in angle from
@@ -741,7 +779,7 @@ class Deepdrive2DEnv(gym.Env):
         platform_event_loop.step(timeout)
 
     def get_distance(self, closest_map_index):
-        if '--straight-test' in sys.argv:
+        if 'STRAIGHT_TEST' in os.environ:
             self.distance = self.x - self.start_x
         elif self.one_waypoint_map:
             end = np.array([self.map.x[-1], self.map.y[-1]])
@@ -820,7 +858,7 @@ steer, accel, brake, dt, info
             pyglet.app.platform_event_loop.stop()
 
 
-# @njit(cache=True, nogil=True)
+@njit(cache=True, nogil=True)
 def bike_with_friction_step(
         steer, accel, brake, dt,
         x, y, angle, angle_change, speed, add_rotational_friction,
@@ -858,7 +896,7 @@ def bike_with_friction_step(
     return x, y, angle, angle_change, speed
 
 
-# @njit(cache=True, nogil=True)
+@njit(cache=True, nogil=True)
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
     process model
