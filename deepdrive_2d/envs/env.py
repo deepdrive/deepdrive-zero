@@ -46,7 +46,7 @@ class Deepdrive2DEnv(gym.Env):
                  ignore_brake=True,
                  expect_normalized_actions=True,
                  decouple_step_time=True,
-                 physics_steps_per_observation=1,
+                 physics_steps_per_observation=6,
                  one_waypoint_map=False,
                  match_angle_only=False):
 
@@ -104,7 +104,7 @@ class Deepdrive2DEnv(gym.Env):
         self.one_waypoint_map = one_waypoint_map
 
         # 0.22 m/s on 0.1
-        self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
+        self.max_one_waypoint_mult = 0.1  # Less than 2.5 m/s on 0.1?
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -435,11 +435,11 @@ class Deepdrive2DEnv(gym.Env):
         elif self.match_angle_only:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
 
-        info.tfx.steer = steer
-        info.tfx.accel = accel
-        info.tfx.brake = brake
-        info.tfx.speed = self.speed
-        info.tfx.episode_time = self.total_episode_time
+        info.stats.steer = steer
+        info.stats.accel = accel
+        info.stats.brake = brake
+        info.stats.speed = self.speed
+        info.stats.episode_time = self.total_episode_time
 
         now = time.time()
         if self.last_step_time is None:
@@ -454,12 +454,12 @@ class Deepdrive2DEnv(gym.Env):
                 self.get_observation(steer, accel, brake, dt, info)
             done, won, lost = self.get_done(closest_map_point, lane_deviation)
             reward, info = self.get_reward(lane_deviation, won, lost, info, accel)
-            info.tfx.lane_deviation = lane_deviation
+            info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
 
             if done:
-                info.tfx.all_time.won = won
+                info.stats.all_time.won = won
 
 
         self.last_step_time = now
@@ -584,15 +584,17 @@ class Deepdrive2DEnv(gym.Env):
 
         if self.one_waypoint_map:
 
+            angle_diff = abs(self.angles_ahead[0])
+
             if 'STRAIGHT_TEST' in os.environ:
                 angle_reward = 0
             else:
-                angle_reward = 2 * pi - abs(self.angles_ahead[0])
+                angle_reward = 0  # 4 * pi - angle_diff
 
             if angle_reward < 0:
                 angle_accuracy = 0
             else:
-                angle_accuracy = angle_reward / (2 * pi)
+                angle_accuracy = 1 - angle_diff / (2 * pi)
 
             # Add speed reward (TODO: Make this same as minimizing trip time)
             # if ret > 0:
@@ -615,15 +617,12 @@ class Deepdrive2DEnv(gym.Env):
 
             gforce_reward = 0
             if self.gforce > 0.05:
-                gforce_reward = 0
-            else:
-                gforce_reward = self.gforce * 1 / 0.05
-                # gforce_reward = -8 * pi * self.gforce  # G-force penalty
+                gforce_reward = -8 * pi * self.gforce  # G-force penalty
             self.angle_accuracies.append(angle_accuracy)
-            info.tfx.angle_accuracy = angle_accuracy
+            info.stats.angle_accuracy = angle_accuracy
 
-            # ret = angle_reward + speed_reward + gforce_reward
-            ret = gforce_reward
+            ret = angle_reward + speed_reward + gforce_reward
+            # ret = gforce_reward
             # ret = angle_reward + speed_reward
             # ret = self.speed
             # ret = self.gforce
@@ -714,9 +713,9 @@ class Deepdrive2DEnv(gym.Env):
 
         self.angles_ahead = angles_ahead
 
-        info.tfx.closest_map_index = closest_map_index
-        info.tfx.trip_pct = self.trip_pct
-        info.tfx.distance = self.distance
+        info.stats.closest_map_index = closest_map_index
+        info.stats.trip_pct = self.trip_pct
+        info.stats.distance = self.distance
 
         observation = self.populate_observation(
             closest_map_point=closest_map_point,
@@ -803,25 +802,24 @@ class Deepdrive2DEnv(gym.Env):
         if gforce > self.max_gforce:
             log.trace(f'New max gforce {gforce}')
         self.max_gforce = max(gforce, self.max_gforce)
-        info.tfx.max_gforce = self.max_gforce
-        info.tfx.gforce = gforce
+        info.stats.gforce = gforce
         if gforce > 1:
             lvls.harmful = True
-            info.tfx.episode_gforce_level = 3
+            info.stats.episode_gforce_level = 3
             log.trace(f'Harmful gforce encountered {gforce} '
                       f'speed: {self.speed}')
         elif gforce > 0.4 and not lvls.harmful:
             lvls.jarring = True
-            info.tfx.episode_gforce_level = 2
+            info.stats.episode_gforce_level = 2
             log.trace(f'Jarring gforce encountered {gforce} '
                         f'speed: {self.speed}')
         elif gforce > 0.1 and not (lvls.harmful or lvls.jarring):
             lvls.uncomfortable = True
-            info.tfx.episode_gforce_level = 1
+            info.stats.episode_gforce_level = 1
             log.trace(f'Uncomfortable gforce encountered {gforce} '
                       f'speed: {self.speed}')
         elif not (lvls.harmful or lvls.jarring or lvls.uncomfortable):
-            info.tfx.episode_gforce_level = 0
+            info.stats.episode_gforce_level = 0
         self.gforce = gforce
 
 
