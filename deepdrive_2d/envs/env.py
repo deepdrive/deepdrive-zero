@@ -48,7 +48,8 @@ class Deepdrive2DEnv(gym.Env):
                  decouple_step_time=True,
                  physics_steps_per_observation=6,
                  one_waypoint_map=False,
-                 match_angle_only=False):
+                 match_angle_only=False,
+                 incent_win=False):
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
@@ -102,6 +103,7 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_gforces: List[float] = []
         self.match_angle_only = match_angle_only
         self.one_waypoint_map = one_waypoint_map
+        self.incent_win = incent_win
 
         # 0.22 m/s on 0.1
         self.max_one_waypoint_mult = 0.1  # Less than 2.5 m/s on 0.1?
@@ -591,10 +593,7 @@ class Deepdrive2DEnv(gym.Env):
             else:
                 angle_reward = 0  # 4 * pi - angle_diff
 
-            if angle_reward < 0:
-                angle_accuracy = 0
-            else:
-                angle_accuracy = 1 - angle_diff / (2 * pi)
+            angle_accuracy = 1 - angle_diff / (2 * pi)
 
             # Add speed reward (TODO: Make this same as minimizing trip time)
             # if ret > 0:
@@ -604,7 +603,7 @@ class Deepdrive2DEnv(gym.Env):
             #         ret += self.speed * 8 * pi
             frame_distance = self.distance - self.furthest_distance
             speed_reward = 0
-            if frame_distance > 0:
+            if not self.incent_win and frame_distance > 0:
                 # With distance:
                 # 32: Speed 1.54, max-g: 0.5, 16: speed 1, max-g: 0.1
                 # 8: Speed 0.1, max-g: 0.03
@@ -620,8 +619,11 @@ class Deepdrive2DEnv(gym.Env):
                 gforce_reward = -8 * pi * self.gforce  # G-force penalty
             self.angle_accuracies.append(angle_accuracy)
             info.stats.angle_accuracy = angle_accuracy
+            ret = (angle_reward +
+                   speed_reward +
+                   gforce_reward +
+                   self.get_win_reward(won))
 
-            ret = angle_reward + speed_reward + gforce_reward
             # ret = gforce_reward
             # ret = angle_reward + speed_reward
             # ret = self.speed
@@ -667,20 +669,26 @@ class Deepdrive2DEnv(gym.Env):
             # https://github.com/crizCraig/pytorch-soft-actor-critic/blob/5211aad09fc3b0e3cec823de99a16103c45c8f21/main.py#L199-L201
             reward = GAME_OVER_PENALTY
 
-        if '--incent-win' in sys.argv and won:
+        reward = self.get_win_reward(won) or reward
+
+        return reward, info
+
+    def get_win_reward(self, won):
+        win_reward = 0
+        if self.incent_win and won:
+            # TODO: DRY up
             # Should be based on expected avg return within
             # the finite time horizon as determined by gamma and rewards.
             # Here we are saying with a distance reward every step
             # and 500 steps we get
-            # ~10 ** -(math.log10(1-gamma))
+            # 1 / (1-gamma)
             # If your RL algo is advantage based, this will help
             # make the end more desirable vs less desirable when
             # e.g.
             # say gamma is 0.99
             # then the discounted reward in 100 steps will be 0.36
-            reward = self.map.length
-
-        return reward, info
+            win_reward = self.map.length
+        return win_reward
 
     def get_observation(self, steer, accel, brake, dt, info):
         if self.ignore_brake:
