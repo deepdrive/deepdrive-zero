@@ -1,8 +1,6 @@
+Static obstacle with some sort of collision detection
+
 Don't overwrite saved models.
-
-Allow playing a saved model.
-
-Measure steering accuracy in simple-steer
 
 Measure gforce due to inaccurate steering
 
