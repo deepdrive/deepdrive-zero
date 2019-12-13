@@ -11,7 +11,7 @@ class OneWaypointPlusAccelEnv(Deepdrive2DEnv):
         super().__init__(one_waypoint_map=True, match_angle_only=False)
 
 
-class DestinationBased(Deepdrive2DEnv):
+class IncentArrival(Deepdrive2DEnv):
     def __init__(self):
         super().__init__(one_waypoint_map=True, match_angle_only=False,
-                         )
+                         incent_win=True)

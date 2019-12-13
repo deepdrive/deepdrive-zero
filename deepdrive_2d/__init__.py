@@ -14,6 +14,12 @@ register(
     id='deepdrive-2d-one-waypoint-plus-accel-v0',
     entry_point='deepdrive_2d.envs:OneWaypointPlusAccelEnv',
 )
+
+register(
+    id='deepdrive-2d-incent-arrival-v0',
+    entry_point='deepdrive_2d.envs:IncentArrival',
+)
+
 # register(
 #     id='foo-extrahard-v0',
 #     entry_point='gym_foo.envs:FooExtraHardEnv',

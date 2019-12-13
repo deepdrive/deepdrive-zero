@@ -49,7 +49,8 @@ class Deepdrive2DEnv(gym.Env):
                  physics_steps_per_observation=6,
                  one_waypoint_map=False,
                  match_angle_only=False,
-                 incent_win=False):
+                 incent_win=False,
+                 gamma=0.99):
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
@@ -104,6 +105,7 @@ class Deepdrive2DEnv(gym.Env):
         self.match_angle_only = match_angle_only
         self.one_waypoint_map = one_waypoint_map
         self.incent_win = incent_win
+        self.gamma = gamma
 
         # 0.22 m/s on 0.1
         self.max_one_waypoint_mult = 0.1  # Less than 2.5 m/s on 0.1?
@@ -603,7 +605,7 @@ class Deepdrive2DEnv(gym.Env):
             #         ret += self.speed * 8 * pi
             frame_distance = self.distance - self.furthest_distance
             speed_reward = 0
-            if not self.incent_win and frame_distance > 0:
+            if frame_distance > 0:
                 # With distance:
                 # 32: Speed 1.54, max-g: 0.5, 16: speed 1, max-g: 0.1
                 # 8: Speed 0.1, max-g: 0.03
@@ -676,18 +678,7 @@ class Deepdrive2DEnv(gym.Env):
     def get_win_reward(self, won):
         win_reward = 0
         if self.incent_win and won:
-            # TODO: DRY up
-            # Should be based on expected avg return within
-            # the finite time horizon as determined by gamma and rewards.
-            # Here we are saying with a distance reward every step
-            # and 500 steps we get
-            # 1 / (1-gamma)
-            # If your RL algo is advantage based, this will help
-            # make the end more desirable vs less desirable when
-            # e.g.
-            # say gamma is 0.99
-            # then the discounted reward in 100 steps will be 0.36
-            win_reward = self.map.length
+            win_reward = self.map.length * 8 * pi
         return win_reward
 
     def get_observation(self, steer, accel, brake, dt, info):
