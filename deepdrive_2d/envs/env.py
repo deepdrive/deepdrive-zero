@@ -52,7 +52,8 @@ class Deepdrive2DEnv(gym.Env):
                  one_waypoint_map=False,
                  match_angle_only=False,
                  incent_win=False,
-                 gamma=0.99):
+                 gamma=0.99,
+                 static_obstacle=False):
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
@@ -108,6 +109,7 @@ class Deepdrive2DEnv(gym.Env):
         self.one_waypoint_map = one_waypoint_map
         self.incent_win = incent_win
         self.gamma = gamma
+        self.static_obstacle = static_obstacle
 
         # 0.22 m/s on 0.1
         self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
@@ -296,6 +298,7 @@ class Deepdrive2DEnv(gym.Env):
         return ret
 
     def generate_map(self):
+        static_obst_pixels = None
         # Generate one waypoint map
         if self.one_waypoint_map:
             m = self.max_one_waypoint_mult
@@ -309,6 +312,11 @@ class Deepdrive2DEnv(gym.Env):
                 y2 = y1 + (2 * np_rand() - 1) * m
             x = np.array([x1, x2])
             y = np.array([y1, y2])
+
+            if self.static_obstacle:
+                static_obst_pixels = get_static_obst(m, x, y)
+
+
         else:
             x, y = gen_map(should_save=True)
 
@@ -332,7 +340,8 @@ class Deepdrive2DEnv(gym.Env):
                        distances=distances,
                        length=distances[-1],
                        width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
-                       height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,)
+                       height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,
+                       static_obst_pixels=static_obst_pixels)
 
         self.x = self.map.x[0]
         self.y = self.map.y[0]
@@ -747,6 +756,7 @@ class Deepdrive2DEnv(gym.Env):
                      info):
         n = self.physics_steps_per_observation
         self.gforce_levels = self.blank_gforce_levels()
+        # TODO: Numba this
         for i in range(n):
             interp = (i + 1) / n
             i_steer = self.prev_steer + interp * (steer - self.prev_steer)
@@ -755,7 +765,6 @@ class Deepdrive2DEnv(gym.Env):
                 i_brake = self.prev_brake + interp * (float(brake) - self.prev_brake)
             else:
                 i_brake = 0
-            # TODO: Numba this
             # log.info(f'steer {steer} accel {accel} brake {brake} vel {self.velocity}')
             prev_x, prev_y, prev_angle = self.x, self.y, self.angle
             self.x, self.y, self.angle, self.angle_change, self.speed = \

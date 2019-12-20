@@ -109,6 +109,16 @@ class Deepdrive2DPlayer(arcade.Window):
                 center_y=self.env.map.y_pixels[1],
                 radius=20,
                 color=arcade.color.ORANGE)
+            if self.static_obstacle:
+                static_obst_pixels = self.env.map.static_obst_pixels
+                arcade.draw_line(
+                    static_obst_pixels[0][0],
+                    static_obst_pixels[0][1],
+                    static_obst_pixels[1][0],
+                    static_obst_pixels[1][1],
+                    color=arcade.color.BLACK_OLIVE,
+                    line_width=5,
+                )
         else:
             # Draw the background texture
             bg_scale = 1.1

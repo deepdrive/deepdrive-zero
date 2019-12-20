@@ -1,10 +1,10 @@
+Static obstacle with some sort of collision detection
+
 Make sure we can take drastic action to avoid collision even with action/gforce penalties
 
 Penalize the complexity of a course of action
 
 Try squaring action penalty like hopper and LQR
-
-Static obstacle with some sort of collision detection
 
 Don't overwrite saved models.
 
