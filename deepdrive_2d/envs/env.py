@@ -32,6 +32,8 @@ CONTINUOUS_REWARD = True
 GAME_OVER_PENALTY = -1
 
 
+
+
 class Deepdrive2DEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -108,7 +110,7 @@ class Deepdrive2DEnv(gym.Env):
         self.gamma = gamma
 
         # 0.22 m/s on 0.1
-        self.max_one_waypoint_mult = 0.1  # Less than 2.5 m/s on 0.1?
+        self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -312,6 +314,7 @@ class Deepdrive2DEnv(gym.Env):
 
         x_pixels = x * MAP_WIDTH_PX + SCREEN_MARGIN
         y_pixels = y * MAP_HEIGHT_PX + SCREEN_MARGIN
+
 
         x_meters = x_pixels / self.px_per_m
         y_meters = y_pixels / self.px_per_m
@@ -943,5 +946,45 @@ def main():
     env = Deepdrive2DEnv()
 
 
+
+def get_static_obst(m, x, y):
+    # Get point between here + 2 car lengths and destination
+    # Draw random size / angle line
+    # TODO: Allow circular obstacles using equation of circle and
+    #  set equal to equation for line
+    # xy = np.dstack((x, y))
+    # xy_dist = np.diff(xy, axis=1)[0][0]
+    # rand_vals = np.random.rand(2)
+    x_dist = x[1] - x[0]
+    y_dist = y[1] - y[0]
+
+    total_dist = np.linalg.norm([x_dist, y_dist])
+    center_dist = np.random.rand() * total_dist * 0.6 + 0.1
+    theta = np.arctan(y_dist / x_dist)
+    obst_center_x = cos(theta) * center_dist + x[0]
+    obst_center_y = sin(theta) * center_dist + y[0]
+
+    obst_angle = np.random.rand() * pi
+    obst_width = np.random.rand() * 0.1 + 0.025
+    obst_end_x = obst_center_x + cos(obst_angle) * obst_width / 2
+    obst_end_y = obst_center_y + sin(obst_angle) * obst_width / 2
+    obst_beg_x = obst_center_x - cos(obst_angle) * obst_width / 2
+    obst_beg_y = obst_center_y - sin(obst_angle) * obst_width / 2
+    static_obst_x = np.array([obst_beg_x, obst_end_x])
+    static_obst_y = np.array([obst_beg_y, obst_end_y])
+    static_obst_x_pixels = static_obst_x * MAP_WIDTH_PX + SCREEN_MARGIN
+    static_obst_y_pixels = static_obst_y * MAP_HEIGHT_PX + SCREEN_MARGIN
+    static_obst_pixels = np.dstack(
+        (static_obst_x_pixels, static_obst_y_pixels))[0]
+    return static_obst_pixels
+
+
+def test_static_obstacle():
+    get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
+
+
 if __name__ == '__main__':
-    main()
+    if '--test_static_obstacle' in sys.argv:
+        test_static_obstacle()
+    else:
+        main()

@@ -26,7 +26,7 @@ from deepdrive_2d.map_gen import gen_map
 class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False, env=None,
-                 fps=60):
+                 fps=60, static_obstacle=False, one_waypoint=False):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
@@ -50,6 +50,8 @@ class Deepdrive2DPlayer(arcade.Window):
         self.background = None
         self.max_accel = None
         self.px_per_m = None
+        self.static_obstacle = static_obstacle
+        self.one_waypoint = one_waypoint
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -80,7 +82,10 @@ class Deepdrive2DPlayer(arcade.Window):
                 ignore_brake=False,
                 expect_normalized_actions=False,
                 decouple_step_time=True,
-                physics_steps_per_observation=6,)
+                physics_steps_per_observation=1,
+                static_obstacle=self.static_obstacle,
+                one_waypoint_map=self.one_waypoint,
+            )
 
         self.env.reset()
 
@@ -183,6 +188,8 @@ def start(env=None, fps=60):
     player = Deepdrive2DPlayer(
         add_rotational_friction='--rotational-friction' in sys.argv,
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
+        static_obstacle='--static-obstacle' in sys.argv,
+        one_waypoint='--one-waypoint-map' in sys.argv,
         env=env,
         fps=fps
     )
