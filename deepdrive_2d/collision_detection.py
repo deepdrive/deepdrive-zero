@@ -1,9 +1,12 @@
 import math
+import sys
 import timeit
 from random import randint
+from typing import Type
 
 import numpy as np
 from numba import njit
+pi = np.pi
 
 
 # TODO: Implement broad phase sweep and prune when you have more than 2 objects
@@ -24,8 +27,8 @@ def distance(x, y):
 
 
 @njit(cache=True, nogil=True)
-def is_between(a, c, b):
-    diff = abs(distance(a, c) + distance(c, b) - distance(a, b))
+def is_between(start, mid, end):
+    diff = abs(distance(start, mid) + distance(mid, end) - distance(start, end))
     return diff < 1e-4
 
 
@@ -33,10 +36,10 @@ def is_between(a, c, b):
 def get_intersect(a1, a2, b1, b2):
     """
     Returns the point of intersection of the lines passing through a2,a1 and b2,b1.
-    a1: [x, y] a point on the first line
-    a2: [x, y] another point on the first line
-    b1: [x, y] a point on the second line
-    b2: [x, y] another point on the second line
+    a1: np.array [x, y] a point on the first line
+    a2: np.array [x, y] another point on the first line
+    b1: np.array [x, y] a point on the second line
+    b2: np.array [x, y] another point on the second line
     """
     s = np.vstack((a1, a2, b1, b2))            # s for stacked
     h = np.hstack((s, np.ones((4, 1))))        # h for homogeneous
@@ -48,7 +51,73 @@ def get_intersect(a1, a2, b1, b2):
     return np.array([x / z, y / z])
 
 
-def test():
+@njit(cache=True, nogil=True)
+def get_lines_from_rect_points(rect_points: tuple):
+    p = rect_points
+    ret = ((p[0], p[1]),
+           (p[1], p[2]),
+           (p[2], p[3]),
+           (p[3], p[0]))
+    return ret
+
+
+@njit(cache=True, nogil=True)
+def check_collision(ego_rect: tuple, lines: tuple):
+    ego_lines = get_lines_from_rect_points(ego_rect)
+    for ego_a, ego_b in ego_lines:
+        for line_a, line_b in lines:
+            if lines_intersect(np.array(ego_a), np.array(ego_b),
+                               np.array(line_a), np.array(line_b)):
+                return True
+    return False
+
+
+@njit(cache=True, nogil=True)
+def get_rect(center_x, center_y, angle, width, height):
+    """
+    :param angle: angle in radians
+    :return: 4 points of the rectangle
+    """
+    w = width
+    h = height
+    rot = np.array([[np.cos(angle), -np.sin(angle)],
+                    [np.sin(angle),  np.cos(angle)]])
+    p = np.array([[-w/2, h/2], [w/2, h/2], [w/2, -h/2], [-w/2, -h/2]])
+
+    # Rotate
+    ret = rot @ p.T
+
+    # Zip up to proper shape
+    ret = np.dstack((ret[0], ret[1]))[0]
+
+    # Shift
+    ret += np.array([center_x, center_y])
+
+    return ret
+
+
+
+def test_check_collision():
+    ego_rect = get_rect(1, 1, pi / 4, 2, 1)
+    max_x = max(ego_rect.T[0])
+    line = ((max_x, -1e10), (max_x, 1e10))
+    ego_rect = tuple(map(tuple, ego_rect.tolist()))
+    assert check_collision(ego_rect, (line,))
+
+
+
+def test_get_rect():
+    r = get_rect(0, 0, pi / 2, 2, 1)
+    assert all(np.isclose(r[0], [-0.5, -1]))
+
+    r = get_rect(1, 1, pi / 2, 2, 1)
+    assert all(np.isclose(r, [[0.5, 0],
+                              [0.5, 2],
+                              [1.5, 2],
+                              [1.5, 0]]).flatten())
+
+
+def test_lines_intersect():
     assert not lines_intersect(np.array([0, 1], dtype=np.float),
                                np.array([0, 2], dtype=np.float),
                                np.array([1, 10], dtype=np.float),
@@ -72,28 +141,23 @@ def test():
                     np.array([randint(0, 10), randint(0, 10)], dtype=np.float))
 
 
-def test2():
-    test()
-    test()
+def test_lines_intersect_x2():
+    test_lines_intersect()
+    test_lines_intersect()
+
+
+def main():
+    if '--test_check_collision' in sys.argv:
+        # get_lines_from_rect_points(
+        #     ((1, 0), (1, 0), (1, 0), (1, 0))
+        # )
+        test_check_collision()
+
+    else:
+        print(timeit.timeit(test_lines_intersect_x2, number=1000))
+
 
 
 
 if __name__ == "__main__":
-    # simple(np.array([1, 1], dtype=np.float))
-    # assert not lines_intersect(np.array([0, 1], dtype=np.float),
-    #                            np.array([0, 2], dtype=np.float),
-    #                            np.array([1, 10], dtype=np.float),
-    #                            np.array([2, 10], dtype=np.float))
-    # lines_intersect(np.array([0, 1], dtype=np.float), np.array([0, 2], dtype=np.float), np.array([1, 10], dtype=np.float), np.array([2, 10], dtype=np.float))
-    # get_intersect(np.array([0, 1], dtype=np.float), np.array([0, 2], dtype=np.float), np.array([1, 10], dtype=np.float), np.array([2, 10], dtype=np.float))
-    print(timeit.timeit(test2, number=1000))
-    # assert lines_intersect((0, 1), (0, 2), (-1, 1), (1, 2))
-    # assert lines_intersect((0, 1), (0, 2), (0, 2), (2, 0))
-    # assert not lines_intersect((0, 0), (0, 1), (0, 2), (2, 0))
-    # print('Tests passed!')
-
-
-    # print(get_intersect((0, 1), (0, 2), (1, 10), (1, 9)) ) # parallel  lines
-    # print(get_intersect((0, 1), (0, 2), (1, 10), (2, 10))) # vertical and horizontal lines
-    # print(get_intersect((0, 1), (1, 2), (0, 10), (1, 9)) ) # another line for fun
-    pass
+    main()
