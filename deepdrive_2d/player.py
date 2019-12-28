@@ -18,12 +18,16 @@ from deepdrive_2d.envs.env import Deepdrive2DEnv
 from deepdrive_2d.map_gen import gen_map
 
 
+DRAW_COLLISION_BOXES = True
+
+
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
 
 
 # noinspection PyAbstractClass
 class Deepdrive2DPlayer(arcade.Window):
+    """Allows playing the env as a human"""
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False, env=None,
                  fps=60, static_obstacle=False, one_waypoint=False):
@@ -103,20 +107,23 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
+        e = self.env
+        c = arcade.color
+
         if self.env.one_waypoint_map:
             arcade.draw_circle_filled(
-                center_x=self.env.map.x_pixels[1],
-                center_y=self.env.map.y_pixels[1],
+                center_x=e.map.x_pixels[1],
+                center_y=e.map.y_pixels[1],
                 radius=20,
-                color=arcade.color.ORANGE)
+                color=c.ORANGE)
             if self.static_obstacle:
-                static_obst_pixels = self.env.map.static_obst_pixels
+                static_obst_pixels = e.map.static_obst_pixels
                 arcade.draw_line(
                     static_obst_pixels[0][0],
                     static_obst_pixels[0][1],
                     static_obst_pixels[1][0],
                     static_obst_pixels[1][1],
-                    color=arcade.color.BLACK_OLIVE,
+                    color=c.BLACK_OLIVE,
                     line_width=5,
                 )
         else:
@@ -128,6 +135,18 @@ class Deepdrive2DPlayer(arcade.Window):
                 MAP_WIDTH_PX * bg_scale,
                 MAP_HEIGHT_PX * bg_scale,
                 self.background)
+
+        if e.ego_rect is not None and DRAW_COLLISION_BOXES:
+
+
+            arcade.draw_rectangle_outline(
+                center_x=e.x * e.px_per_m, center_y=e.y * e.px_per_m,
+                width=e.vehicle_width * e.px_per_m,
+                height=e.vehicle_height * e.px_per_m, color=c.LIME_GREEN,
+                border_width=2, tilt_angle=math.degrees(e.angle),
+            )
+            arcade.draw_points(point_list=(e.ego_rect * e.px_per_m).tolist(),
+                               color=c.YELLOW, size=3)
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
         #                  arcade.color.WHITE)

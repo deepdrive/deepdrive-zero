@@ -18,6 +18,7 @@ from retry import retry
 from scipy import spatial
 import pyglet
 
+from deepdrive_2d.collision_detection import lines_intersect
 from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ
@@ -30,8 +31,6 @@ MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
 CONTINUOUS_REWARD = True
 GAME_OVER_PENALTY = -1
-
-
 
 
 class Deepdrive2DEnv(gym.Env):
@@ -105,11 +104,13 @@ class Deepdrive2DEnv(gym.Env):
         self.angles_ahead: List[float] = []
         self.angle_accuracies: List[float] = []
         self.episode_gforces: List[float] = []
-        self.match_angle_only = match_angle_only
-        self.one_waypoint_map = one_waypoint_map
-        self.incent_win = incent_win
-        self.gamma = gamma
-        self.static_obstacle = static_obstacle
+        self.match_angle_only: bool = match_angle_only
+        self.one_waypoint_map: bool = one_waypoint_map
+        self.incent_win: bool = incent_win
+        self.gamma: float = gamma
+        self.add_static_obstacle: bool = static_obstacle
+        self.static_obstacle_points: np.array = None
+        self.static_obst_pixels: np.array = None
 
         # 0.22 m/s on 0.1
         self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
@@ -152,6 +153,7 @@ class Deepdrive2DEnv(gym.Env):
         self.aps = self.fps / self.physics_steps_per_observation
 
         self.player = None
+        self.ego_rect: np.array = None
 
         self.reset()
 
@@ -313,8 +315,9 @@ class Deepdrive2DEnv(gym.Env):
             x = np.array([x1, x2])
             y = np.array([y1, y2])
 
-            if self.static_obstacle:
-                static_obst_pixels = get_static_obst(m, x, y)
+            if self.add_static_obstacle:
+                self.static_obstacle_points, self.static_obst_pixels = \
+                    get_static_obst(m, x, y)
 
 
         else:
@@ -341,7 +344,7 @@ class Deepdrive2DEnv(gym.Env):
                        length=distances[-1],
                        width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
                        height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,
-                       static_obst_pixels=static_obst_pixels)
+                       static_obst_pixels=self.static_obst_pixels)
 
         self.x = self.map.x[0]
         self.y = self.map.y[0]
@@ -465,7 +468,8 @@ class Deepdrive2DEnv(gym.Env):
             done = False
             observation = self.get_blank_observation()
         else:
-            # TODO: Car lists with collision detection
+            # self.check_for_collisions()
+
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
             done, won, lost = self.get_done(closest_map_point, lane_deviation)
@@ -506,6 +510,9 @@ class Deepdrive2DEnv(gym.Env):
         self.prev_steer = steer
         self.prev_accel = accel
         self.prev_brake = brake
+
+        self.ego_rect = get_rect(self.x, self.y, self.angle, self.vehicle_width,
+                                 self.vehicle_height)
 
         return observation, reward, done, info.to_dict()
 
@@ -866,6 +873,10 @@ steer, accel, brake, dt, info
             pyglet.app.dispatch_event('on_exit')
             pyglet.app.platform_event_loop.stop()
 
+    def check_for_collisions(self):
+        if self.add_static_obstacle:
+            check_collision(objects=[self.ego_rect, self.add_static_obstacle])
+
 
 @njit(cache=True, nogil=True)
 def bike_with_friction_step(
@@ -951,11 +962,6 @@ def np_rand():
     return np.random.rand(1)[0]
 
 
-def main():
-    env = Deepdrive2DEnv()
-
-
-
 def get_static_obst(m, x, y):
     # Get point between here + 2 car lengths and destination
     # Draw random size / angle line
@@ -981,19 +987,29 @@ def get_static_obst(m, x, y):
     obst_beg_y = obst_center_y - sin(obst_angle) * obst_width / 2
     static_obst_x = np.array([obst_beg_x, obst_end_x])
     static_obst_y = np.array([obst_beg_y, obst_end_y])
+    static_obst = np.dstack(
+        (static_obst_x, static_obst_y))[0]
     static_obst_x_pixels = static_obst_x * MAP_WIDTH_PX + SCREEN_MARGIN
     static_obst_y_pixels = static_obst_y * MAP_HEIGHT_PX + SCREEN_MARGIN
     static_obst_pixels = np.dstack(
         (static_obst_x_pixels, static_obst_y_pixels))[0]
-    return static_obst_pixels
+    return static_obst, static_obst_pixels
 
 
 def test_static_obstacle():
-    get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
+    meters, pixels = get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
+
+
+
+def main():
+    env = Deepdrive2DEnv()
+
 
 
 if __name__ == '__main__':
     if '--test_static_obstacle' in sys.argv:
         test_static_obstacle()
+    elif '--test_get_rect' in sys.argv:
+        test_get_rect()
     else:
         main()
