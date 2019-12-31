@@ -18,7 +18,8 @@ from retry import retry
 from scipy import spatial
 import pyglet
 
-from deepdrive_2d.collision_detection import lines_intersect
+from deepdrive_2d.collision_detection import lines_intersect, check_collision, \
+    get_rect
 from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ
@@ -31,6 +32,7 @@ MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
 CONTINUOUS_REWARD = True
 GAME_OVER_PENALTY = -1
+IS_DEBUG_MODE = getattr(sys, 'gettrace', None)
 
 
 class Deepdrive2DEnv(gym.Env):
@@ -111,6 +113,7 @@ class Deepdrive2DEnv(gym.Env):
         self.add_static_obstacle: bool = static_obstacle
         self.static_obstacle_points: np.array = None
         self.static_obst_pixels: np.array = None
+        self.static_obstacle_tuple: tuple = ()
 
         # 0.22 m/s on 0.1
         self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
@@ -316,8 +319,16 @@ class Deepdrive2DEnv(gym.Env):
             y = np.array([y1, y2])
 
             if self.add_static_obstacle:
-                self.static_obstacle_points, self.static_obst_pixels = \
+                _, self.static_obst_pixels = \
                     get_static_obst(m, x, y)
+
+                # Need to work backward from pixels to incorporate
+                # screen margin offset
+                self.static_obstacle_points = \
+                    self.static_obst_pixels / self.px_per_m
+
+                self.static_obstacle_tuple = tuple(
+                    map(tuple, self.static_obstacle_points.tolist()))
 
 
         else:
@@ -412,19 +423,24 @@ class Deepdrive2DEnv(gym.Env):
 
     @log.catch
     def step(self, action):
-        try:
+        if IS_DEBUG_MODE:
             return self._step(action)
-        except:
-            log.exception('Caught exception in step, ending episode')
-            obz = self.get_blank_observation()
-            done = True
-            if '--penalize-loss' in sys.argv:
-                reward = GAME_OVER_PENALTY
-            else:
-                reward = 0
-            info = {}
+        else:
+            # Fail gracefully when running so that long training runs are
+            # not interrupted by transient errors
+            try:
+                return self._step(action)
+            except:
+                log.exception('Caught exception in step, ending episode')
+                obz = self.get_blank_observation()
+                done = True
+                if '--penalize-loss' in sys.argv:
+                    reward = GAME_OVER_PENALTY
+                else:
+                    reward = 0
+                info = {}
 
-            return obz, reward, done, info
+                return obz, reward, done, info
 
     @log.catch
     def _step(self, action):
@@ -468,11 +484,12 @@ class Deepdrive2DEnv(gym.Env):
             done = False
             observation = self.get_blank_observation()
         else:
-            # self.check_for_collisions()
+            is_collision = self.check_for_collisions()
 
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
-            done, won, lost = self.get_done(closest_map_point, lane_deviation)
+            done, won, lost = self.get_done(closest_map_point, lane_deviation,
+                                            is_collision)
             reward, info = self.get_reward(lane_deviation, won, lost, info, accel)
             info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
@@ -511,8 +528,8 @@ class Deepdrive2DEnv(gym.Env):
         self.prev_accel = accel
         self.prev_brake = brake
 
-        self.ego_rect = get_rect(self.x, self.y, self.angle, self.vehicle_width,
-                                 self.vehicle_height)
+        self.ego_rect, self.ego_rect_tuple = get_rect(
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         return observation, reward, done, info.to_dict()
 
@@ -548,11 +565,16 @@ class Deepdrive2DEnv(gym.Env):
             dt = time.time() - self.last_step_time
         return dt
 
-    def get_done(self, closest_map_point,
-                 lane_deviation) -> Tuple[bool, bool, bool]:
+    def get_done(self, closest_map_point, lane_deviation,
+                 is_collision) -> Tuple[bool, bool, bool]:
         done = False
         won = False
         lost = False
+        if is_collision:
+            log.debug(f'Collision, game over.')
+            done = False
+            lost = False
+
         if lane_deviation > 1.1 and not self.one_waypoint_map:
             # You lose!
             log.debug(f'Drifted out of lane, game over.')
@@ -875,7 +897,8 @@ steer, accel, brake, dt, info
 
     def check_for_collisions(self):
         if self.add_static_obstacle:
-            check_collision(objects=[self.ego_rect, self.add_static_obstacle])
+            return check_collision(self.ego_rect_tuple,
+                                   lines=(self.static_obstacle_tuple,))
 
 
 @njit(cache=True, nogil=True)
@@ -997,7 +1020,7 @@ def get_static_obst(m, x, y):
 
 
 def test_static_obstacle():
-    meters, pixels = get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
+    points, pixels = get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
 
 
 

@@ -63,6 +63,13 @@ def get_lines_from_rect_points(rect_points: tuple):
 
 @njit(cache=True, nogil=True)
 def check_collision(ego_rect: tuple, lines: tuple):
+    """
+
+    :param ego_rect:
+    :param lines: n x 2 x 2 tuple of start & end points for n lines
+    :return:
+    """
+
     ego_lines = get_lines_from_rect_points(ego_rect)
     for ego_a, ego_b in ego_lines:
         for line_a, line_b in lines:
@@ -72,8 +79,21 @@ def check_collision(ego_rect: tuple, lines: tuple):
     return False
 
 
-@njit(cache=True, nogil=True)
 def get_rect(center_x, center_y, angle, width, height):
+    """
+    :param angle: angle in radians
+    :return: 4 points of the rectangle
+    """
+    ego_rect = _get_rect(center_x, center_y, angle, width, height)
+
+    # Numba likes tuples
+    ego_rect_tuple = tuple(map(tuple, ego_rect.tolist()))
+
+    return ego_rect, ego_rect_tuple
+
+
+@njit(cache=True, nogil=True)
+def _get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
     :return: 4 points of the rectangle
@@ -98,7 +118,7 @@ def get_rect(center_x, center_y, angle, width, height):
 
 
 def test_check_collision():
-    ego_rect = get_rect(1, 1, pi / 4, 2, 1)
+    ego_rect, ego_rect_tuple = get_rect(1, 1, pi / 4, 2, 1)
     ert = tuple(map(tuple, ego_rect.tolist()))  # ego rect tuple
     max_x = max(ego_rect.T[0])
     min_x = min(ego_rect.T[0])
@@ -142,10 +162,10 @@ def test_check_collision():
 
 
 def test_get_rect():
-    r = get_rect(0, 0, pi / 2, 2, 1)
+    r, _ = get_rect(0, 0, pi / 2, 2, 1)
     assert all(np.isclose(r[0], [-0.5, -1]))
 
-    r = get_rect(1, 1, pi / 2, 2, 1)
+    r, _ = get_rect(1, 1, pi / 2, 2, 1)
     assert all(np.isclose(r, [[0.5, 0],
                               [0.5, 2],
                               [1.5, 2],
