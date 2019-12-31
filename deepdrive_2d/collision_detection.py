@@ -99,11 +99,46 @@ def get_rect(center_x, center_y, angle, width, height):
 
 def test_check_collision():
     ego_rect = get_rect(1, 1, pi / 4, 2, 1)
+    ert = tuple(map(tuple, ego_rect.tolist()))  # ego rect tuple
     max_x = max(ego_rect.T[0])
-    line = ((max_x, -1e10), (max_x, 1e10))
-    ego_rect = tuple(map(tuple, ego_rect.tolist()))
-    assert check_collision(ego_rect, (line,))
+    min_x = min(ego_rect.T[0])
+    max_y = max(ego_rect.T[1])
+    min_y = min(ego_rect.T[1])
+    y_at_max_x = ego_rect[np.where(ego_rect.T[0] == max_x)][0][1]
+    mid_x = (max_x - min_x) / 2 + min_x
+    mid_y = (max_y - min_y) / 2 + min_y
 
+    # Top boundary should collide
+    assert check_collision(ert, (((1e-10, max_y), (1e10, max_y)),))
+
+    # Bottom boundary should collide
+    assert check_collision(ert, (((1e-10, min_y), (1e10, min_y)),))
+
+    # Right boundary should collide
+    assert check_collision(ert, (((max_x, -1e10), (max_x, 1e10)),))
+
+    # Left boundary should collide
+    assert check_collision(ert, (((min_x, -1e10), (min_x, 1e10)),))
+
+    # Small line should collide
+    assert check_collision(ert, (((max_x, y_at_max_x),
+                                  (max_x, y_at_max_x + 1e-4)),))
+
+    # Zero length line should not collide
+    assert not check_collision(ert, (((max_x, y_at_max_x),
+                                      (max_x, y_at_max_x)),))
+
+    # Mid x should collide
+    assert check_collision(ert, (((mid_x, max_y), (mid_x, min_y)),))
+
+    # Mid x outside y should not collide
+    assert not check_collision(ert, (((mid_x, 1e10), (mid_x, 1e10 + 1)),))
+
+    # Mid y should collide
+    assert check_collision(ert, (((min_x, mid_y), (max_x, mid_y)),))
+
+    # Mid x outside y should not collide
+    assert not check_collision(ert, (((1e20, mid_y), (mid_x, 1e20-1)),))
 
 
 def test_get_rect():
