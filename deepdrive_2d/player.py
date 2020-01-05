@@ -54,7 +54,8 @@ class Deepdrive2DPlayer(arcade.Window):
         self.background = None
         self.max_accel = None
         self.px_per_m = None
-        self.static_obstacle = static_obstacle
+        self.static_obstacle = (static_obstacle or
+                                self.env.unwrapped.add_static_obstacle)
         self.one_waypoint = one_waypoint
 
     def setup(self):
@@ -87,7 +88,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 expect_normalized_actions=False,
                 decouple_step_time=True,
                 physics_steps_per_observation=1,
-                static_obstacle=self.static_obstacle,
+                add_static_obstacle=self.static_obstacle,
                 one_waypoint_map=self.one_waypoint,
             )
 

@@ -1,4 +1,5 @@
 import numpy as np
+from math import pi
 from loguru import logger as log
 
 
@@ -7,14 +8,14 @@ def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 
 
-def angle_between(v1, v2):
+def angle_between_vectors(v1, v2):
     # noinspection PyTypeChecker
     """ Returns the angle in radians between vectors 'v1' and 'v2'::
-        >>> angle_between((1, 0, 0), (0, 1, 0))
+        >>> angle_between_vectors((1, 0, 0), (0, 1, 0))
         1.5707963267948966
-        >>> angle_between((1, 0, 0), (1, 0, 0))
+        >>> angle_between_vectors((1, 0, 0), (1, 0, 0))
         0.0
-        >>> angle_between((1, 0, 0), (-1, 0, 0))
+        >>> angle_between_vectors((1, 0, 0), (-1, 0, 0))
         3.141592653589793
         """
     v1_u = unit_vector(v1)
@@ -53,12 +54,31 @@ def get_angles_ahead(angle, closest_map_index, map_points,
     #   on trajectory, and doesn't make sense to correct with current angle
     #   by subtracting it when not on trajectory.
     cp = map_points[closest_map_index]
-    angles = [get_heading(cp, p) for p in points]
+    angles = [angle_between_points(cp, p) for p in points]
     angles = angle - np.array(angles)
     return angles
 
 
-def get_heading(p1, p2):
-    return -angle_between(np.array([0, 1]), np.array([p2[0] - p1[0],
-                                                      p2[1] - p1[1]]))
+def angle_between_points(p1, p2):
+    """
+    Gets angle between up vector, which our games reference frame is set to
+     0 radians, and the vector pointing to p2 from p1.
+    :param p1:
+    :param p2:
+    :return:
+    """
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+    return -angle_between_vectors(np.array([0, 1]), p2 - p1)
 
+
+
+
+def main():
+    assert np.isclose(angle_between_points([0, 0], [1, 1]), -pi/4)
+    assert np.isclose(angle_between_points([0, 1], [1, 1]), -pi/2)
+    assert np.isclose(angle_between_vectors([1, 0], [1, 1]), pi/4)
+
+
+if __name__ == '__main__':
+    main()

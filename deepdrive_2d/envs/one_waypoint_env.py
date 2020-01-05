@@ -11,7 +11,7 @@ class OneWaypointPlusAccelEnv(Deepdrive2DEnv):
         super().__init__(one_waypoint_map=True, match_angle_only=False)
 
 
-class IncentArrival(Deepdrive2DEnv):
+class IncentArrivalEnv(Deepdrive2DEnv):
     def __init__(self):
         super().__init__(one_waypoint_map=True, match_angle_only=False,
                          incent_win=True)
@@ -20,4 +20,4 @@ class IncentArrival(Deepdrive2DEnv):
 class StaticObstacleEnv(Deepdrive2DEnv):
     def __init__(self):
         super().__init__(one_waypoint_map=True, match_angle_only=False,
-                         incent_win=True, static_obstacle=True)
+                         incent_win=True, add_static_obstacle=True)

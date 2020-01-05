@@ -40,6 +40,8 @@ def get_intersect(a1, a2, b1, b2):
     a2: np.array [x, y] another point on the first line
     b1: np.array [x, y] a point on the second line
     b2: np.array [x, y] another point on the second line
+
+    Explanation: http://robotics.stanford.edu/~birch/projective/node4.html
     """
     s = np.vstack((a1, a2, b1, b2))            # s for stacked
     h = np.hstack((s, np.ones((4, 1))))        # h for homogeneous

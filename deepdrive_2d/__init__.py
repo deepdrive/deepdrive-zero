@@ -17,7 +17,12 @@ register(
 
 register(
     id='deepdrive-2d-incent-arrival-v0',
-    entry_point='deepdrive_2d.envs:IncentArrival',
+    entry_point='deepdrive_2d.envs:IncentArrivalEnv',
+)
+
+register(
+    id='deepdrive-2d-static-obstacle-v0',
+    entry_point='deepdrive_2d.envs:StaticObstacleEnv',
 )
 
 # register(
