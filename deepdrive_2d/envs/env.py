@@ -27,6 +27,7 @@ from deepdrive_2d.experience_buffer import ExperienceBuffer
 from deepdrive_2d.map_gen import gen_map
 from deepdrive_2d.utils import flatten_points, get_angles_ahead, \
     angle_between_points, angle_between_vectors
+from deepdrive_2d.logs import log
 
 MAX_BRAKE_G = 1
 G_ACCEL = 9.80665
@@ -208,7 +209,7 @@ class Deepdrive2DEnv(gym.Env):
             #  heading (right?!?). Static and dynamic obstacles can interfere with
             #  ability to reach waypoint, but skipping waypoints should not
             #  be an immediate alternative. Training can then focus on minimizing
-            #  g-forces and not getting the waypoint goal. Then at test time
+            #  g-forces if we don't reach the waypoint. Then at test time
             #  we can set a new waypoint after some timeout.
             if self.one_waypoint_map:
                 if self.match_angle_only:
