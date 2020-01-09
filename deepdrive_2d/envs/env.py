@@ -88,13 +88,14 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_reward: float = 0
         self.speed: float = 0
         self.angle_change: float = 0
-        self.map_query_seconds_ahead: np.array = np.array([0.5, 1, 1.5, 2, 2.5, 3])
+        self.map_query_seconds_ahead: np.array = np.array(
+            [0.5, 1, 1.5, 2, 2.5, 3])
         self.fps: int = 60
         self.target_dt: float = 1 / self.fps
         self.total_episode_time: float = 0
-        self.distance: float = 0
+        self.distance: float = None
         self.distance_to_end: float = 0
-        self.prev_distance: float = 0
+        self.prev_distance: float = None
         self.furthest_distance: float = 0
         self.velocity: List[float] = [0, 0]
         self.angular_velocity: float = 0
@@ -278,8 +279,8 @@ class Deepdrive2DEnv(gym.Env):
         self.speed = 0
         self.episode_reward = 0
         self.total_episode_time = 0
-        self.distance = 0
-        self.prev_distance = 0
+        self.distance = None
+        self.prev_distance = None
         self.furthest_distance = 0
         self.velocity = [0, 0]
         self.angular_velocity = 0
