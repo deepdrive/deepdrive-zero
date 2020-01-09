@@ -57,6 +57,8 @@ class Deepdrive2DEnv(gym.Env):
                  gamma=0.99,
                  add_static_obstacle=False):
 
+        log.info(f'{sys.executable} {sys.argv}')
+
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
         self.vehicle_height: float = vehicle_height
