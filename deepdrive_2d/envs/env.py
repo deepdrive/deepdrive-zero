@@ -568,6 +568,8 @@ class Deepdrive2DEnv(gym.Env):
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         self.ego_pos = np.array((self.x, self.y))
+        self.front_x = self.x + cos(pi/2 + self.angle) * self.vehicle_height / 2
+        self.front_y = self.y + sin(pi/2 + self.angle) * self.vehicle_width / 2
 
         return observation, reward, done, info.to_dict()
 
