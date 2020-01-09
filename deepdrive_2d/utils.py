@@ -61,8 +61,8 @@ def get_angles_ahead(angle, closest_map_index, map_points,
 
 def angle_between_points(p1, p2):
     """
-    Gets angle between up vector, which our games reference frame is set to
-     0 radians, and the vector pointing to p2 from p1.
+    Gets angle between up vector, which we define as 0 radians,
+    and the vector pointing from p1 to p2.
     :param p1:
     :param p2:
     :return:

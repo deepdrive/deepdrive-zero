@@ -779,9 +779,14 @@ class Deepdrive2DEnv(gym.Env):
         return ret
 
     def get_angle_to_point(self, p):
-        angle_to_dest = angle_between_points([self.x, self.y], [p[0], p[1]])
-        angle_ahead = self.angle - angle_to_dest
-        return angle_ahead
+        """
+        Computes steering angle required for ego to change heading towards `p`
+        :param p:
+        :return:
+        """
+        angle_from_basis = angle_between_points([self.x, self.y], p)
+        angle_diff = self.angle - angle_from_basis
+        return angle_diff
 
     def step_physics(self, dt, steer, accel, brake, prev_x, prev_y, prev_angle,
                      info):
