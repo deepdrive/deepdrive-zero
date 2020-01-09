@@ -686,11 +686,12 @@ class Deepdrive2DEnv(gym.Env):
             steer_penalty = 0
             accel_penalty = 0
 
-            gforce_reward = 0
-            if self.gforce > 0.05:
-                gforce_reward = -8 * pi * self.gforce  # G-force penalty
-            self.angle_accuracies.append(angle_accuracy)
-            info.stats.angle_accuracy = angle_accuracy
+
+        gforce_penalty = 0
+        # if self.gforce > 0.05:
+        #     gforce_penalty = 8 * pi * self.gforce  # G-force penalty
+        self.angle_accuracies.append(angle_accuracy)
+        info.stats.angle_accuracy = angle_accuracy
 
         if collided:
             collision_penalty = pi
@@ -706,11 +707,10 @@ class Deepdrive2DEnv(gym.Env):
            - accel_penalty
         )
 
-
-            # ret = gforce_reward
-            # ret = angle_reward + speed_reward
-            # ret = self.speed
-            # ret = self.gforce
+        # IDEA: Induce curriculum by zeroing things like static obstacle
+        # until we've learned to steer smoothly. Alternatively, we could
+        # train with the full complexity, then fine-tune to improve
+        # smoothness.
 
         # log.trace(f'reward {ret} '
         #          f'angle {angle_reward} '
