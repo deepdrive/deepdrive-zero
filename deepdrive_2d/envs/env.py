@@ -12,7 +12,7 @@ import gym
 import numpy as np
 from box import Box
 from gym import spaces
-from loguru import logger as log
+
 from numba import njit
 from retry import retry
 from scipy import spatial
@@ -526,7 +526,7 @@ class Deepdrive2DEnv(gym.Env):
             done, won, lost = self.get_done(closest_map_point, lane_deviation,
                                             collided)
             reward, info = self.get_reward(lane_deviation, won, lost, collided,
-                                           info, accel)
+                                           info, steer, accel)
             info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
@@ -624,14 +624,14 @@ class Deepdrive2DEnv(gym.Env):
             done = True
             lost = True
         elif (self.episode_steps + 1) % self._max_episode_steps == 0:
-            log.warning(f'Time up, game over.')
+            log.warning(f'Time up')
             done = True
         elif self.one_waypoint_map:
             if abs(math.degrees(self.angle)) > 200:
                 done = True
                 lost = True
-                log.warning(f'Angle {math.degrees(self.angle)} too high')
-            elif self.distance < 0:
+                log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
+            if (self.furthest_distance - self.distance) > 2:
                 done = True
                 lost = True
                 log.warning(f'Negative progress')
@@ -651,13 +651,6 @@ class Deepdrive2DEnv(gym.Env):
             won = True
         return done, won, lost
 
-    def should_penalize_gforce(self, min_trip_complete: float = 0):
-        if '--curriculum-gforce' in sys.argv:
-            prob = self.avg_trip_pct / 100 - min_trip_complete
-            ret = np_rand() < prob
-        else:
-            ret = True
-        return ret
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
                    collided: bool, info: Box, accel: float) -> Tuple[float, Box]:
@@ -666,14 +659,14 @@ class Deepdrive2DEnv(gym.Env):
 
         if self.one_waypoint_map:
 
-            angle_diff = abs(self.angles_ahead[0])
+        angle_diff = abs(self.angles_ahead[0])
 
-            if 'STRAIGHT_TEST' in os.environ:
-                angle_reward = 0
-            else:
-                angle_reward = 0  # 4 * pi - angle_diff
+        if 'STRAIGHT_TEST' in os.environ:
+            angle_reward = 0
+        else:
+            angle_reward = 4 * pi - angle_diff
 
-            angle_accuracy = 1 - angle_diff / (2 * pi)
+        angle_accuracy = 1 - angle_diff / (2 * pi)
 
             # Add speed reward (TODO: Make this same as minimizing trip time)
             # if ret > 0:
@@ -693,6 +686,13 @@ class Deepdrive2DEnv(gym.Env):
                 speed_reward = frame_distance * 8 * pi
                 self.furthest_distance = self.distance
 
+        if 'ACTION_PENALTY' in os.environ:
+            action_penalty = float(os.environ['ACTION_PENALTY'])
+            steer_penalty = steer * action_penalty
+            accel_penalty = accel * action_penalty
+        else:
+            steer_penalty = 0
+            accel_penalty = 0
 
             gforce_reward = 0
             if self.gforce > 0.05:
@@ -718,11 +718,11 @@ class Deepdrive2DEnv(gym.Env):
             # ret = self.speed
             # ret = self.gforce
 
-            # log.trace(f'reward {ret} '
-            #          f'angle {angle_reward} '
-            #          f'speed {speed_reward} '
-            #          f'gforce {gforce_reward}')
-            return ret, info
+        # log.trace(f'reward {ret} '
+        #          f'angle {angle_reward} '
+        #          f'speed {speed_reward} '
+        #          f'gforce {gforce_reward}')
+        return ret, info
 
         if self.gforce_levels.jarring and self.should_penalize_gforce():
             # log.warning(f'Jarring g-forces')
