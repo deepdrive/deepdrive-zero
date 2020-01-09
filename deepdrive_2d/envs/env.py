@@ -703,17 +703,19 @@ class Deepdrive2DEnv(gym.Env):
             self.angle_accuracies.append(angle_accuracy)
             info.stats.angle_accuracy = angle_accuracy
 
-            if collided:
-                collision_reward = -pi
-            else:
-                collision_reward = 0
+        if collided:
+            collision_penalty = pi
+        else:
+            collision_penalty = 0
 
-            ret = (angle_reward +
-                   speed_reward +
-                   gforce_reward * 0 +
-                   self.get_win_reward(won) +
-                   collision_reward)
-
+        ret = (
+           + speed_reward
+           - gforce_penalty
+           + self.get_win_reward(won)
+           - collision_penalty
+           - steer_penalty
+           - accel_penalty
+        )
 
 
             # ret = gforce_reward
