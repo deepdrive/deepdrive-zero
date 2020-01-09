@@ -782,8 +782,7 @@ class Deepdrive2DEnv(gym.Env):
             get_closest_point((self.x, self.y), self.map_kd_tree)
 
         self.closest_map_index = closest_map_index
-        self.prev_distance = self.distance
-        self.get_distance(closest_map_index)
+        self.set_distance(closest_map_index)
 
         if self.one_waypoint_map:
             angles_ahead = self.get_one_waypoint_angle_ahead()
@@ -863,16 +862,22 @@ class Deepdrive2DEnv(gym.Env):
         timeout = pyglet.app.event_loop.idle()
         platform_event_loop.step(timeout)
 
-    def get_distance(self, closest_map_index):
+    def set_distance(self, closest_map_index):
+        self.prev_distance = self.distance
         if 'STRAIGHT_TEST' in os.environ:
             self.distance = self.x - self.start_x
         elif self.one_waypoint_map:
             end = np.array([self.map.x[-1], self.map.y[-1]])
-            pos = np.array([self.x, self.y])
+            pos = np.array([self.front_x, self.front_y])
             self.distance_to_end = np.linalg.norm(end - pos)
             self.distance = self.map.length - self.distance_to_end
+            # log.info(f'distance {self.distance}')
         else:
             self.distance = self.map.distances[closest_map_index]
+        self.furthest_distance = max(self.distance, self.furthest_distance)
+        if self.prev_distance is None:
+            # Init prev distance
+            self.prev_distance = self.distance
 
     def get_gforce_levels(self, dt, prev_angle, prev_x, prev_y, info):
         # TODO: Numba this
