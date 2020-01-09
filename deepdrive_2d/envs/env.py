@@ -672,23 +672,10 @@ class Deepdrive2DEnv(gym.Env):
 
         angle_accuracy = 1 - angle_diff / (2 * pi)
 
-            # Add speed reward (TODO: Make this same as minimizing trip time)
-            # if ret > 0:
-            #     if self.speed == 0:
-            #         ret = 0
-            #     else:
-            #         ret += self.speed * 8 * pi
-            frame_distance = self.distance - self.furthest_distance
-            speed_reward = 0
-            if frame_distance > 0:
-                # With distance:
-                # 32: Speed 1.54, max-g: 0.5, 16: speed 1, max-g: 0.1
-                # 8: Speed 0.1, max-g: 0.03
-                # Waypoint mult 0.5: 8: Speed 0.3, avg-g: 0.01, max-g: 0.1
-                #
-                # With speed * 8 * pi: Speed 3.8, max-g: 0.71
-                speed_reward = frame_distance * 8 * pi
-                self.furthest_distance = self.distance
+        frame_distance = self.distance - self.prev_distance
+        speed_reward = frame_distance * 8 * pi
+
+        # log.info(speed_reward)
 
         if 'ACTION_PENALTY' in os.environ:
             action_penalty = float(os.environ['ACTION_PENALTY'])
