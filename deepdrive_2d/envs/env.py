@@ -658,11 +658,8 @@ class Deepdrive2DEnv(gym.Env):
 
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
-                   collided: bool, info: Box, accel: float) -> Tuple[float, Box]:
-        reward = 0
-        target_mps = 15
-
-        if self.one_waypoint_map:
+                   collided: bool, info: Box, steer: float,
+                   accel: float) -> Tuple[float, Box]:
 
         angle_diff = abs(self.angles_ahead[0])
 
@@ -718,35 +715,6 @@ class Deepdrive2DEnv(gym.Env):
         #          f'gforce {gforce_reward}')
         return ret, info
 
-        if self.gforce_levels.jarring and self.should_penalize_gforce():
-            # log.warning(f'Jarring g-forces')
-            reward = -1
-        elif self.gforce_levels.uncomfortable and self.should_penalize_gforce():
-            # log.warning(f'Uncomfortable g-forces')
-            reward = -0.5
-        elif self.distance > self.furthest_distance and \
-                '--award-win-only' not in sys.argv:
-            target_per_frame_distance = target_mps / self.aps
-            frame_distance = self.distance - self.furthest_distance
-            if 0 <= frame_distance <= target_per_frame_distance:
-                # Positive progress made under speed limit
-                reward = frame_distance / target_per_frame_distance
-            elif frame_distance > target_per_frame_distance:
-                # Over desired speed
-                reward = 0
-            else:
-                # Negative progress
-                reward = -0.5
-            self.furthest_distance = self.distance
-        else:
-            reward = 0
-
-        if '--penalize-loss' in sys.argv and lost:
-            reward = GAME_OVER_PENALTY
-
-        reward = self.get_win_reward(won) or reward
-
-        return reward, info
 
     def get_win_reward(self, won):
         win_reward = 0
