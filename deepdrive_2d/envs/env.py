@@ -623,8 +623,7 @@ class Deepdrive2DEnv(gym.Env):
             log.warning(f'Drifted out of lane, game over.')
             done = True
             lost = True
-        elif self.gforce_levels.harmful and \
-                self.should_penalize_gforce(min_trip_complete=0.25):
+        elif self.gforce_levels.harmful:
             # Only end on g-force once we've learned to complete part of the trip.
             log.warning(f'Harmful g-forces, game over')
             done = True
