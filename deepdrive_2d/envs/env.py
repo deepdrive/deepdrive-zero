@@ -307,6 +307,7 @@ class Deepdrive2DEnv(gym.Env):
         if self.observation_space is None:
             self.setup_spaces()
         self.experience_buffer.reset()
+        self.set_front_pos()
         obz = self.get_blank_observation()
         return obz
 
@@ -560,10 +561,15 @@ class Deepdrive2DEnv(gym.Env):
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         self.ego_pos = np.array((self.x, self.y))
-        self.front_x = self.x + cos(pi/2 + self.angle) * self.vehicle_height / 2
-        self.front_y = self.y + sin(pi/2 + self.angle) * self.vehicle_width / 2
+        self.set_front_pos()
 
         return observation, reward, done, info.to_dict()
+
+    def set_front_pos(self):
+        self.front_x = self.x + cos(
+            pi / 2 + self.angle) * self.vehicle_height / 2
+        self.front_y = self.y + sin(
+            pi / 2 + self.angle) * self.vehicle_width / 2
 
     def denormalize_actions(self, steer, accel, brake):
         # TODO: Numba this
