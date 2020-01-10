@@ -168,7 +168,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self.reset()
 
-    def enable_render(self):
+    def _enable_render(self):
         from deepdrive_2d import player
         self.player = player.start(
             env=self,
@@ -819,6 +819,10 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_gforces.append(self.gforce)
 
     def render(self, mode='human'):
+        if not self._has_enabled_render:
+            self._enable_render()
+            self._has_enabled_render = True
+
         platform_event_loop = pyglet.app.platform_event_loop
         # pyglet_event_loop = pyglet.app.event_loop
         timeout = pyglet.app.event_loop.idle()
