@@ -154,7 +154,8 @@ class Deepdrive2DPlayer(arcade.Window):
         # arcade.draw_lines(self.map, arcade.color.ORANGE, 3)
         # arcade.draw_point(self.heading_x, self.heading_y,
         #                   arcade.color.WHITE, 10)
-        self.player_list.draw()
+
+        self.player_list.draw()  # Draw the car
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
