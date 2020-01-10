@@ -3,22 +3,20 @@ import json
 import os
 import sys
 import time
-from collections import deque
 from math import pi, cos, sin
 from typing import Tuple, List
 import random
-import arcade
 import gym
 import numpy as np
 from box import Box
 from gym import spaces
 
-from numba import njit
-from retry import retry
 from scipy import spatial
 import pyglet
 
-from deepdrive_2d.collision_detection import lines_intersect, check_collision, \
+from deepdrive_2d.physics.bike_model import bike_with_friction_step, \
+    get_vehicle_model
+from deepdrive_2d.physics.collision_detection import check_collision, \
     get_rect
 from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
@@ -26,7 +24,7 @@ from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
 from deepdrive_2d.experience_buffer import ExperienceBuffer
 from deepdrive_2d.map_gen import gen_map
 from deepdrive_2d.utils import flatten_points, get_angles_ahead, \
-    angle_between_points, angle_between_vectors
+    angle_between_points
 from deepdrive_2d.logs import log
 
 MAX_BRAKE_G = 1
@@ -141,6 +139,10 @@ class Deepdrive2DEnv(gym.Env):
         self.y = None
         self.ego_pos = None
 
+        # Front middle of vehicle
+        self.front_x = None
+        self.front_y = None
+
         # Angle in radians, 0 is straight up, -pi/2 is right
         self.angle = None
 
@@ -165,6 +167,10 @@ class Deepdrive2DEnv(gym.Env):
 
         self.player = None
         self.ego_rect: np.array = None
+        self.ego_rect_tuple: tuple = ()
+
+        self.should_render = False
+        self._has_enabled_render = False
 
         self.reset()
 
