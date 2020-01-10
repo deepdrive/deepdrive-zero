@@ -970,7 +970,5 @@ def main():
 if __name__ == '__main__':
     if '--test_static_obstacle' in sys.argv:
         test_static_obstacle()
-    elif '--test_get_rect' in sys.argv:
-        test_get_rect()
     else:
         main()
