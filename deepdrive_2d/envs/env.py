@@ -405,7 +405,7 @@ class Deepdrive2DEnv(gym.Env):
         # Physics properties
         # x is right, y is straight
         self.map_kd_tree = spatial.KDTree(self.map.arr)
-        self.vehicle_model = self.get_vehicle_model(self.vehicle_width)
+        self.vehicle_model = get_vehicle_model(self.vehicle_width)
 
         self.map_flat = flatten_points(self.map.arr)
         if self.one_waypoint_map:
@@ -441,24 +441,6 @@ class Deepdrive2DEnv(gym.Env):
         log.info(f'Start angle is {angle}')
 
         return angle
-
-    @staticmethod
-    def get_vehicle_model(width):
-        # Bias towards the front a bit
-        # https://www.fcausfleet.com/content/dam/fca-fleet/na/fleet/en_us/chrysler/2017/pacifica/vlp/docs/Pacifica_Specifications.pdf
-        if USE_VOYAGE:
-            bias_towards_front = .05 * width
-        else:
-            bias_towards_front = 0
-
-        # Center of gravity
-        center_of_gravity = (width / 2) + bias_towards_front
-        # Approximate axles to be 1/8 (1/4 - 1/8) from ends of car
-        rear_axle = width * 1 / 8
-        front_axle = width - rear_axle
-        L_b = center_of_gravity - rear_axle
-        L_a = front_axle - center_of_gravity
-        return L_a, L_b
 
     @log.catch
     def step(self, action):
