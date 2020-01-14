@@ -6,11 +6,13 @@ from deepdrive_2d.logs import log
 import deepdrive_2d.physics.collision_detection
 import deepdrive_2d.physics.bike_model
 import deepdrive_2d.envs.env
+import deepdrive_2d.utils
 
 MODULES_TO_TEST = [
     deepdrive_2d.physics.collision_detection,
     deepdrive_2d.physics.bike_model,
     deepdrive_2d.envs.env,
+    deepdrive_2d.utils,
 ]
 
 

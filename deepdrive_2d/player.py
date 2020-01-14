@@ -1,8 +1,11 @@
 import math
+from math import cos, sin, pi
 import os
 import sys
 import threading
 import time
+
+import numpy as np
 
 from box import Box
 from loguru import logger as log
@@ -19,7 +22,7 @@ from deepdrive_2d.map_gen import gen_map
 
 
 DRAW_COLLISION_BOXES = True
-
+DRAW_WAYPOINT_VECTORS = True
 
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
@@ -110,6 +113,10 @@ class Deepdrive2DPlayer(arcade.Window):
 
         e = self.env
         c = arcade.color
+        ppm = e.px_per_m
+
+        angle = math.radians(self.player_sprite.angle)
+        theta = angle + pi / 2
 
         if self.env.one_waypoint_map:
             arcade.draw_circle_filled(
@@ -141,13 +148,146 @@ class Deepdrive2DPlayer(arcade.Window):
 
 
             arcade.draw_rectangle_outline(
-                center_x=e.x * e.px_per_m, center_y=e.y * e.px_per_m,
-                width=e.vehicle_width * e.px_per_m,
-                height=e.vehicle_height * e.px_per_m, color=c.LIME_GREEN,
+                center_x=e.x * ppm, center_y=e.y * ppm,
+                width=e.vehicle_width * ppm,
+                height=e.vehicle_height * ppm, color=c.LIME_GREEN,
                 border_width=2, tilt_angle=math.degrees(e.angle),
             )
-            arcade.draw_points(point_list=(e.ego_rect * e.px_per_m).tolist(),
+            arcade.draw_points(point_list=(e.ego_rect * ppm).tolist(),
                                color=c.YELLOW, size=3)
+
+        if e.front_to_waypoint is not None and DRAW_WAYPOINT_VECTORS:
+            ftw = e.front_to_waypoint
+
+            fy = e.front_y
+            fx = e.front_x
+
+
+            # arcade.draw_line(
+            #     start_x=e.front_x * ppm,
+            #     start_y=e.front_y * ppm,
+            #     end_x=(e.front_x + ftw[0]) * ppm,
+            #     end_y=(e.front_y + ftw[1]) * ppm,
+            #     color=c.LIME_GREEN,
+            #     line_width=2,
+            # )
+
+            arcade.draw_line(
+                start_x=fx * ppm,
+                start_y=fy * ppm,
+                end_x=(fx + cos(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
+                end_y=(fy + sin(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
+                color=c.PURPLE,
+                line_width=2,
+            )
+
+            # Center to front length
+            ctf = e.vehicle_height / 2
+
+            arcade.draw_line(
+                start_x=e.x * ppm,
+                start_y=e.y * ppm,
+                end_x=(e.x + cos(theta) * 20 ) * ppm,
+                end_y=(e.y + sin(theta) * 20 ) * ppm,
+                color=c.LIGHT_RED_OCHRE,
+                line_width=2,
+            )
+
+            arcade.draw_line(
+                start_x=fx * ppm,
+                start_y=fy * ppm,
+                end_x=(fx + e.heading[0]) * ppm,
+                end_y=(fy + e.heading[1]) * ppm,
+                color=c.BLUE,
+                line_width=2,
+            )
+
+            arcade.draw_circle_filled(
+                center_x=fx * ppm,
+                center_y=fy * ppm,
+                radius=5,
+                color=c.YELLOW)
+
+            arcade.draw_circle_filled(
+                center_x=e.x * ppm,
+                center_y=e.y * ppm,
+                radius=5,
+                color=c.WHITE_SMOKE,)
+
+            arcade.draw_circle_filled(
+                center_x=e.static_obstacle_points[0][0] * ppm,
+                center_y=e.static_obstacle_points[0][1] * ppm,
+                radius=5,
+                color=c.WHITE_SMOKE,)
+
+            arcade.draw_circle_filled(
+                center_x=e.static_obstacle_points[1][0] * ppm,
+                center_y=e.static_obstacle_points[1][1] * ppm,
+                radius=5,
+                color=c.WHITE_SMOKE,)
+
+            if e.static_obst_angle_info is not None:
+
+                start_obst_dist, end_obst_dist, start_obst_angle, end_obst_angle = \
+                    e.static_obst_angle_info
+
+                # start_obst_theta = start_obst_angle
+                # arcade.draw_line(
+                #     start_x=fx * ppm,
+                #     start_y=fy * ppm,
+                #     end_x=(fx + cos(start_obst_theta) * start_obst_dist) * ppm,
+                #     end_y=(fy + sin(start_obst_theta) * start_obst_dist) * ppm,
+                #     color=c.BLACK,
+                #     line_width=2,)
+
+                # log.info('DRAWING LINES')
+
+                arcade.draw_line(
+                    start_x=fx * ppm,
+                    start_y=fy * ppm,
+                    end_x=(fx + cos(theta - start_obst_angle) * start_obst_dist ) * ppm,
+                    end_y=(fy + sin(theta - start_obst_angle) * start_obst_dist ) * ppm,
+                    color=c.BLUE,
+                    line_width=2,)
+
+                p_x = e.front_x + cos(theta + pi / 6) * 20
+                p_y = e.front_y + sin(theta + pi / 6) * 20
+                pole_test = np.array((p_x, p_y))
+                pole_angle = e.get_angle_to_point(pole_test)
+
+                arcade.draw_circle_filled(
+                    center_x=pole_test[0] * ppm,
+                    center_y=pole_test[1] * ppm,
+                    radius=5,
+                    color=c.WHITE_SMOKE, )
+
+
+                arcade.draw_line(
+                    start_x=fx * ppm,
+                    start_y=fy * ppm,
+                    end_x=(fx + cos((angle + math.pi / 2) - pole_angle) * 20 ) * ppm,
+                    end_y=(fy + sin((angle + math.pi / 2) - pole_angle) * 20 ) * ppm,
+                    color=c.BRIGHT_GREEN,
+                    line_width=2,)
+
+
+                # arcade.draw_line(
+                #     start_x=fx * ppm,
+                #     start_y=fy * ppm,
+                #     end_x=(fx + cos((angle + math.pi / 2) - end_obst_angle) * end_obst_dist) * ppm,
+                #     end_y=(fy + sin((angle + math.pi / 2) - end_obst_angle) * end_obst_dist) * ppm,
+                #     color=c.RED,
+                #     line_width=2,)
+
+
+                arcade.draw_line(
+                    start_x=fx * ppm,
+                    start_y=fy * ppm,
+                    end_x=(e.static_obstacle_points[1][0]) * ppm,
+                    end_y=(e.static_obstacle_points[1][1]) * ppm,
+                    color=c.RED,
+                    line_width=2,)
+
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
         #                  arcade.color.WHITE)
@@ -156,6 +296,7 @@ class Deepdrive2DPlayer(arcade.Window):
         #                   arcade.color.WHITE, 10)
 
         self.player_list.draw()  # Draw the car
+
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
@@ -222,7 +363,7 @@ def start(env=None, fps=60):
         static_obstacle='--static-obstacle' in sys.argv,
         one_waypoint='--one-waypoint-map' in sys.argv,
         env=env,
-        fps=fps
+        fps=fps,
     )
     player.setup()
     if 'DISABLE_GC' in os.environ:
