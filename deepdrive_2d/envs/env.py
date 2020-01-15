@@ -52,7 +52,8 @@ class Deepdrive2DEnv(gym.Env):
                  match_angle_only=False,
                  incent_win=False,
                  gamma=0.99,
-                 add_static_obstacle=False):
+                 add_static_obstacle=False,
+                 disable_gforce_penalty=False):
 
         log.info(f'{sys.executable} {sys.argv}')
 
@@ -101,6 +102,7 @@ class Deepdrive2DEnv(gym.Env):
         self.gforce: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
+        self.disable_gforce_penalty = disable_gforce_penalty
         self.closest_map_index: int = 0
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
@@ -137,20 +139,11 @@ class Deepdrive2DEnv(gym.Env):
         # Current position (center)
         self.x = None
         self.y = None
-        self.ego_pos = None
-
-        # Front middle of vehicle
-        self.front_x = None
-        self.front_y = None
-        self.front_pos = None
 
         # Angle in radians, 0 is straight up, -pi/2 is right
         self.angle = None
 
         self.angle_to_waypoint = None
-
-        # Heading vector
-        self.heading: np.array = None
         self.front_to_waypoint: np.array = None
 
         # Start position
@@ -290,7 +283,6 @@ class Deepdrive2DEnv(gym.Env):
         self.angle_change = 0
         self.x = self.start_x
         self.y = self.start_y
-        self.ego_pos = np.array((self.x, self.y))
         self.angle_change = 0
         self.speed = 0
         self.episode_reward = 0
@@ -315,7 +307,6 @@ class Deepdrive2DEnv(gym.Env):
         if self.observation_space is None:
             self.setup_spaces()
         self.experience_buffer.reset()
-        self.set_front_pos()
         obz = self.get_blank_observation()
         return obz
 
@@ -411,7 +402,6 @@ class Deepdrive2DEnv(gym.Env):
 
         self.x = self.map.x[0]
         self.y = self.map.y[0]
-        self.ego_pos = np.array((self.x, self.y))
 
         self.start_x = self.x
         self.start_y = self.y
@@ -567,17 +557,33 @@ class Deepdrive2DEnv(gym.Env):
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
-        self.ego_pos = np.array((self.x, self.y))
-        self.set_front_pos()
-
         return observation, reward, done, info.to_dict()
 
-    def set_front_pos(self):
+    # TODO: Set these properties only when x,y, or angle change
+    @property
+    def front_x(self):
+        """Front middle x position of ego"""
         theta = pi / 2 + self.angle
-        self.front_x = self.x + cos(theta) * self.vehicle_height / 2
-        self.front_y = self.y + sin(theta) * self.vehicle_height / 2
-        self.front_pos = np.array((self.front_x, self.front_y))
+        return self.x + cos(theta) * self.vehicle_height / 2
 
+
+    @property
+    def front_y(self):
+        """Front middle y position of ego"""
+        theta = pi / 2 + self.angle
+        return self.y + sin(theta) * self.vehicle_height / 2
+
+    @property
+    def front_pos(self):
+        return np.array((self.front_x, self.front_y))
+
+    @property
+    def ego_pos(self):
+        return np.array((self.x, self.y))
+
+    @property
+    def heading(self):
+        return np.array([self.front_x, self.front_y]) - self.ego_pos
 
     def denormalize_actions(self, steer, accel, brake):
         # TODO: Numba this
@@ -681,7 +687,6 @@ class Deepdrive2DEnv(gym.Env):
         # TODO: Penalize residuals of a quadratic regression fit to history
         #  of actions.
         if 'ACTION_PENALTY' in os.environ:
-            # TODO: This should be steering change not just steer
             action_penalty = float(os.environ['ACTION_PENALTY'])
             steer_penalty = abs(self.prev_steer - steer) * action_penalty
             accel_penalty = abs(self.prev_accel - accel) * action_penalty
@@ -691,7 +696,7 @@ class Deepdrive2DEnv(gym.Env):
 
 
         gforce_penalty = 0
-        if self.gforce > 0.05:
+        if not self.disable_gforce_penalty and self.gforce > 0.05:
             gforce_penalty = 8 * pi * self.gforce  # G-force penalty
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
@@ -750,7 +755,7 @@ class Deepdrive2DEnv(gym.Env):
         if self.one_waypoint_map:
             angles_ahead = self.get_one_waypoint_angle_ahead()
             self.trip_pct = 100 * self.distance / self.map.length
-            log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
+            # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
         else:
             self.trip_pct = 100 * closest_map_index / (len(self.map.arr) - 1)
@@ -833,11 +838,6 @@ class Deepdrive2DEnv(gym.Env):
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
-
-        self.set_front_pos()
-        self.ego_pos = np.array((self.x, self.y))
-        self.heading = np.array([self.front_x, self.front_y]) - self.ego_pos
-
 
         self.episode_gforces.append(self.gforce)
 

@@ -21,3 +21,9 @@ class StaticObstacleEnv(Deepdrive2DEnv):
     def __init__(self):
         super().__init__(one_waypoint_map=True, match_angle_only=False,
                          incent_win=True, add_static_obstacle=True)
+
+class NoGforcePenaltyEnv(Deepdrive2DEnv):
+    def __init__(self):
+        super().__init__(one_waypoint_map=True, match_angle_only=False,
+                         incent_win=True, add_static_obstacle=True,
+                         disable_gforce_penalty=True)
