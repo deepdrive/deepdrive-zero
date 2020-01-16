@@ -77,6 +77,8 @@ class Deepdrive2DEnv(gym.Env):
         self.num_episodes: int = 0
         self.total_steps: int = 0
         self.last_step_time: float = None
+        self.wall_dt: float = None
+        self.last_sleep_time: float = None
         if 'STRAIGHT_TEST' in os.environ:
             self.num_actions = 1  # Accel
         else:
@@ -611,10 +613,14 @@ class Deepdrive2DEnv(gym.Env):
         return steer, accel, brake
 
     def get_dt(self):
+        if self.last_step_time is not None:
+            self.wall_dt = time.time() - self.last_step_time
+        else:
+            self.wall_dt = self.target_dt
         if self.decouple_step_time:
             dt = self.target_dt
         else:
-            dt = time.time() - self.last_step_time
+            dt = self.wall_dt
         return dt
 
     def get_done(self, closest_map_point, lane_deviation,
