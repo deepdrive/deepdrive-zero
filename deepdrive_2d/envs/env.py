@@ -643,7 +643,7 @@ class Deepdrive2DEnv(gym.Env):
             done = True
         elif self.one_waypoint_map:
             if 'DISABLE_CIRCLE_CHECK' not in os.environ and \
-                    abs(math.degrees(self.angle)) > 200:
+                    abs(math.degrees(self.angle)) > 400:
                 done = True
                 lost = True
                 log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
