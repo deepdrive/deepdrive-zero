@@ -622,7 +622,9 @@ class Deepdrive2DEnv(gym.Env):
         done = False
         won = False
         lost = False
-        if collided:
+        if 'DISABLE_GAME_OVER' in os.environ:
+            return done, won, lost
+        elif collided:
             log.warning(f'Collision, game over.')
             done = True
             lost = True
@@ -637,7 +639,7 @@ class Deepdrive2DEnv(gym.Env):
             done = True
             lost = True
         elif (self.episode_steps + 1) % self._max_episode_steps == 0:
-            log.warning(f'Time up')
+            log.warning(f'Time\'s up')
             done = True
         elif self.one_waypoint_map:
             if 'DISABLE_CIRCLE_CHECK' not in os.environ and \
