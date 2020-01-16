@@ -22,7 +22,7 @@ from deepdrive_2d.map_gen import gen_map
 
 
 DRAW_COLLISION_BOXES = True
-DRAW_WAYPOINT_VECTORS = True
+DRAW_WAYPOINT_VECTORS = False
 
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
