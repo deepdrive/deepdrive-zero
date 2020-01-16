@@ -699,7 +699,7 @@ class Deepdrive2DEnv(gym.Env):
 
         gforce_penalty = 0
         if not self.disable_gforce_penalty and self.gforce > 0.05:
-            gforce_penalty = 8 * pi * self.gforce  # G-force penalty
+            gforce_penalty = 32 * pi * self.gforce  # G-force penalty
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
 
