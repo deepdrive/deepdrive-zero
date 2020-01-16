@@ -424,30 +424,6 @@ class Deepdrive2DEnv(gym.Env):
         self.seed_value = seed or 0
         random.seed(seed)
 
-    def get_start_angle(self):
-        interp_dist_pixels = self.map.width / len(self.map.x)
-        angle_waypoint_meters = 1
-        # angle_waypoint_index = round(
-        #     (angle_waypoint_meters * ROUGH_PIXELS_PER_METER) /
-        #     interp_dist_pixels) + 1
-        angle_waypoint_index = min(6, len(self.map.x) - 1)
-        x1 = self.map.x[0]
-        y1 = self.map.y[0]
-        x2 = self.map.x[angle_waypoint_index]
-        y2 = self.map.y[angle_waypoint_index]
-        # self.heading_x = x2
-        # self.heading_y = y2
-        angle = angle_between_points([x1, y1], [x2, y2])
-        if (self.map.height - y1) / self.map.height <= 0.5 and \
-                abs(angle) < (math.pi * 0.001):
-            # TODO: Reproduce problem where car is backwards along spline
-            #  and make sure this fixes it.
-            log.warning('Flipped car to avoid being upside down. Did it work?')
-            angle += math.pi  # On top so, face down
-        log.info(f'Start angle is {angle}')
-
-        return angle
-
     @log.catch
     def step(self, action):
         if IS_DEBUG_MODE:
