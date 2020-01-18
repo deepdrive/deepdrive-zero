@@ -27,3 +27,12 @@ class NoGforcePenaltyEnv(Deepdrive2DEnv):
         super().__init__(one_waypoint_map=True, match_angle_only=False,
                          incent_win=True, add_static_obstacle=True,
                          disable_gforce_penalty=True)
+
+
+
+class SixtyFpsEnv(Deepdrive2DEnv):
+    def __init__(self):
+        super().__init__(one_waypoint_map=True, match_angle_only=False,
+                         incent_win=True, add_static_obstacle=True,
+                         disable_gforce_penalty=True,
+                         physics_steps_per_observation=1)

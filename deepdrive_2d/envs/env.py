@@ -165,7 +165,12 @@ class Deepdrive2DEnv(gym.Env):
         np.random.seed(self.seed_value)
 
         # Actions per second
+        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
         self.aps = self.fps / self.physics_steps_per_observation
+
+        # TODO: Think about tree of neural nets for RL options
+
+        # TODO: Change random seed on fine-tune
 
         self.player = None
         self.ego_rect: np.array = None
@@ -610,7 +615,7 @@ class Deepdrive2DEnv(gym.Env):
             log.warning(f'Collision, game over.')
             done = True
             lost = True
-        if lane_deviation > 1.1 and not self.one_waypoint_map:
+        elif lane_deviation > 1.1 and not self.one_waypoint_map:
             # You lose!
             log.warning(f'Drifted out of lane, game over.')
             done = True
@@ -663,6 +668,11 @@ class Deepdrive2DEnv(gym.Env):
 
         angle_accuracy = 1 - angle_diff / (2 * pi)
 
+        # TODO: Fix incentive to drive towards waypoint instead of edge of
+        #   static obstacle. Perhaps just remove this reward altogether
+        #   in favor of end of episode reward.
+
+
         frame_distance = self.distance - self.prev_distance
         speed_reward = frame_distance * 16 * pi
 
@@ -686,6 +696,7 @@ class Deepdrive2DEnv(gym.Env):
         info.stats.angle_accuracy = angle_accuracy
 
         if collided:
+            # TODO: Increase this!
             collision_penalty = pi
         else:
             collision_penalty = 0

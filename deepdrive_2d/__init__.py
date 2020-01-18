@@ -30,6 +30,12 @@ register(
     entry_point='deepdrive_2d.envs:NoGforcePenaltyEnv',
 )
 
+register(
+    id='deepdrive-2d-static-obstacle-60-fps-v0',
+    entry_point='deepdrive_2d.envs:SixtyFpsEnv',
+)
+
+
 # register(
 #     id='foo-extrahard-v0',
 #     entry_point='gym_foo.envs:FooExtraHardEnv',
