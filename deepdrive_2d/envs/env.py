@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+from collections import deque
 from math import pi, cos, sin
 from typing import Tuple, List
 import random
@@ -10,6 +11,7 @@ import gym
 import numpy as np
 from box import Box
 from gym import spaces
+from numba import njit
 
 from scipy import spatial
 import pyglet
@@ -70,6 +72,7 @@ class Deepdrive2DEnv(gym.Env):
         self.static_map: bool = '--static-map' in sys.argv
         self.physics_steps_per_observation: int = physics_steps_per_observation
 
+
         # For faster / slower than real-time stepping
         self.decouple_step_time = decouple_step_time
 
@@ -93,6 +96,11 @@ class Deepdrive2DEnv(gym.Env):
         self.map_query_seconds_ahead: np.array = np.array(
             [0.5, 1, 1.5, 2, 2.5, 3])
         self.fps: int = 60
+
+        # Actions per second
+        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
+        self.aps = self.fps / self.physics_steps_per_observation
+
         self.target_dt: float = 1 / self.fps
         self.total_episode_time: float = 0
         self.distance: float = None
@@ -105,6 +113,8 @@ class Deepdrive2DEnv(gym.Env):
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
         self.disable_gforce_penalty = disable_gforce_penalty
+        self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
+        self.jerk: float = 0
         self.closest_map_index: int = 0
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
@@ -164,9 +174,7 @@ class Deepdrive2DEnv(gym.Env):
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
         np.random.seed(self.seed_value)
 
-        # Actions per second
-        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
-        self.aps = self.fps / self.physics_steps_per_observation
+
 
         # TODO: Think about tree of neural nets for RL options
 
@@ -692,6 +700,9 @@ class Deepdrive2DEnv(gym.Env):
         gforce_penalty = 0
         if not self.disable_gforce_penalty and self.gforce > 0.05:
             gforce_penalty = 32 * pi * self.gforce  # G-force penalty
+
+        jerk_penalty = 32 * pi * self.jerk
+
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
 
@@ -708,6 +719,7 @@ class Deepdrive2DEnv(gym.Env):
            - collision_penalty
            - steer_penalty
            - accel_penalty
+           - jerk_penalty
         )
 
         # IDEA: Induce curriculum by zeroing things like static obstacle
@@ -715,10 +727,16 @@ class Deepdrive2DEnv(gym.Env):
         # train with the full complexity, then fine-tune to improve
         # smoothness.
 
-        # log.trace(f'reward {ret} '
+        # log.debug(f'reward {ret} '
         #          f'angle {angle_reward} '
         #          f'speed {speed_reward} '
-        #          f'gforce {gforce_reward}')
+        #          f'gforce {gforce_penalty} '
+        #          f'jerk {jerk_penalty} '
+        #          f'win {gforce_penalty} '
+        #          f'collision {collision_penalty} '
+        #          f'steer {steer_penalty} '
+        #          f'accel {accel_penalty} '
+        # )
         return ret, info
 
 
@@ -910,7 +928,12 @@ class Deepdrive2DEnv(gym.Env):
                       f'speed: {self.speed}')
         elif not (lvls.harmful or lvls.jarring or lvls.uncomfortable):
             info.stats.episode_gforce_level = 0
+
+        self.prev_gforce.append(self.gforce)
+        self.jerk = self.gforce - gforce
         self.gforce = gforce
+        return self.gforce
+
 
 
     def check_for_nan(self, dt, steer, accel, brake, info):
