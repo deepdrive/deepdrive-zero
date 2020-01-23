@@ -8,8 +8,9 @@ Create multi-agent unprotected left, 2 agents A and B, A is turning left B is co
 Make sure we can take drastic action to avoid collision even with action/gforce penalties
 
 Penalize the complexity of a course of action
+- Try squaring g-force/action penalty like hopper and LQR
+- Penalize the instantaneous second derivative of the action, i.e. rate changes across two frames (squared). So if the steering change in frame 1 is -0.1 (going from 0.2 to 0.1) and in frame 2 is 0.1 (going from 0.1 back to 0.2), then the instantaneous second derivative is -0.1 - 0.1 = -0.2. However, if we instead went to 0 in the second frame the second derivative would be -0.1 - -0.1 = 0. Instead of steering, a finite difference approximation, using the same method as above, to the g-force derivative should be used in order to account for speed. This is also known as jerk. https://en.wikipedia.org/wiki/Jerk_(physics). In order to account for multiple frames, we could average jerk over the past second by storing 10 frames of g-force and g-force change, averaging it, and passing it to the network.
 
-Try squaring action penalty like hopper and LQR
 
 Don't overwrite saved models.
 
