@@ -2,15 +2,13 @@ import math
 from math import cos, sin, pi
 import os
 import sys
-import threading
-import time
 
 import numpy as np
 
-from box import Box
 from loguru import logger as log
 
 import arcade
+import arcade.color as color
 from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
     MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
     SCREEN_TITLE, \
@@ -18,11 +16,11 @@ from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
     USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
 # Constants
 from deepdrive_2d.envs.env import Deepdrive2DEnv
-from deepdrive_2d.map_gen import gen_map
-
+from deepdrive_2d.map_gen import get_intersection
 
 DRAW_COLLISION_BOXES = True
 DRAW_WAYPOINT_VECTORS = False
+DRAW_INTERSECTION = True
 
 # TODO: Calculate rectangle points and confirm corners are at same location in
 #   arcade.
@@ -112,7 +110,6 @@ class Deepdrive2DPlayer(arcade.Window):
         arcade.start_render()
 
         e = self.env
-        c = arcade.color
         ppm = e.px_per_m
 
         angle = math.radians(self.player_sprite.angle)
@@ -123,7 +120,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 center_x=e.map.x_pixels[1],
                 center_y=e.map.y_pixels[1],
                 radius=20,
-                color=c.ORANGE)
+                color=color.ORANGE)
             if self.static_obstacle:
                 static_obst_pixels = e.map.static_obst_pixels
                 arcade.draw_line(
@@ -131,7 +128,7 @@ class Deepdrive2DPlayer(arcade.Window):
                     static_obst_pixels[0][1],
                     static_obst_pixels[1][0],
                     static_obst_pixels[1][1],
-                    color=c.BLACK_OLIVE,
+                    color=color.BLACK_OLIVE,
                     line_width=5,
                 )
         else:
@@ -150,11 +147,11 @@ class Deepdrive2DPlayer(arcade.Window):
             arcade.draw_rectangle_outline(
                 center_x=e.x * ppm, center_y=e.y * ppm,
                 width=e.vehicle_width * ppm,
-                height=e.vehicle_height * ppm, color=c.LIME_GREEN,
+                height=e.vehicle_height * ppm, color=color.LIME_GREEN,
                 border_width=2, tilt_angle=math.degrees(e.angle),
             )
             arcade.draw_points(point_list=(e.ego_rect * ppm).tolist(),
-                               color=c.YELLOW, size=3)
+                               color=color.YELLOW, size=3)
 
         if e.front_to_waypoint is not None and DRAW_WAYPOINT_VECTORS:
             ftw = e.front_to_waypoint
@@ -177,7 +174,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 start_y=fy * ppm,
                 end_x=(fx + cos(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
                 end_y=(fy + sin(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
-                color=c.PURPLE,
+                color=color.PURPLE,
                 line_width=2,
             )
 
@@ -189,7 +186,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 start_y=e.y * ppm,
                 end_x=(e.x + cos(theta) * 20 ) * ppm,
                 end_y=(e.y + sin(theta) * 20 ) * ppm,
-                color=c.LIGHT_RED_OCHRE,
+                color=color.LIGHT_RED_OCHRE,
                 line_width=2,
             )
 
@@ -198,7 +195,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 start_y=fy * ppm,
                 end_x=(fx + e.heading[0]) * ppm,
                 end_y=(fy + e.heading[1]) * ppm,
-                color=c.BLUE,
+                color=color.BLUE,
                 line_width=2,
             )
 
@@ -206,25 +203,25 @@ class Deepdrive2DPlayer(arcade.Window):
                 center_x=fx * ppm,
                 center_y=fy * ppm,
                 radius=5,
-                color=c.YELLOW)
+                color=color.YELLOW)
 
             arcade.draw_circle_filled(
                 center_x=e.x * ppm,
                 center_y=e.y * ppm,
                 radius=5,
-                color=c.WHITE_SMOKE,)
+                color=color.WHITE_SMOKE,)
 
             arcade.draw_circle_filled(
                 center_x=e.static_obstacle_points[0][0] * ppm,
                 center_y=e.static_obstacle_points[0][1] * ppm,
                 radius=5,
-                color=c.WHITE_SMOKE,)
+                color=color.WHITE_SMOKE,)
 
             arcade.draw_circle_filled(
                 center_x=e.static_obstacle_points[1][0] * ppm,
                 center_y=e.static_obstacle_points[1][1] * ppm,
                 radius=5,
-                color=c.WHITE_SMOKE,)
+                color=color.WHITE_SMOKE,)
 
             if e.static_obst_angle_info is not None:
 
@@ -247,7 +244,7 @@ class Deepdrive2DPlayer(arcade.Window):
                     start_y=fy * ppm,
                     end_x=(fx + cos(theta - start_obst_angle) * start_obst_dist ) * ppm,
                     end_y=(fy + sin(theta - start_obst_angle) * start_obst_dist ) * ppm,
-                    color=c.BLUE,
+                    color=color.BLUE,
                     line_width=2,)
 
                 p_x = e.front_x + cos(theta + pi / 6) * 20
@@ -259,7 +256,7 @@ class Deepdrive2DPlayer(arcade.Window):
                     center_x=pole_test[0] * ppm,
                     center_y=pole_test[1] * ppm,
                     radius=5,
-                    color=c.WHITE_SMOKE, )
+                    color=color.WHITE_SMOKE, )
 
 
                 arcade.draw_line(
@@ -267,7 +264,7 @@ class Deepdrive2DPlayer(arcade.Window):
                     start_y=fy * ppm,
                     end_x=(fx + cos((angle + math.pi / 2) - pole_angle) * 20 ) * ppm,
                     end_y=(fy + sin((angle + math.pi / 2) - pole_angle) * 20 ) * ppm,
-                    color=c.BRIGHT_GREEN,
+                    color=color.BRIGHT_GREEN,
                     line_width=2,)
 
 
@@ -285,9 +282,11 @@ class Deepdrive2DPlayer(arcade.Window):
                     start_y=fy * ppm,
                     end_x=(e.static_obstacle_points[1][0]) * ppm,
                     end_y=(e.static_obstacle_points[1][1]) * ppm,
-                    color=c.RED,
+                    color=color.RED,
                     line_width=2,)
 
+        if DRAW_INTERSECTION:
+            self.draw_intersection()
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
         #                  arcade.color.WHITE)
@@ -297,6 +296,24 @@ class Deepdrive2DPlayer(arcade.Window):
 
         self.player_list.draw()  # Draw the car
 
+
+    def draw_intersection(self):
+        bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz = get_intersection()
+
+        self.draw_intersection_line(left_vert)
+        self.draw_intersection_line(mid_vert)
+        self.draw_intersection_line(right_vert)
+        self.draw_intersection_line(top_horiz)
+        self.draw_intersection_line(mid_horiz)
+        self.draw_intersection_line(bottom_horiz)
+
+    def draw_intersection_line(self, line):
+        line = line * self.px_per_m
+        arcade.draw_line(
+            line[0][0], line[0][1], line[1][0], line[1][1],
+            color=color.GREEN,
+            line_width=2,
+        )
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """

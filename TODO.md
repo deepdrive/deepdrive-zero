@@ -1,4 +1,9 @@
-Static obstacle with some sort of collision detection
+Create multi-agent unprotected left, 2 agents A and B, A is turning left B is coming towards A in opposing lane
+ - First waypoint for agent A will be inside intersection, second will be after left
+ - Waypoint for agent B will be past intersection going straight
+ - A must yield to B if time to collision under threshold
+ - Lane boundaries? Eventually we will need lane widths for waypoints and start positions. If we avoid this now, agent may do something crazy. We could import some map. We could put static obstacles on edges of lanes, but that doesn't work for intersection.
+ 
 
 Make sure we can take drastic action to avoid collision even with action/gforce penalties
 
@@ -8,19 +13,7 @@ Try squaring action penalty like hopper and LQR
 
 Don't overwrite saved models.
 
-Measure gforce due to inaccurate steering
-
-Measure gforce due to accurate steering
-
-Try automatic entropy tuning with simple-steer
-
-Try gforce penalties with simple-steer
-
-Add n-step returns to prevent divergence
-
 Make sure seeds determine all randomness and that we have complete determinism per seed
-
-Only give distance rewards every x meters for single waypoint map.
 
 Add an action duration, i.e. number of steps to repeat action (needs interrupt tho)
 

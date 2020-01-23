@@ -22,7 +22,7 @@ from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ
 from deepdrive_2d.experience_buffer import ExperienceBuffer
-from deepdrive_2d.map_gen import gen_map
+from deepdrive_2d.map_gen import gen_random_map, get_intersection
 from deepdrive_2d.utils import flatten_points, get_angles_ahead, angle
 from deepdrive_2d.logs import log
 
@@ -49,6 +49,7 @@ class Deepdrive2DEnv(gym.Env):
                  decouple_step_time=True,
                  physics_steps_per_observation=6,
                  one_waypoint_map=False,
+                 is_intersection_map=False,
                  match_angle_only=False,
                  incent_win=False,
                  gamma=0.99,
@@ -114,6 +115,8 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_gforces: List[float] = []
         self.match_angle_only: bool = match_angle_only
         self.one_waypoint_map: bool = one_waypoint_map
+        self.is_intersection_map: bool = is_intersection_map
+
         self.incent_win: bool = incent_win
         self.gamma: float = gamma
         self.add_static_obstacle: bool = add_static_obstacle
@@ -356,33 +359,11 @@ class Deepdrive2DEnv(gym.Env):
     def generate_map(self):
         # Generate one waypoint map
         if self.one_waypoint_map:
-            m = self.max_one_waypoint_mult
-            x1 = 0.1
-            y1 = 0.5
-            if self.static_map:
-                x2 = x1 + 0.2 * m + 0.1
-                y2 = y1 + (2 * 0.2 - 1) * m
-            else:
-                x2 = x1 + np_rand() * m + 0.1
-                y2 = y1 + (2 * np_rand() - 1) * m
-            x = np.array([x1, x2])
-            y = np.array([y1, y2])
-
-            if self.add_static_obstacle:
-                _, self.static_obst_pixels = \
-                    get_static_obst(m, x, y)
-
-                # Need to work backward from pixels to incorporate
-                # screen margin offset
-                self.static_obstacle_points = \
-                    self.static_obst_pixels / self.px_per_m
-
-                self.static_obstacle_tuple = tuple(
-                    map(tuple, self.static_obstacle_points.tolist()))
-
-
+            x, y = self.gen_one_waypoint_map()
+        elif self.is_intersection_map:
+            x, y = self.gen_intersection_map()
         else:
-            x, y = gen_map(should_save=True)
+            x, y = gen_random_map(should_save=True)
 
         x_pixels = x * MAP_WIDTH_PX + SCREEN_MARGIN
         y_pixels = y * MAP_HEIGHT_PX + SCREEN_MARGIN
@@ -407,8 +388,16 @@ class Deepdrive2DEnv(gym.Env):
                        height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,
                        static_obst_pixels=self.static_obst_pixels)
 
-        self.x = self.map.x[0]
-        self.y = self.map.y[0]
+        if self.is_intersection_map:
+            start_pos = Box(x=27.0770290995851,
+                            y=5.719717783033244,
+                            angle=0.00790589940057672)
+            self.x = start_pos.x
+            self.y = start_pos.y
+            self.angle = start_pos.angle
+        else:
+            self.x = self.map.x[0]
+            self.y = self.map.y[0]
 
         self.start_x = self.x
         self.start_y = self.y
@@ -424,6 +413,31 @@ class Deepdrive2DEnv(gym.Env):
         else:
             self.angle = self.get_start_angle()
         self.start_angle = self.angle
+
+    def gen_one_waypoint_map(self):
+        m = self.max_one_waypoint_mult
+        x1 = 0.1
+        y1 = 0.5
+        if self.static_map:
+            x2 = x1 + 0.2 * m + 0.1
+            y2 = y1 + (2 * 0.2 - 1) * m
+        else:
+            x2 = x1 + np_rand() * m + 0.1
+            y2 = y1 + (2 * np_rand() - 1) * m
+        x = np.array([x1, x2])
+        y = np.array([y1, y2])
+        if self.add_static_obstacle:
+            _, self.static_obst_pixels = \
+                get_static_obst(m, x, y)
+
+            # Need to work backward from pixels to incorporate
+            # screen margin offset
+            self.static_obstacle_points = \
+                self.static_obst_pixels / self.px_per_m
+
+            self.static_obstacle_tuple = tuple(
+                map(tuple, self.static_obstacle_points.tolist()))
+        return x, y
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
@@ -951,6 +965,17 @@ steer, accel, brake, dt, info
         elif self.add_static_obstacle:
             return check_collision(self.ego_rect_tuple,
                                    lines=(self.static_obstacle_tuple,))
+
+    def gen_intersection_map(self):
+        # TODO: Get x, y of two waypoints
+        #   - The first waypoint is the one you touch upon entering the
+        #     intersection turning left
+        #   - The second waypoint is the one you touch upon leaving the
+        #     the intersection
+        # TODO: Set initial ego position on bottom right lane
+        #       {'x': 27.0770290995851, 'y': 5.719717783033244, 'angle': 0.00790589940057672}
+        bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz = \
+            get_intersection()
 
 
 def get_closest_point(point, kd_tree):

@@ -1,17 +1,22 @@
 import os
 import time
 
+import numpy
 import numpy as np
+from Cython.Includes import numpy
 from loguru import logger as log
 from scipy.interpolate import interp1d
+
+from deepdrive_2d.constants import PX_PER_M, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
+    SCREEN_MARGIN
 
 GAP_M = 1
 DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 # TODO: @njit
-def gen_map(should_plot=False, num_course_points=3, resolution=10,
-            should_save=True) -> np.array:
+def gen_random_map(should_plot=False, num_course_points=3, resolution=10,
+                   should_save=True) -> np.array:
     # TODO: Linear interp with 2 points for straight roads
     # TODO: Randomize spacing
     # TODO: Different interpolations
@@ -23,7 +28,14 @@ def gen_map(should_plot=False, num_course_points=3, resolution=10,
     x = np.linspace(min_x, max_x, num=num_course_points + 1,
                     endpoint=True)
     y = np.array(list(np.random.rand(num_course_points + 1)))
+    return gen_map(x, y, resolution, should_plot, should_save)
+
+
+def gen_map(x, y, resolution=10, should_plot=True, should_save=False):
     linear_interp = interp1d(x, y)
+    min_x = x.min()
+    max_x = x.max()
+    num_course_points = len(x) - 1
 
     # TODO: Remove first interpolation if making equidistant
     cubic_interp = interp1d(x, y, kind='cubic')
@@ -66,7 +78,6 @@ def gen_map(should_plot=False, num_course_points=3, resolution=10,
     retx = xequi
     rety = yequi
 
-
     return retx, rety
 
 
@@ -93,5 +104,42 @@ def interpolate_equidistant(points: np.array,
     return ret
 
 
+
+def get_intersection():
+    ppm = PX_PER_M
+    _lane_width_feet = 10  # https://www.citylab.com/design/2014/10/why-12-foot-traffic-lanes-are-disastrous-for-safety-and-must-be-replaced-now/381117/
+    lane_width = 0.3048 * _lane_width_feet
+    map_width = MAP_WIDTH_PX / ppm
+    map_height = MAP_HEIGHT_PX / ppm
+    margin = SCREEN_MARGIN / ppm
+    # Everything in meters from here on out
+    left_x = map_width / 2 - lane_width + margin
+    top_y = map_height / 2 + lane_width + margin
+    left_vert = np.array(((left_x, margin),
+                          (left_x, map_height + margin)))
+    mid_vert_x = left_x + lane_width
+    mid_vert = np.array(((mid_vert_x, margin),
+                         (mid_vert_x, map_height + margin)))
+    right_vert_x = left_x + lane_width * 2
+    right_vert = np.array(((right_vert_x, margin),
+                           (right_vert_x, map_height + margin)))
+    top_horiz = np.array(((margin, top_y),
+                          (map_width + margin, top_y)))
+    mid_horiz_y = top_y - lane_width
+    mid_horiz = np.array(((margin, mid_horiz_y),
+                          (map_width + margin, mid_horiz_y)))
+    bottom_horiz_y = top_y - lane_width * 2
+    bottom_horiz = np.array(((margin, bottom_horiz_y),
+                             (map_width + margin, bottom_horiz_y)))
+    return bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz
+
+def main():
+    coords = ((0, 1), (0.5, 1), (1, 1), (1.02, 0))
+    zipped = list(zip(*coords))
+    gen_map(x=np.array(zipped[0]),
+            y=np.array(zipped[1]))
+
+
 if __name__ == '__main__':
-    gen_map(should_plot=True)
+    main()
+    # gen_random_map(should_plot=True)
