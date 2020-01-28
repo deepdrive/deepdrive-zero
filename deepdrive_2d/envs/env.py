@@ -115,7 +115,7 @@ class Deepdrive2DEnv(gym.Env):
         self.max_gforce: float = 0
         self.disable_gforce_penalty = disable_gforce_penalty
         self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
-        self.jerk: float = 0
+        self.jerk: float = 0  # m/s^3 instantaneous, i.e. frame to frame
         self.closest_map_index: int = 0
         self.next_map_index: int = 1
         self.closest_waypoint_distance: float = 0
