@@ -25,7 +25,7 @@ from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     MAX_METERS_PER_SEC_SQ
 from deepdrive_2d.experience_buffer import ExperienceBuffer
 from deepdrive_2d.map_gen import gen_random_map, get_intersection
-from deepdrive_2d.utils import flatten_points, get_angles_ahead, angle
+from deepdrive_2d.utils import flatten_points, get_angles_ahead, get_angle
 from deepdrive_2d.logs import log
 
 MAX_BRAKE_G = 1
