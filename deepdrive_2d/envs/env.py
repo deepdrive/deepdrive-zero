@@ -117,6 +117,9 @@ class Deepdrive2DEnv(gym.Env):
         self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
         self.jerk: float = 0
         self.closest_map_index: int = 0
+        self.next_map_index: int = 1
+        self.closest_waypoint_distance: float = 0
+        self.waypoint_distance: float = 0
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
@@ -124,7 +127,7 @@ class Deepdrive2DEnv(gym.Env):
         self.angle_accuracies: List[float] = []
         self.episode_gforces: List[float] = []
         self.match_angle_only: bool = match_angle_only
-        self.one_waypoint_map: bool = one_waypoint_map
+        self.is_one_waypoint_map: bool = one_waypoint_map
         self.is_intersection_map: bool = is_intersection_map
 
         self.incent_win: bool = incent_win
@@ -141,14 +144,16 @@ class Deepdrive2DEnv(gym.Env):
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
         elif one_waypoint_map in sys.argv:
-            self.one_waypoint_map = True
+            self.is_one_waypoint_map = True
             max_seconds = self.max_one_waypoint_mult * 200
+        elif self.is_intersection_map:
+            max_seconds = 60
         else:
             max_seconds = 60
         self._max_episode_steps = \
             max_seconds * 1/self.target_dt * 1/self.physics_steps_per_observation
 
-        self.acceleration = [0, 0]
+        self.acceleration = np.array((0, 0))
         self.vehicle_model = None
 
         # Current position (center)
@@ -207,7 +212,9 @@ class Deepdrive2DEnv(gym.Env):
 
     def populate_observation(self, closest_map_point, lane_deviation,
                              angles_ahead, steer, brake, accel, harmful_gs,
-                             jarring_gs, uncomfortable_gs, is_blank=False):
+                             jarring_gs, uncomfortable_gs,
+                             left_lane_distance=0,
+                             right_lane_distance=0, is_blank=False):
         observation = \
             Box(steer=steer,
                 accel=accel,
@@ -227,7 +234,9 @@ class Deepdrive2DEnv(gym.Env):
                 vehicle_width=self.vehicle_width,
                 vehicle_height=self.vehicle_height,
                 cog_to_front_axle=self.vehicle_model[0],
-                cog_to_rear_axle=self.vehicle_model[1],)
+                cog_to_rear_axle=self.vehicle_model[1],
+                left_lane_distance=left_lane_distance,
+                right_lane_distance=right_lane_distance)
 
 
         if self.return_observation_as_array:
@@ -238,7 +247,7 @@ class Deepdrive2DEnv(gym.Env):
             #  be an immediate alternative. Training can then focus on minimizing
             #  g-forces if we don't reach the waypoint. Then at test time
             #  we can set a new waypoint after some timeout.
-            if self.one_waypoint_map:
+            if self.is_one_waypoint_map:
                 if self.match_angle_only:
                     return np.array([angles_ahead[0], self.prev_steer])
                 elif 'STRAIGHT_TEST' in os.environ:
@@ -249,6 +258,14 @@ class Deepdrive2DEnv(gym.Env):
                     if self.add_static_obstacle:
                         ret += self.get_static_obstacle_inputs()
                     return np.array(ret)
+            elif self.is_intersection_map:
+                ret = [angles_ahead[0], angles_ahead[1],
+                       self.prev_steer, self.prev_accel,
+                       self.speed, self.waypoint_distance,
+                       left_lane_distance, right_lane_distance]
+                if self.add_static_obstacle:
+                    ret += self.get_static_obstacle_inputs()
+                return np.array(ret)
             else:
                 observation = np.array(observation.values())
                 observation = np.concatenate((observation, angles_ahead),
@@ -276,7 +293,8 @@ class Deepdrive2DEnv(gym.Env):
 
         else:
             observation.angles_ahead = angles_ahead
-            self.get_static_obstacle_inputs()
+            if self.add_static_obstacle:
+                self.get_static_obstacle_inputs()
 
         return observation
 
@@ -315,13 +333,14 @@ class Deepdrive2DEnv(gym.Env):
         self.gforce_levels = self.blank_gforce_levels()
         self.max_gforce = 0
         self.closest_map_index = 0
+        self.next_map_index = 1
         self.trip_pct = 0
         self.angles_ahead = []
         self.angle_accuracies = []
         self.episode_gforces = []
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
-            self.generate_map()
+            self.gen_map()
         if self.observation_space is None:
             self.setup_spaces()
         self.experience_buffer.reset()
@@ -355,7 +374,7 @@ class Deepdrive2DEnv(gym.Env):
             steer=0,
             brake=0,
             accel=0,
-            closest_map_point=self.map.arr[0],
+            closest_map_point=self.map.waypoints[0],
             lane_deviation=0,
             angles_ahead=[0] * len(self.map_query_seconds_ahead),
             harmful_gs=False,
@@ -364,62 +383,60 @@ class Deepdrive2DEnv(gym.Env):
             is_blank=True,)
         return ret
 
-    def generate_map(self):
+    def gen_map(self):
+        lane_width = 10 * 0.3048
         # Generate one waypoint map
-        if self.one_waypoint_map:
-            x, y = self.gen_one_waypoint_map()
+        if self.is_one_waypoint_map:
+            x_norm, y_norm = self.gen_one_waypoint_map()
+            x_pixels = x_norm * MAP_WIDTH_PX + SCREEN_MARGIN
+            y_pixels = y_norm * MAP_HEIGHT_PX + SCREEN_MARGIN
+            x_meters = x_pixels / self.px_per_m
+            y_meters = y_pixels / self.px_per_m
         elif self.is_intersection_map:
-            x, y = self.gen_intersection_map()
+            x_meters, y_meters, lane_width = self.gen_intersection_map()
+            x_pixels = x_meters * self.px_per_m
+            y_pixels = y_meters * self.px_per_m
         else:
-            x, y = gen_random_map(should_save=True)
+            raise NotImplementedError()
 
-        x_pixels = x * MAP_WIDTH_PX + SCREEN_MARGIN
-        y_pixels = y * MAP_HEIGHT_PX + SCREEN_MARGIN
+        waypoints = list(zip(list(x_meters), list(y_meters)))
 
-
-        x_meters = x_pixels / self.px_per_m
-        y_meters = y_pixels / self.px_per_m
-
-        arr = list(zip(list(x_meters), list(y_meters)))
-
-        distances = np.cumsum(np.linalg.norm(np.diff(arr, axis=0), axis=1))
+        distances = np.cumsum(np.linalg.norm(np.diff(waypoints, axis=0),
+                                             axis=1))
         distances = np.concatenate((np.array([0]), distances))
 
         self.map = Box(x=x_meters,
                        y=y_meters,
                        x_pixels=x_pixels,
                        y_pixels=y_pixels,
-                       arr=arr,
+                       waypoints=waypoints,
                        distances=distances,
                        length=distances[-1],
                        width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
                        height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,
-                       static_obst_pixels=self.static_obst_pixels)
+                       static_obst_pixels=self.static_obst_pixels,
+                       lane_width=lane_width)
 
-        if self.is_intersection_map:
-            start_pos = Box(x=27.0770290995851,
-                            y=5.719717783033244,
-                            angle=0.00790589940057672)
-            self.x = start_pos.x
-            self.y = start_pos.y
-            self.angle = start_pos.angle
-        else:
-            self.x = self.map.x[0]
-            self.y = self.map.y[0]
+        self.x = self.map.x[0]
+        self.y = self.map.y[0]
 
         self.start_x = self.x
         self.start_y = self.y
 
         # Physics properties
         # x is right, y is straight
-        self.map_kd_tree = spatial.KDTree(self.map.arr)
+        self.map_kd_tree = spatial.KDTree(self.map.waypoints)
         self.vehicle_model = get_vehicle_model(self.vehicle_width)
 
-        self.map_flat = flatten_points(self.map.arr)
-        if self.one_waypoint_map:
+        self.map_flat = flatten_points(self.map.waypoints)
+        if self.is_one_waypoint_map:
             self.angle = -math.pi / 2
+        elif self.is_intersection_map:
+            self.angle = 0
         else:
-            self.angle = self.get_start_angle()
+            raise NotImplementedError()
+            # self.angle = self.get_start_angle()
+
         self.start_angle = self.angle
 
     def gen_one_waypoint_map(self):
@@ -637,11 +654,6 @@ class Deepdrive2DEnv(gym.Env):
             log.warning(f'Collision, game over.')
             done = True
             lost = True
-        elif lane_deviation > 1.1 and not self.one_waypoint_map:
-            # You lose!
-            log.warning(f'Drifted out of lane, game over.')
-            done = True
-            lost = True
         elif self.gforce_levels.harmful:
             # Only end on g-force once we've learned to complete part of the trip.
             log.warning(f'Harmful g-forces, game over')
@@ -650,12 +662,12 @@ class Deepdrive2DEnv(gym.Env):
         elif (self.episode_steps + 1) % self._max_episode_steps == 0:
             log.warning(f'Time\'s up')
             done = True
-        elif self.one_waypoint_map:
-            if 'DISABLE_CIRCLE_CHECK' not in os.environ and \
-                    abs(math.degrees(self.angle)) > 400:
-                done = True
-                lost = True
-                log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
+        elif 'DISABLE_CIRCLE_CHECK' not in os.environ and \
+                abs(math.degrees(self.angle)) > 400:
+            done = True
+            lost = True
+            log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
+        elif self.is_one_waypoint_map or self.is_intersection_map:
             if (self.furthest_distance - self.distance) > 2:
                 done = True
                 lost = True
@@ -666,7 +678,11 @@ class Deepdrive2DEnv(gym.Env):
                 # You win!
                 log.success(f'Reached destination! '
                             f'Steps: {self.episode_steps}')
-        elif list(self.map.arr[-1]) == list(closest_map_point):
+        # elif self.is_intersection_map:
+        #     pass
+        #     # TODO: Reward reaching intermediate waypoint
+
+        elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
             log.success(f'Reached destination! '
                         f'Steps: {self.episode_steps}')
@@ -715,7 +731,12 @@ class Deepdrive2DEnv(gym.Env):
         if not self.disable_gforce_penalty and self.gforce > 0.05:
             gforce_penalty = 32 * pi * self.gforce  # G-force penalty
 
-        jerk_penalty = 32 * pi * self.jerk
+        jerk_magnitude = np.linalg.norm(self.jerk)
+        jerk_penalty = 10 * jerk_magnitude
+
+        accel_magnitude = self.gforce * G_ACCEL
+
+        # log.debug(f'jerk {round(jerk_magnitude)} accel {round(accel_magnitude)}')
 
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
@@ -742,7 +763,6 @@ class Deepdrive2DEnv(gym.Env):
         # smoothness.
 
         # log.debug(f'reward {ret} '
-        #          f'angle {angle_reward} '
         #          f'speed {speed_reward} '
         #          f'gforce {gforce_penalty} '
         #          f'jerk {jerk_penalty} '
@@ -751,6 +771,7 @@ class Deepdrive2DEnv(gym.Env):
         #          f'steer {steer_penalty} '
         #          f'accel {accel_penalty} '
         # )
+
         return ret, info
 
 
@@ -773,20 +794,36 @@ class Deepdrive2DEnv(gym.Env):
         self.step_physics(dt, steer, accel, brake, prev_x, prev_y, prev_angle,
                           info)
 
-        closest_map_point, closest_map_index, lane_deviation = \
+        closest_map_point, closest_map_index, closest_waypoint_distance = \
             get_closest_point((self.x, self.y), self.map_kd_tree)
 
         self.closest_map_index = closest_map_index
-        self.set_distance(closest_map_index)
+        self.set_distance()
 
-        if self.one_waypoint_map:
+        self.trip_pct = 100 * self.distance / self.map.length
+
+        half_lane_width = self.map.lane_width / 2
+        left_lane_distance = right_lane_distance = half_lane_width
+
+        if self.is_one_waypoint_map:
             angles_ahead = self.get_one_waypoint_angle_ahead()
-            self.trip_pct = 100 * self.distance / self.map.length
+
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
+        elif self.is_intersection_map:
+            angles_ahead, left_lane_distance, right_lane_distance = \
+                self.get_intersection_observation(half_lane_width,
+                                                  left_lane_distance,
+                                                  right_lane_distance)
+
+            # TODO: Get distance from left right, before waypoint, then
+            #  top bottom after first waypoint
         else:
-            self.trip_pct = 100 * closest_map_index / (len(self.map.arr) - 1)
+            self.trip_pct = 100 * closest_map_index / (len(self.map.waypoints) - 1)
             angles_ahead = self.get_angles_ahead(closest_map_index)
+
+        # log.trace(f'lane dist left {left_lane_distance} '
+        #          f'right {right_lane_distance}')
 
         self.angles_ahead = angles_ahead
 
@@ -796,19 +833,49 @@ class Deepdrive2DEnv(gym.Env):
 
         observation = self.populate_observation(
             closest_map_point=closest_map_point,
-            lane_deviation=lane_deviation,
+            lane_deviation=closest_waypoint_distance,
             angles_ahead=angles_ahead,
             steer=steer,
             brake=brake,
             accel=accel,
             harmful_gs=self.gforce_levels.harmful,
             jarring_gs=self.gforce_levels.jarring,
-            uncomfortable_gs=self.gforce_levels.uncomfortable)
+            uncomfortable_gs=self.gforce_levels.uncomfortable,
+            left_lane_distance=left_lane_distance,
+            right_lane_distance=right_lane_distance,
+        )
 
-        return lane_deviation, observation, closest_map_point
+        return closest_waypoint_distance, observation, closest_map_point
+
+    def get_intersection_observation(self, half_lane_width, left_distance,
+                                     right_distance):
+        a2w = self.get_angle_to_point
+        wi = self.next_map_index
+        mp = self.map
+        angles_ahead = [a2w(p) for p in mp.waypoints[wi:wi+2]]
+
+        if self.front_y < mp.waypoints[0][1]:
+            # Before entering intersection
+            x = mp.waypoints[0][0]
+            left_x = x - half_lane_width
+            right_x = x + half_lane_width
+            left_distance = min(self.ego_rect.T[0]) - left_x
+            right_distance = right_x - max(self.ego_rect.T[0])
+        else:
+            if self.front_x < mp.waypoints[1][0]:
+                # Exiting intersection
+                y = mp.waypoints[1][1]
+                bottom_y = y - half_lane_width
+                top_y = y + half_lane_width
+                left_distance = min(self.ego_rect.T[1]) - bottom_y
+                right_distance = top_y - max(self.ego_rect.T[1])
+        return angles_ahead, left_distance, right_distance
 
     def get_one_waypoint_angle_ahead(self):
         waypoint = np.array((self.map.x[-1], self.map.y[-1]))
+        return self.get_angle_to_waypoint(waypoint)
+
+    def get_angle_to_waypoint(self, waypoint):
         angle_to_waypoint = self.get_angle_to_point(waypoint)
         self.angle_to_waypoint = angle_to_waypoint
         front_to_waypoint_vector = waypoint - self.front_pos
@@ -826,8 +893,8 @@ class Deepdrive2DEnv(gym.Env):
         :return:
         """
         front_to_point_vector = p - self.front_pos
-        angle_to_waypoint = angle(self.heading, front_to_point_vector)
-        return angle_to_waypoint
+        ret = get_angle(self.heading, front_to_point_vector)
+        return ret
 
     def step_physics(self, dt, steer, accel, brake, prev_x, prev_y, prev_angle,
                      info):
@@ -893,18 +960,37 @@ class Deepdrive2DEnv(gym.Env):
         timeout = pyglet.app.event_loop.idle()
         platform_event_loop.step(timeout)
 
-    def set_distance(self, closest_map_index):
+    def set_distance(self):
+        mp = self.map
+        if self.closest_map_index == self.next_map_index and \
+                self.closest_waypoint_distance < 1 and \
+                self.next_map_index < len(self.map.x) - 1:
+            # Advance to next waypoint
+            self.next_map_index += 1
+
         self.prev_distance = self.distance
         if 'STRAIGHT_TEST' in os.environ:
             self.distance = self.x - self.start_x
-        elif self.one_waypoint_map:
-            end = np.array([self.map.x[-1], self.map.y[-1]])
+        elif self.is_one_waypoint_map:
+            end = np.array([mp.x[-1], mp.y[-1]])
+
+            # TODO: Use self.front_pos
             pos = np.array([self.front_x, self.front_y])
             self.distance_to_end = np.linalg.norm(end - pos)
-            self.distance = self.map.length - self.distance_to_end
+
+            self.distance = mp.length - self.distance_to_end
             # log.info(f'distance {self.distance}')
+        elif self.is_intersection_map:
+            next_index = self.next_map_index
+            next_pos = np.array([mp.x[next_index],
+                                 mp.y[next_index]])
+            next_dist = np.linalg.norm(next_pos - self.front_pos)
+            self.waypoint_distance = next_dist
+            self.distance = mp.distances[self.next_map_index] - abs(next_dist)
         else:
-            self.distance = self.map.distances[closest_map_index]
+            # Assumes waypoints are very close, i.e. 1m apart
+            self.distance = mp.distances[self.closest_map_index]
+        # log.debug(f'distance {self.distance}')
         self.furthest_distance = max(self.distance, self.furthest_distance)
         if self.prev_distance is None:
             # Init prev distance
@@ -917,9 +1003,9 @@ class Deepdrive2DEnv(gym.Env):
         pos_change = np.array([prev_x - self.x, prev_y - self.y])
         prev_velocity = self.velocity
         self.velocity = pos_change / dt
-        self.acceleration = (self.velocity - prev_velocity) / dt
+        acceleration = (self.velocity - prev_velocity) / dt
         self.angular_velocity = (self.angle - prev_angle) / dt
-        accel_magnitude = np.linalg.norm(self.acceleration)
+        accel_magnitude = np.linalg.norm(acceleration)
         gforce = accel_magnitude / 9.807
         if gforce > self.max_gforce:
             log.trace(f'New max gforce {gforce}')
@@ -943,12 +1029,15 @@ class Deepdrive2DEnv(gym.Env):
         elif not (lvls.harmful or lvls.jarring or lvls.uncomfortable):
             info.stats.episode_gforce_level = 0
 
-        self.prev_gforce.append(self.gforce)
-        self.jerk = self.gforce - gforce
+        # self.prev_gforce.append(self.gforce)
+        self.jerk = acceleration - self.acceleration
+        self.acceleration = acceleration
         self.gforce = gforce
+
+        # log.debug(f'accel {acceleration} prev {self.acceleration}')
+
+
         return self.gforce
-
-
 
     def check_for_nan(self, dt, steer, accel, brake, info):
         if self.x in [np.inf, -np.inf] or self.y in [np.inf, -np.inf]:
@@ -968,13 +1057,16 @@ steer, accel, brake, dt, info
         Note: this assumes we are on the map path
         """
         distances = self.map.distances
+
         return get_angles_ahead(total_points=len(distances),
                                 total_length=self.map.length,
                                 speed=self.speed,
-                                map_points=self.map.arr,
-                                angle=self.angle,
+                                map_points=self.map.waypoints,
+                                ego_angle=self.angle,
                                 seconds_ahead=self.map_query_seconds_ahead,
-                                closest_map_index=closest_map_index)
+                                closest_map_index=closest_map_index,
+                                heading=self.heading,
+                                ego_front=self.ego_pos)
 
     def close(self):
         if self.should_render:
@@ -997,8 +1089,21 @@ steer, accel, brake, dt, info
         #     the intersection
         # TODO: Set initial ego position on bottom right lane
         #       {'x': 27.0770290995851, 'y': 5.719717783033244, 'angle': 0.00790589940057672}
-        bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz = \
-            get_intersection()
+        # TODO: Return lane width at waypoints
+        lines, lane_width = get_intersection()
+        left_vert, mid_vert, right_vert, top_horiz, mid_horiz, bottom_horiz = \
+            lines
+        # TODO: Return x, y of waypoints as normalized coordinates 0=>1
+
+        # Get waypoints
+        wp0 = 27.0770290995851, 5.719717783033244
+        wp1 = mid_vert[0][0] + lane_width / 2, bottom_horiz[0][1]
+        wp2 = left_vert[0][0], mid_horiz[0][1] + lane_width / 2
+        wp3 = 1.840549443086846, mid_horiz[0][1] + lane_width / 2
+
+        x, y = np.array(list(zip(wp0, wp1, wp2, wp3)))
+
+        return x, y, lane_width
 
 
 def get_closest_point(point, kd_tree):

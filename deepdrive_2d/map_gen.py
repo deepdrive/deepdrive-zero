@@ -8,7 +8,7 @@ from loguru import logger as log
 from scipy.interpolate import interp1d
 
 from deepdrive_2d.constants import PX_PER_M, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
-    SCREEN_MARGIN
+    SCREEN_MARGIN, MAP_IMAGE
 
 GAP_M = 1
 DIR = os.path.dirname(os.path.realpath(__file__))
@@ -68,7 +68,7 @@ def gen_map(x, y, resolution=10, should_plot=True, should_save=False):
             plt.axis('off')
             start_save = time.time()
             # TODO: Specify height and width
-            plt.savefig(f'{DIR}/images/map.png', bbox_inches='tight',
+            plt.savefig(MAP_IMAGE, bbox_inches='tight',
                         pad_inches=0,
                         facecolor='xkcd:cornflower blue',
                         edgecolor='xkcd:cornflower blue',
@@ -104,8 +104,14 @@ def interpolate_equidistant(points: np.array,
     return ret
 
 
-
 def get_intersection():
+    """
+    Returns lane width and 6 lines that make up the intersection,
+    3 vertical, 3 horizontal
+
+    Each line consists of 2 points and has shape 2x2
+
+    """
     ppm = PX_PER_M
     _lane_width_feet = 10  # https://www.citylab.com/design/2014/10/why-12-foot-traffic-lanes-are-disastrous-for-safety-and-must-be-replaced-now/381117/
     lane_width = 0.3048 * _lane_width_feet
@@ -131,7 +137,9 @@ def get_intersection():
     bottom_horiz_y = top_y - lane_width * 2
     bottom_horiz = np.array(((margin, bottom_horiz_y),
                              (map_width + margin, bottom_horiz_y)))
-    return bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz
+    lines = left_vert, mid_vert, right_vert, top_horiz, mid_horiz, bottom_horiz
+    return lines, lane_width
+
 
 def main():
     coords = ((0, 1), (0.5, 1), (1, 1), (1.02, 0))

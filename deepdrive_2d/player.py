@@ -31,7 +31,8 @@ class Deepdrive2DPlayer(arcade.Window):
     """Allows playing the env as a human"""
     def __init__(self, add_rotational_friction=False,
                  add_longitudinal_friction=False, env=None,
-                 fps=60, static_obstacle=False, one_waypoint=False):
+                 fps=60, static_obstacle=False, one_waypoint=False,
+                 is_intersection_map=False):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
@@ -56,7 +57,12 @@ class Deepdrive2DPlayer(arcade.Window):
         self.max_accel = None
         self.px_per_m = None
         self.static_obstacle = (static_obstacle or
-                                self.env.unwrapped.add_static_obstacle)
+                                (self.env and
+                                 self.env.unwrapped.add_static_obstacle))
+        self.is_intersection_map = (is_intersection_map or
+                                    (self.env and
+                                     self.env.unwrapped.is_intersection_map))
+
         self.one_waypoint = one_waypoint
 
     def setup(self):
@@ -91,6 +97,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 physics_steps_per_observation=1,
                 add_static_obstacle=self.static_obstacle,
                 one_waypoint_map=self.one_waypoint,
+                is_intersection_map=self.is_intersection_map,
             )
 
         self.env.reset()
@@ -115,11 +122,11 @@ class Deepdrive2DPlayer(arcade.Window):
         angle = math.radians(self.player_sprite.angle)
         theta = angle + pi / 2
 
-        if self.env.one_waypoint_map:
+        if self.env.is_one_waypoint_map:
             arcade.draw_circle_filled(
                 center_x=e.map.x_pixels[1],
                 center_y=e.map.y_pixels[1],
-                radius=20,
+                radius=21,
                 color=color.ORANGE)
             if self.static_obstacle:
                 static_obst_pixels = e.map.static_obst_pixels
@@ -131,6 +138,13 @@ class Deepdrive2DPlayer(arcade.Window):
                     color=color.BLACK_OLIVE,
                     line_width=5,
                 )
+        elif self.is_intersection_map:
+            for i in range(len(e.map.waypoints)):
+                arcade.draw_circle_filled(
+                    center_x=e.map.x_pixels[i],
+                    center_y=e.map.y_pixels[i],
+                    radius=21,
+                    color=color.ORANGE)
         else:
             # Draw the background texture
             bg_scale = 1.1
@@ -285,7 +299,7 @@ class Deepdrive2DPlayer(arcade.Window):
                     color=color.RED,
                     line_width=2,)
 
-        if DRAW_INTERSECTION:
+        if self.is_intersection_map:
             self.draw_intersection()
 
         # arcade.draw_line(300, 300, 300 + self.player_sprite.height, 300,
@@ -298,8 +312,9 @@ class Deepdrive2DPlayer(arcade.Window):
 
 
     def draw_intersection(self):
-        bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz = get_intersection()
+        lines, lane_width = get_intersection()
 
+        bottom_horiz, left_vert, mid_horiz, mid_vert, right_vert, top_horiz = lines
         self.draw_intersection_line(left_vert)
         self.draw_intersection_line(mid_vert)
         self.draw_intersection_line(right_vert)
@@ -379,6 +394,7 @@ def start(env=None, fps=60):
         add_longitudinal_friction='--longitudinal-friction' in sys.argv,
         static_obstacle='--static-obstacle' in sys.argv,
         one_waypoint='--one-waypoint-map' in sys.argv,
+        is_intersection_map='--intersection' in sys.argv,
         env=env,
         fps=fps,
     )

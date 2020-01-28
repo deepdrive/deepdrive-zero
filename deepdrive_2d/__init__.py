@@ -35,8 +35,7 @@ register(
     entry_point='deepdrive_2d.envs:SixtyFpsEnv',
 )
 
-
-# register(
-#     id='foo-extrahard-v0',
-#     entry_point='gym_foo.envs:FooExtraHardEnv',
-# )
+register(
+    id='deepdrive-2d-intersection-v0',
+    entry_point='deepdrive_2d.envs:IntersectionEnv',
+)

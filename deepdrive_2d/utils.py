@@ -13,8 +13,9 @@ def flatten_points(points):
     return [coord for point in points for coord in point]
 
 
-def get_angles_ahead(angle, closest_map_index, map_points,
-                     seconds_ahead, speed, total_length, total_points):
+def get_angles_ahead(ego_angle, closest_map_index, map_points,
+                     seconds_ahead, speed, total_length, total_points,
+                     heading, ego_front):
     # TODO: Profile / numba
     num_indices = len(seconds_ahead)
     points_per_meter = total_points / total_length
@@ -31,7 +32,6 @@ def get_angles_ahead(angle, closest_map_index, map_points,
     points = map_points[int(first_index):last_index:points_per_index]
     points = list(points)
 
-
     while len(points) < num_indices:
         # Append last point where we're at the end
         points.append(points[-1])
@@ -39,14 +39,12 @@ def get_angles_ahead(angle, closest_map_index, map_points,
     # TODO: Fix this! Doesn't make sense to get angles along trajectory if not
     #   on trajectory, and doesn't make sense to correct with current angle
     #   by subtracting it when not on trajectory.
-    cp = map_points[closest_map_index]
-    angles = [angle_between_points(cp, p) for p in points]  # Fix with angle_between_vectors
-    angles = angle - np.array(angles)
+    angles = [get_angle(heading, p - ego_front) for p in points]
     return angles
 
 
 @njit(cache=True, nogil=True)
-def angle(vector1, vector2):
+def get_angle(vector1, vector2):
     """ Returns the angle in radians between given vectors"""
     v1_u = unit_vector(vector1)
     v2_u = unit_vector(vector2)
@@ -69,12 +67,12 @@ def quadratic_regression(x, y):
 def test_angle():
     def npf(x):
         return np.array(x, dtype=float)
-    assert np.isclose(angle(npf((1, 1)), npf((1,  0))),  pi / 4)
-    assert np.isclose(angle(npf((1, 0)), npf((1,  1))), -pi / 4)
-    assert np.isclose(angle(npf((0, 1)), npf((1,  0))),  pi / 2)
-    assert np.isclose(angle(npf((1, 0)), npf((0,  1))), -pi / 2)
-    assert np.isclose(angle(npf((1, 0)), npf((1,  0))),  0)
-    assert np.isclose(angle(npf((1, 0)), npf((-1, 0))),  pi)
+    assert np.isclose(get_angle(npf((1, 1)), npf((1, 0))), pi / 4)
+    assert np.isclose(get_angle(npf((1, 0)), npf((1, 1))), -pi / 4)
+    assert np.isclose(get_angle(npf((0, 1)), npf((1, 0))), pi / 2)
+    assert np.isclose(get_angle(npf((1, 0)), npf((0, 1))), -pi / 2)
+    assert np.isclose(get_angle(npf((1, 0)), npf((1, 0))), 0)
+    assert np.isclose(get_angle(npf((1, 0)), npf((-1, 0))), pi)
 
 
 def test_quadratic_regression():

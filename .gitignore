@@ -191,6 +191,3 @@ ENV/
 
 # pipenv
 Pipfile.lock
-
-# JetBrains / PyCharm
-.idea
