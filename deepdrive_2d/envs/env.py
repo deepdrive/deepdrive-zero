@@ -750,10 +750,11 @@ class Deepdrive2DEnv(gym.Env):
         else:
             collision_penalty = 0
 
+        win_reward = self.get_win_reward(won)
         ret = (
            + speed_reward
            - gforce_penalty
-           + self.get_win_reward(won)
+           + win_reward
            - collision_penalty
            - steer_penalty
            - accel_penalty
@@ -765,14 +766,15 @@ class Deepdrive2DEnv(gym.Env):
         # train with the full complexity, then fine-tune to improve
         # smoothness.
 
-        # log.debug(f'reward {ret} '
-        #          f'speed {speed_reward} '
-        #          f'gforce {gforce_penalty} '
-        #          f'jerk {jerk_penalty} '
-        #          f'win {gforce_penalty} '
-        #          f'collision {collision_penalty} '
-        #          f'steer {steer_penalty} '
-        #          f'accel {accel_penalty} '
+        # log.debug(
+        #     f'reward {ret} '
+        #     f'speed {speed_reward} '
+        #     f'gforce {gforce_penalty} '
+        #     f'jerk {jerk_penalty} '
+        #     f'win {win_reward} '
+        #     f'collision {collision_penalty} '
+        #     f'steer {steer_penalty} '
+        #     f'accel {accel_penalty} '
         # )
 
         return ret, info
