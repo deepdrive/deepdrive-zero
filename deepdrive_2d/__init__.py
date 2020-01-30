@@ -39,3 +39,8 @@ register(
     id='deepdrive-2d-intersection-v0',
     entry_point='deepdrive_2d.envs:IntersectionEnv',
 )
+
+register(
+    id='deepdrive-2d-intersection-w-gs-v0',
+    entry_point='deepdrive_2d.envs:IntersectionWithGsEnv',
+)
