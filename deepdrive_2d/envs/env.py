@@ -668,7 +668,14 @@ class Deepdrive2DEnv(gym.Env):
             lost = True
             log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
         elif self.is_one_waypoint_map or self.is_intersection_map:
-            if (self.furthest_distance - self.distance) > 2:
+            if self.is_intersection_map and \
+                    self.closest_map_index > self.next_map_index:
+                # Negative progress catches this first depending on distance
+                # thresholds
+                done = True
+                lost = True
+                log.warning(f'Skipped waypoint {self.next_map_index}')
+            elif (self.furthest_distance - self.distance) > 2:
                 done = True
                 lost = True
                 log.warning(f'Negative progress')
@@ -678,16 +685,12 @@ class Deepdrive2DEnv(gym.Env):
                 # You win!
                 log.success(f'Reached destination! '
                             f'Steps: {self.episode_steps}')
-        # elif self.is_intersection_map:
-        #     pass
-        #     # TODO: Reward reaching intermediate waypoint
-
         elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
-            log.success(f'Reached destination! '
-                        f'Steps: {self.episode_steps}')
             done = True
             won = True
+            log.success(f'Reached destination! '
+                        f'Steps: {self.episode_steps}')
         if '--test-win' in sys.argv:
             won = True
         return done, won, lost
