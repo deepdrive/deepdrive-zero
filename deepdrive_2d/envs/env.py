@@ -989,7 +989,6 @@ class Deepdrive2DEnv(gym.Env):
             self.distance_to_end = np.linalg.norm(end - pos)
 
             self.distance = mp.length - self.distance_to_end
-            # log.info(f'distance {self.distance}')
         elif self.is_intersection_map:
             next_index = self.next_map_index
             next_pos = np.array([mp.x[next_index],
