@@ -736,7 +736,7 @@ class Deepdrive2DEnv(gym.Env):
 
         gforce_penalty = 0
         if not self.disable_gforce_penalty and self.gforce > 0.05:
-            gforce_penalty = 32 * pi * self.gforce  # G-force penalty
+            gforce_penalty = pi * self.gforce  # G-force penalty
 
         jerk_magnitude = np.linalg.norm(self.jerk)
         jerk_penalty = 10 * jerk_magnitude
