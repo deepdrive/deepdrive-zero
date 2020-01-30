@@ -259,7 +259,11 @@ class Deepdrive2DEnv(gym.Env):
                         ret += self.get_static_obstacle_inputs()
                     return np.array(ret)
             elif self.is_intersection_map:
-                ret = [angles_ahead[0], angles_ahead[1],
+                if len(angles_ahead) == 1:
+                    _angles_ahead = [angles_ahead[0], angles_ahead[0]]
+                else:
+                    _angles_ahead = angles_ahead
+                ret = [_angles_ahead[0], _angles_ahead[1],
                        self.prev_steer, self.prev_accel,
                        self.speed, self.waypoint_distance,
                        left_lane_distance, right_lane_distance]
