@@ -2,7 +2,7 @@ import math
 import sys
 import timeit
 from random import randint
-from typing import Type
+from typing import Type, Union, List, Tuple
 
 import numpy as np
 from numba import njit
@@ -64,21 +64,48 @@ def get_lines_from_rect_points(rect_points: tuple):
 
 
 @njit(cache=True, nogil=True)
-def check_collision(ego_rect: tuple, lines: tuple):
+def check_collision_agents(agents: list):
+    """
+    :param agents: List of agents with ego_lines property containing 4 points
+        representing corners of hit box
+    """
+    pairs = get_pairs(agents)
+    collisions = []
+    for pair in pairs:
+        if check_collision(pair[0].ego_lines, pair[1].ego_lines):
+            pair[0].collided_with.append(pair[1])
+            pair[1].collided_with.append(pair[0])
+            collisions.append(pair)
+    return collisions
+
+
+@njit(cache=True, nogil=True)
+def check_collision_ego_obj(ego_rect: tuple, obj2: tuple):
     """
 
-    :param ego_rect:
-    :param lines: n x 2 x 2 tuple of start & end points for n lines
+    :param ego_rect: Points representing 4 corners of ego
+    :param obj2: n x 2 x 2 tuple of start & end points for n lines
+    :return: (bool) True if collision
+    """
+    return check_collision(get_lines_from_rect_points(ego_rect), obj2)
+
+
+@njit(cache=True, nogil=True)
+def check_collision(obj1: tuple, ob2: tuple):
+    """
+
+    :param obj1: n x 2 x 2 tuple of start & end points for n lines
+    :param ob2: n x 2 x 2 tuple of start & end points for n lines
     :return:
     """
 
-    ego_lines = get_lines_from_rect_points(ego_rect)
-    for ego_a, ego_b in ego_lines:
-        for line_a, line_b in lines:
-            if lines_intersect(np.array(ego_a), np.array(ego_b),
-                               np.array(line_a), np.array(line_b)):
+    for line1_start, line1_end in obj1:
+        for line2_start, line2_end in ob2:
+            if lines_intersect(np.array(line1_start), np.array(line1_end),
+                               np.array(line2_start), np.array(line2_end)):
                 return True
     return False
+
 
 
 def get_rect(center_x, center_y, angle, width, height):
@@ -118,6 +145,14 @@ def _get_rect(center_x, center_y, angle, width, height):
     return ret
 
 
+@njit(cache=True, nogil=True)
+def get_pairs(items: Union[List, Tuple]) -> List:
+    pairs = []
+    for i, aid1 in enumerate(items):
+        for aid2 in items[i+1:]:
+            pairs.append((aid1, aid2))
+    return pairs
+
 
 def test_check_collision():
     ego_rect, ego_rect_tuple = get_rect(1, 1, pi / 4, 2, 1)
@@ -131,36 +166,36 @@ def test_check_collision():
     mid_y = (max_y - min_y) / 2 + min_y
 
     # Top boundary should collide
-    assert check_collision(ert, (((1e-10, max_y), (1e10, max_y)),))
+    assert check_collision_ego_obj(ert, (((1e-10, max_y), (1e10, max_y)),))
 
     # Bottom boundary should collide
-    assert check_collision(ert, (((1e-10, min_y), (1e10, min_y)),))
+    assert check_collision_ego_obj(ert, (((1e-10, min_y), (1e10, min_y)),))
 
     # Right boundary should collide
-    assert check_collision(ert, (((max_x, -1e10), (max_x, 1e10)),))
+    assert check_collision_ego_obj(ert, (((max_x, -1e10), (max_x, 1e10)),))
 
     # Left boundary should collide
-    assert check_collision(ert, (((min_x, -1e10), (min_x, 1e10)),))
+    assert check_collision_ego_obj(ert, (((min_x, -1e10), (min_x, 1e10)),))
 
     # Small line should collide
-    assert check_collision(ert, (((max_x, y_at_max_x),
-                                  (max_x, y_at_max_x + 1e-4)),))
+    assert check_collision_ego_obj(ert, (((max_x, y_at_max_x),
+                                          (max_x, y_at_max_x + 1e-4)),))
 
     # Zero length line should not collide
-    assert not check_collision(ert, (((max_x, y_at_max_x),
-                                      (max_x, y_at_max_x)),))
+    assert not check_collision_ego_obj(ert, (((max_x, y_at_max_x),
+                                              (max_x, y_at_max_x)),))
 
     # Mid x should collide
-    assert check_collision(ert, (((mid_x, max_y), (mid_x, min_y)),))
+    assert check_collision_ego_obj(ert, (((mid_x, max_y), (mid_x, min_y)),))
 
     # Mid x outside y should not collide
-    assert not check_collision(ert, (((mid_x, 1e10), (mid_x, 1e10 + 1)),))
+    assert not check_collision_ego_obj(ert, (((mid_x, 1e10), (mid_x, 1e10 + 1)),))
 
     # Mid y should collide
-    assert check_collision(ert, (((min_x, mid_y), (max_x, mid_y)),))
+    assert check_collision_ego_obj(ert, (((min_x, mid_y), (max_x, mid_y)),))
 
     # Mid x outside y should not collide
-    assert not check_collision(ert, (((1e20, mid_y), (mid_x, 1e20-1)),))
+    assert not check_collision_ego_obj(ert, (((1e20, mid_y), (mid_x, 1e20 - 1)),))
 
 
 def test_get_rect():
@@ -203,13 +238,18 @@ def test_lines_intersect_x2():
     test_lines_intersect()
 
 
+def test_get_pairs():
+    assert get_pairs([1,2,3]) == [(1, 2), (1, 3), (2, 3)]
+
+
 def main():
     if '--test_check_collision' in sys.argv:
         # get_lines_from_rect_points(
         #     ((1, 0), (1, 0), (1, 0), (1, 0))
         # )
         test_check_collision()
-
+    elif '--test_get_pairs' in sys.argv:
+        test_get_pairs()
     else:
         print(timeit.timeit(test_lines_intersect_x2, number=1000))
 

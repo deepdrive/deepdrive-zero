@@ -64,6 +64,10 @@ def quadratic_regression(x, y):
     return np.polyfit(x, y, 2, full=True)
 
 
+def np_rand():
+    return np.random.rand()
+
+
 def test_angle():
     def npf(x):
         return np.array(x, dtype=float)
