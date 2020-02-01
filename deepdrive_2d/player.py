@@ -85,8 +85,6 @@ class Deepdrive2DPlayer(arcade.Window):
 
         if self.env is None:
             self.env = Deepdrive2DEnv(
-                vehicle_width=width_pixels / self.px_per_m,
-                vehicle_height=height_pixels / self.px_per_m,
                 px_per_m=self.px_per_m,
                 add_rotational_friction=self.add_rotational_friction,
                 add_longitudinal_friction=self.add_longitudinal_friction,
@@ -96,7 +94,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 decouple_step_time=True,
                 physics_steps_per_observation=1,
                 add_static_obstacle=self.static_obstacle,
-                one_waypoint_map=self.one_waypoint,
+                is_one_waypoint_map=self.one_waypoint,
                 is_intersection_map=self.is_intersection_map,
             )
 

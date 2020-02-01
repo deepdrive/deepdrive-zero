@@ -21,17 +21,11 @@ from deepdrive_2d.physics.collision_detection import check_collision_ego_obj, \
     get_rect, check_collision_agents
 from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
-    MAX_METERS_PER_SEC_SQ
+    MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY
 from deepdrive_2d.experience_buffer import ExperienceBuffer
 from deepdrive_2d.map_gen import gen_random_map, get_intersection
 from deepdrive_2d.utils import flatten_points, get_angles_ahead, get_angle
 from deepdrive_2d.logs import log
-
-MAX_BRAKE_G = 1
-G_ACCEL = 9.80665
-CONTINUOUS_REWARD = True
-GAME_OVER_PENALTY = -1
-IS_DEBUG_MODE = getattr(sys, 'gettrace', None)
 
 
 class Deepdrive2DEnv(gym.Env):
@@ -47,14 +41,14 @@ class Deepdrive2DEnv(gym.Env):
                  expect_normalized_actions=True,
                  decouple_step_time=True,
                  physics_steps_per_observation=6,
-                 one_waypoint_map=False,
+                 is_one_waypoint_map=False,
                  is_intersection_map=False,
                  match_angle_only=False,
                  incent_win=False,
                  gamma=0.99,
                  add_static_obstacle=False,
                  disable_gforce_penalty=False,
-                 num_agents=1,):
+                 num_agents=1, ):
 
         log.info(f'{sys.executable} {sys.argv}')
 
@@ -91,7 +85,7 @@ class Deepdrive2DEnv(gym.Env):
         self.total_episode_time: float = 0
 
         self.match_angle_only: bool = match_angle_only
-        self.is_one_waypoint_map: bool = one_waypoint_map
+        self.is_one_waypoint_map: bool = is_one_waypoint_map
         self.is_intersection_map: bool = is_intersection_map
 
         self.incent_win: bool = incent_win
@@ -128,16 +122,16 @@ class Deepdrive2DEnv(gym.Env):
         self.should_render = False
         self._has_enabled_render = False
 
-        self.reset()
-
         self.agents: List[Agent] = [
             Agent(env=self,
-                  agent_id=i,
+                  agent_index=i,
                   ignore_brake=ignore_brake,
                   disable_gforce_penalty=disable_gforce_penalty,
                   incent_win=incent_win)
             for i in range(num_agents)
         ]
+
+        self.reset()
 
     def _enable_render(self):
         from deepdrive_2d import player
@@ -160,10 +154,6 @@ class Deepdrive2DEnv(gym.Env):
         obz = self.get_blank_observation()
         return obz
 
-    @property
-    def observation_space(self):
-        return self.agents[0].observation_space
-
     def seed(self, seed=None):
         self.seed_value = seed or 0
         random.seed(seed)
@@ -171,7 +161,7 @@ class Deepdrive2DEnv(gym.Env):
     @log.catch
     def step(self, action):
         if IS_DEBUG_MODE:
-            self._step(action)
+            return self._step(action)
         else:
             # Fail gracefully when running so that long training runs are
             # not interrupted by transient errors
@@ -190,10 +180,11 @@ class Deepdrive2DEnv(gym.Env):
                 return obz, reward, done, info
 
     def _step(self, action):
-        # TODO: Combine these the way ppo wants, i.e. list of o,r,d,i
         self.check_for_collisions()
-        for agent in self.agents:
-            yield agent.step(action)
+        agent_index = self.episode_steps % len(self.agents)
+        self.episode_steps += 1
+        ret = self.agents[agent_index].step(action)
+        return ret
 
     def get_dt(self):
         if self.last_step_time is not None:
@@ -236,54 +227,6 @@ class Deepdrive2DEnv(gym.Env):
                     obj2=(agent.static_obstacle_tuple,))
         elif self.is_intersection_map:
             return check_collision_agents(self.agents)
-
-def get_closest_point(point, kd_tree):
-    distance, index = kd_tree.query(point)
-    if index >= kd_tree.n:
-        log.warning(f'kd tree index out of range, using last index. '
-                    f'point {point}\n'
-                    f'kd_tree: {json.dumps(kd_tree.data.tolist(), indent=2)}')
-        index = kd_tree.n - 1
-    point = kd_tree.data[index]
-    return point, index, distance
-
-
-def get_static_obst(m, x, y):
-    # Get point between here + 2 car lengths and destination
-    # Draw random size / angle line
-    # TODO: Allow circular obstacles using equation of circle and
-    #  set equal to equation for line
-    # xy = np.dstack((x, y))
-    # xy_dist = np.diff(xy, axis=1)[0][0]
-    # rand_vals = np.random.rand(2)
-    x_dist = x[1] - x[0]
-    y_dist = y[1] - y[0]
-
-    total_dist = np.linalg.norm([x_dist, y_dist])
-    center_dist = np.random.rand() * total_dist * 0.6 + 0.1
-    theta = np.arctan(y_dist / x_dist)
-    obst_center_x = cos(theta) * center_dist + x[0]
-    obst_center_y = sin(theta) * center_dist + y[0]
-
-    obst_angle = np.random.rand() * pi
-    obst_width = np.random.rand() * 0.1 + 0.025
-    obst_end_x = obst_center_x + cos(obst_angle) * obst_width / 2
-    obst_end_y = obst_center_y + sin(obst_angle) * obst_width / 2
-    obst_beg_x = obst_center_x - cos(obst_angle) * obst_width / 2
-    obst_beg_y = obst_center_y - sin(obst_angle) * obst_width / 2
-    static_obst_x = np.array([obst_beg_x, obst_end_x])
-    static_obst_y = np.array([obst_beg_y, obst_end_y])
-    static_obst = np.dstack(
-        (static_obst_x, static_obst_y))[0]
-    static_obst_x_pixels = static_obst_x * MAP_WIDTH_PX + SCREEN_MARGIN
-    static_obst_y_pixels = static_obst_y * MAP_HEIGHT_PX + SCREEN_MARGIN
-    static_obst_pixels = np.dstack(
-        (static_obst_x_pixels, static_obst_y_pixels))[0]
-    return static_obst, static_obst_pixels
-
-
-def test_static_obstacle():
-    points, pixels = get_static_obst(None, np.array([0, 1]), np.array([0, 1]))
 
 
 

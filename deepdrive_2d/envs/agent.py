@@ -19,8 +19,7 @@ from box import Box
 
 from deepdrive_2d.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
     MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX
-from deepdrive_2d.envs.env import IS_DEBUG_MODE, GAME_OVER_PENALTY, \
-    get_closest_point, get_static_obst, G_ACCEL
+from deepdrive_2d.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
 from deepdrive_2d.experience_buffer import ExperienceBuffer
 from deepdrive_2d.logs import log
 from deepdrive_2d.map_gen import get_intersection
@@ -35,7 +34,7 @@ from deepdrive_2d.utils import get_angles_ahead, get_angle, flatten_points, \
 class Agent:
     def __init__(self,
                  env,
-                 agent_id,
+                 agent_index,
                  vehicle_width=VEHICLE_WIDTH,
                  vehicle_height=VEHICLE_HEIGHT,
                  ignore_brake=True,
@@ -48,7 +47,7 @@ class Agent:
                  ):
 
         self.env = env
-        self.id = agent_id
+        self.agent_index = agent_index
         self.match_angle_only = match_angle_only
         self.static_map = static_map  # For old waypoint per meter map
         self.add_rotational_friction = add_rotational_friction
@@ -77,9 +76,6 @@ class Agent:
         self.vehicle_height: float = vehicle_height
         self.ignore_brake: bool = ignore_brake
 
-        self.vehicle_width: float = vehicle_width
-        self.vehicle_height: float = vehicle_height
-
         if 'STRAIGHT_TEST' in os.environ:
             self.num_actions = 1  # Accel
         else:
@@ -97,9 +93,9 @@ class Agent:
         self.map_query_seconds_ahead: np.array = np.array(
             [0.5, 1, 1.5, 2, 2.5, 3])
 
-        if self.is_intersection_map:
+        if env.is_intersection_map:
             self.num_angles_ahead = 2
-        elif self.is_one_waypoint_map:
+        elif env.is_one_waypoint_map:
             self.num_angles_ahead = 1
         else:
             self.num_angles_ahead = len(self.map_query_seconds_ahead)
@@ -137,7 +133,7 @@ class Agent:
         self.angles_ahead: List[float] = []
         self.angle_accuracies: List[float] = []
         self.episode_gforces: List[float] = []
-        self.is_one_waypoint_map: bool = env.one_waypoint_map
+        self.is_one_waypoint_map: bool = env.is_one_waypoint_map
         self.is_intersection_map: bool = env.is_intersection_map
 
         self.incent_win: bool = incent_win
@@ -148,7 +144,6 @@ class Agent:
         self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
 
         self.acceleration = np.array((0, 0))
-        self.vehicle_model = None
 
         # Current position (center)
         self.x = None
@@ -179,6 +174,7 @@ class Agent:
         self.ego_rect_tuple: tuple = ()  # 4 points of ego corners as tuple
         self.ego_lines: tuple = ()  # 4 edges of ego
 
+        self.observation_space = env.observation_space
         self.reset()
 
     @log.catch
@@ -221,7 +217,7 @@ class Agent:
             done = False
             observation = self.get_blank_observation()
         else:
-            collided = self.env.get_collided(self.id)
+            collided = self.env.get_collided(self.agent_index)
 
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
@@ -336,7 +332,7 @@ class Agent:
             accel=0,
             closest_map_point=self.map.waypoints[0],
             lane_deviation=0,
-            angles_ahead=[0] * len(self.num_angles_ahead),
+            angles_ahead=[0] * self.num_angles_ahead,
             harmful_gs=False,
             jarring_gs=False,
             uncomfortable_gs=False,
@@ -476,8 +472,12 @@ class Agent:
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
             self.gen_map()
-        if self.observation_space is None:
+
+        if self.env.observation_space is None and self.agent_index == 0:
+            # All agents must have the same observation space
             self.setup_spaces()
+        if self.experience_buffer is None:
+            self.experience_buffer = ExperienceBuffer()
         self.experience_buffer.reset()
         obz = self.get_blank_observation()
         return obz
@@ -490,12 +490,12 @@ class Agent:
         if 'DISABLE_GAME_OVER' in os.environ:
             return done, won, lost
         elif collided:
-            log.warning(f'Collision, game over agent {self.id}')
+            log.warning(f'Collision, game over agent {self.agent_index}')
             done = True
             lost = True
         elif self.gforce_levels.harmful:
             # Only end on g-force once we've learned to complete part of the trip.
-            log.warning(f'Harmful g-forces, game over {self.id}')
+            log.warning(f'Harmful g-forces, game over {self.agent_index}')
             done = True
             lost = True
         elif (self.env.episode_steps + 1) % self.env._max_episode_steps == 0:
@@ -514,18 +514,18 @@ class Agent:
                 done = True
                 lost = True
                 log.warning(f'Skipped waypoint {self.next_map_index} '
-                            f'agent {self.id}')
+                            f'agent {self.agent_index}')
             elif (self.furthest_distance - self.distance) > 2:
                 done = True
                 lost = True
-                log.warning(f'Negative progress agent {self.id}')
+                log.warning(f'Negative progress agent {self.agent_index}')
             elif abs(self.map.length - self.distance) < 1:
                 done = True
                 won = True
                 # You win!
                 log.success(f'Reached destination! '
                             f'Steps: {self.env.episode_steps}'
-                            f'Agent: {self.id}')
+                            f'Agent: {self.agent_index}')
         elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
             done = True
@@ -1008,22 +1008,68 @@ steer, accel, brake, dt, info
 """)
             raise RuntimeError('Position is infinity')
 
-
     def setup_spaces(self):
         # TODO: Multiply this by num agents
 
         # Action space: ----
         # Accel, Brake, Steer
         if self.expect_normalized_actions:
-            self.action_space = spaces.Box(low=-1, high=1,
-                                           shape=(self.num_actions,))
+            self.env.action_space = spaces.Box(low=-1, high=1,
+                                               shape=(self.num_actions,))
         else:
             # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
             # Max voyage accel m/s/f = 3.625 * FPS = 217.5 m/s/f
             # TODO: Set steering limits as well
-            self.action_space = spaces.Box(low=-10.2, high=10.2,
-                                           shape=(self.num_actions,))
-        self.experience_buffer = ExperienceBuffer()
+            self.env.action_space = spaces.Box(low=-10.2, high=10.2,
+                                               shape=(self.num_actions,))
         blank_obz = self.get_blank_observation()
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(len(blank_obz),))
+        self.env.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                                shape=(len(blank_obz),))
+
+def get_closest_point(point, kd_tree):
+    distance, index = kd_tree.query(point)
+    if index >= kd_tree.n:
+        log.warning(f'kd tree index out of range, using last index. '
+                    f'point {point}\n'
+                    f'kd_tree: {json.dumps(kd_tree.data.tolist(), indent=2)}')
+        index = kd_tree.n - 1
+    point = kd_tree.data[index]
+    return point, index, distance
+
+
+def get_static_obst(m, x, y):
+    # Get point between here + 2 car lengths and destination
+    # Draw random size / angle line
+    # TODO: Allow circular obstacles using equation of circle and
+    #  set equal to equation for line
+    # xy = np.dstack((x, y))
+    # xy_dist = np.diff(xy, axis=1)[0][0]
+    # rand_vals = np.random.rand(2)
+    x_dist = x[1] - x[0]
+    y_dist = y[1] - y[0]
+
+    total_dist = np.linalg.norm([x_dist, y_dist])
+    center_dist = np.random.rand() * total_dist * 0.6 + 0.1
+    theta = np.arctan(y_dist / x_dist)
+    obst_center_x = cos(theta) * center_dist + x[0]
+    obst_center_y = sin(theta) * center_dist + y[0]
+
+    obst_angle = np.random.rand() * pi
+    obst_width = np.random.rand() * 0.1 + 0.025
+    obst_end_x = obst_center_x + cos(obst_angle) * obst_width / 2
+    obst_end_y = obst_center_y + sin(obst_angle) * obst_width / 2
+    obst_beg_x = obst_center_x - cos(obst_angle) * obst_width / 2
+    obst_beg_y = obst_center_y - sin(obst_angle) * obst_width / 2
+    static_obst_x = np.array([obst_beg_x, obst_end_x])
+    static_obst_y = np.array([obst_beg_y, obst_end_y])
+    static_obst = np.dstack(
+        (static_obst_x, static_obst_y))[0]
+    static_obst_x_pixels = static_obst_x * MAP_WIDTH_PX + SCREEN_MARGIN
+    static_obst_y_pixels = static_obst_y * MAP_HEIGHT_PX + SCREEN_MARGIN
+    static_obst_pixels = np.dstack(
+        (static_obst_x_pixels, static_obst_y_pixels))[0]
+    return static_obst, static_obst_pixels
+
+
+def test_static_obstacle():
+    points, pixels = get_static_obst(None, np.array([0, 1]), np.array([0, 1]))

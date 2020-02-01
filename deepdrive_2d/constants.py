@@ -1,4 +1,5 @@
 import os
+import sys
 from os.path import join
 
 from box import Box
@@ -32,3 +33,9 @@ MAX_PIXELS_PER_SEC_SQ = MAX_METERS_PER_SEC_SQ * PX_PER_M
 TESLA_LENGTH = 4.694
 VOYAGE_VAN_LENGTH = 5.17652
 MAP_IMAGE = join(DIR, 'images/map.png')
+
+MAX_BRAKE_G = 1
+G_ACCEL = 9.80665
+CONTINUOUS_REWARD = True
+GAME_OVER_PENALTY = -1
+IS_DEBUG_MODE = getattr(sys, 'gettrace', None)
