@@ -63,19 +63,18 @@ def get_lines_from_rect_points(rect_points: tuple):
     return ret
 
 
-@njit(cache=True, nogil=True)
 def check_collision_agents(agents: list):
     """
     :param agents: List of agents with ego_lines property containing 4 points
         representing corners of hit box
     """
-    pairs = get_pairs(agents)
+    pair_indexes = get_pair_indexes(len(agents))
     collisions = []
-    for pair in pairs:
-        if check_collision(pair[0].ego_lines, pair[1].ego_lines):
-            pair[0].collided_with.append(pair[1])
-            pair[1].collided_with.append(pair[0])
-            collisions.append(pair)
+    for i, j in pair_indexes:
+        if check_collision(agents[i].ego_lines, agents[j].ego_lines):
+            agents[i].collided_with.append(agents[j])
+            agents[j].collided_with.append(agents[i])
+            collisions.append((i,j))
     return collisions
 
 
@@ -146,12 +145,13 @@ def _get_rect(center_x, center_y, angle, width, height):
 
 
 @njit(cache=True, nogil=True)
-def get_pairs(items: Union[List, Tuple]) -> List:
-    pairs = []
-    for i, aid1 in enumerate(items):
-        for aid2 in items[i+1:]:
-            pairs.append((aid1, aid2))
-    return pairs
+def get_pair_indexes(length: int) -> List:
+    indexes = list(range(length))
+    ret = []
+    for i1 in indexes:
+        for i2 in indexes[i1+1:]:
+            ret.append((i1, i2))
+    return ret
 
 
 def test_check_collision():
@@ -238,8 +238,8 @@ def test_lines_intersect_x2():
     test_lines_intersect()
 
 
-def test_get_pairs():
-    assert get_pairs([1,2,3]) == [(1, 2), (1, 3), (2, 3)]
+def test_get_pairs_indexes():
+    assert get_pair_indexes(3) == [(0, 1), (0, 2), (1, 2)]
 
 
 def main():
@@ -248,8 +248,8 @@ def main():
         #     ((1, 0), (1, 0), (1, 0), (1, 0))
         # )
         test_check_collision()
-    elif '--test_get_pairs' in sys.argv:
-        test_get_pairs()
+    elif '--test_get_pair_indexes' in sys.argv:
+        test_get_pairs_indexes()
     else:
         print(timeit.timeit(test_lines_intersect_x2, number=1000))
 

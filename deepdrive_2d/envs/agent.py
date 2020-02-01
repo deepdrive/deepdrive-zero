@@ -108,6 +108,8 @@ class Agent:
         self.wall_dt: float = None
         self.last_sleep_time: float = None
 
+        self.total_episode_time: float = 0
+
         self.distance: float = None
         self.distance_to_end: float = 0
         self.prev_distance: float = None
@@ -175,6 +177,8 @@ class Agent:
         self.ego_lines: tuple = ()  # 4 edges of ego
 
         self.observation_space = env.observation_space
+        self.collided_with: list = []
+
         self.reset()
 
     @log.catch
@@ -217,7 +221,7 @@ class Agent:
             done = False
             observation = self.get_blank_observation()
         else:
-            collided = self.env.get_collided(self.agent_index)
+            collided = bool(self.collided_with)
 
             lane_deviation, observation, closest_map_point = \
                 self.get_observation(steer, accel, brake, dt, info)
@@ -469,6 +473,8 @@ class Agent:
         self.angles_ahead = []
         self.angle_accuracies = []
         self.episode_gforces = []
+        self.collided_with = []
+
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
             self.gen_map()
@@ -637,8 +643,7 @@ class Agent:
         prev_x, prev_y, prev_angle, prev_angle_change = \
             self.x, self.y, self.angle, self.angle_change
 
-        self.step_physics(dt, steer, accel, brake, prev_x, prev_y, prev_angle,
-                          info)
+        self.step_physics(dt, steer, accel, brake, info)
 
         closest_map_point, closest_map_index, closest_waypoint_distance = \
             get_closest_point((self.x, self.y), self.map_kd_tree)
@@ -799,6 +804,7 @@ class Agent:
         # TODO: Numba this
         lvls = self.gforce_levels
         self.total_episode_time += dt
+        self.env.total_episode_time += dt
         pos_change = np.array([prev_x - self.x, prev_y - self.y])
         prev_velocity = self.velocity
         self.velocity = pos_change / dt
@@ -946,8 +952,7 @@ class Agent:
 
         return x, y, lane_width, lines
 
-    def step_physics(self, dt, steer, accel, brake,
-                     info):
+    def step_physics(self, dt, steer, accel, brake, info):
         """
         Enforce real-world constraint that you can't teleport the gas pedal
         or steering wheel between positions, rather you must visit the
