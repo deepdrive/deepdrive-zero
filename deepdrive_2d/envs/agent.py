@@ -479,6 +479,9 @@ class Agent:
         if self.map is None or not self.static_map:
             self.gen_map()
 
+        self.ego_rect, self.ego_rect_tuple = get_rect(
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+
         if self.env.observation_space is None and self.agent_index == 0:
             # All agents must have the same observation space
             self.setup_spaces()

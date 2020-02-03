@@ -102,8 +102,8 @@ class Deepdrive2DPlayer(arcade.Window):
 
         self.background = arcade.load_texture(MAP_IMAGE)
 
-        self.player_sprite.center_x = self.env.map.x_pixels[0]
-        self.player_sprite.center_y = self.env.map.y_pixels[0]
+        self.player_sprite.center_x = self.env.agents[0].map.x_pixels[0]
+        self.player_sprite.center_y = self.env.agents[0].map.y_pixels[0]
 
         self.player_list.append(self.player_sprite)
         self.wall_list = arcade.SpriteList()
@@ -115,6 +115,8 @@ class Deepdrive2DPlayer(arcade.Window):
         arcade.start_render()
 
         e = self.env
+        m = self.env.agents[0].map
+        a = self.env.agents[0]
         ppm = e.px_per_m
 
         angle = math.radians(self.player_sprite.angle)
@@ -122,12 +124,12 @@ class Deepdrive2DPlayer(arcade.Window):
 
         if self.env.is_one_waypoint_map:
             arcade.draw_circle_filled(
-                center_x=e.map.x_pixels[1],
-                center_y=e.map.y_pixels[1],
+                center_x=m.x_pixels[1],
+                center_y=m.y_pixels[1],
                 radius=21,
                 color=color.ORANGE)
             if self.static_obstacle:
-                static_obst_pixels = e.map.static_obst_pixels
+                static_obst_pixels = m.static_obst_pixels
                 arcade.draw_line(
                     static_obst_pixels[0][0],
                     static_obst_pixels[0][1],
@@ -137,10 +139,10 @@ class Deepdrive2DPlayer(arcade.Window):
                     line_width=5,
                 )
         elif self.is_intersection_map:
-            for i in range(len(e.map.waypoints)):
+            for i in range(len(m.waypoints)):
                 arcade.draw_circle_filled(
-                    center_x=e.map.x_pixels[i],
-                    center_y=e.map.y_pixels[i],
+                    center_x=m.x_pixels[i],
+                    center_y=m.y_pixels[i],
                     radius=21,
                     color=color.ORANGE)
         else:
@@ -153,23 +155,23 @@ class Deepdrive2DPlayer(arcade.Window):
                 MAP_HEIGHT_PX * bg_scale,
                 self.background)
 
-        if e.ego_rect is not None and DRAW_COLLISION_BOXES:
+        if a.ego_rect is not None and DRAW_COLLISION_BOXES:
 
 
             arcade.draw_rectangle_outline(
-                center_x=e.x * ppm, center_y=e.y * ppm,
-                width=e.vehicle_width * ppm,
-                height=e.vehicle_height * ppm, color=color.LIME_GREEN,
-                border_width=2, tilt_angle=math.degrees(e.angle),
+                center_x=a.x * ppm, center_y=a.y * ppm,
+                width=a.vehicle_width * ppm,
+                height=a.vehicle_height * ppm, color=color.LIME_GREEN,
+                border_width=2, tilt_angle=math.degrees(a.angle),
             )
-            arcade.draw_points(point_list=(e.ego_rect * ppm).tolist(),
+            arcade.draw_points(point_list=(a.ego_rect * ppm).tolist(),
                                color=color.YELLOW, size=3)
 
-        if e.front_to_waypoint is not None and DRAW_WAYPOINT_VECTORS:
-            ftw = e.front_to_waypoint
+        if a.front_to_waypoint is not None and DRAW_WAYPOINT_VECTORS:
+            ftw = a.front_to_waypoint
 
-            fy = e.front_y
-            fx = e.front_x
+            fy = a.front_y
+            fx = a.front_x
 
 
             # arcade.draw_line(
@@ -184,20 +186,20 @@ class Deepdrive2DPlayer(arcade.Window):
             arcade.draw_line(
                 start_x=fx * ppm,
                 start_y=fy * ppm,
-                end_x=(fx + cos(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
-                end_y=(fy + sin(theta - e.angle_to_waypoint) * e.distance_to_end ) * ppm,
+                end_x=(fx + cos(theta - a.angle_to_waypoint) * a.distance_to_end ) * ppm,
+                end_y=(fy + sin(theta - a.angle_to_waypoint) * a.distance_to_end ) * ppm,
                 color=color.PURPLE,
                 line_width=2,
             )
 
             # Center to front length
-            ctf = e.vehicle_height / 2
+            ctf = a.vehicle_height / 2
 
             arcade.draw_line(
-                start_x=e.x * ppm,
-                start_y=e.y * ppm,
-                end_x=(e.x + cos(theta) * 20 ) * ppm,
-                end_y=(e.y + sin(theta) * 20 ) * ppm,
+                start_x=a.x * ppm,
+                start_y=a.y * ppm,
+                end_x=(a.x + cos(theta) * 20 ) * ppm,
+                end_y=(a.y + sin(theta) * 20 ) * ppm,
                 color=color.LIGHT_RED_OCHRE,
                 line_width=2,
             )
@@ -205,8 +207,8 @@ class Deepdrive2DPlayer(arcade.Window):
             arcade.draw_line(
                 start_x=fx * ppm,
                 start_y=fy * ppm,
-                end_x=(fx + e.heading[0]) * ppm,
-                end_y=(fy + e.heading[1]) * ppm,
+                end_x=(fx + a.heading[0]) * ppm,
+                end_y=(fy + a.heading[1]) * ppm,
                 color=color.BLUE,
                 line_width=2,
             )
@@ -218,27 +220,27 @@ class Deepdrive2DPlayer(arcade.Window):
                 color=color.YELLOW)
 
             arcade.draw_circle_filled(
-                center_x=e.x * ppm,
-                center_y=e.y * ppm,
+                center_x=a.x * ppm,
+                center_y=a.y * ppm,
                 radius=5,
                 color=color.WHITE_SMOKE,)
 
             arcade.draw_circle_filled(
-                center_x=e.static_obstacle_points[0][0] * ppm,
-                center_y=e.static_obstacle_points[0][1] * ppm,
+                center_x=a.static_obstacle_points[0][0] * ppm,
+                center_y=a.static_obstacle_points[0][1] * ppm,
                 radius=5,
                 color=color.WHITE_SMOKE,)
 
             arcade.draw_circle_filled(
-                center_x=e.static_obstacle_points[1][0] * ppm,
-                center_y=e.static_obstacle_points[1][1] * ppm,
+                center_x=a.static_obstacle_points[1][0] * ppm,
+                center_y=a.static_obstacle_points[1][1] * ppm,
                 radius=5,
                 color=color.WHITE_SMOKE,)
 
-            if e.static_obst_angle_info is not None:
+            if a.static_obst_angle_info is not None:
 
                 start_obst_dist, end_obst_dist, start_obst_angle, end_obst_angle = \
-                    e.static_obst_angle_info
+                    a.static_obst_angle_info
 
                 # start_obst_theta = start_obst_angle
                 # arcade.draw_line(
@@ -259,10 +261,10 @@ class Deepdrive2DPlayer(arcade.Window):
                     color=color.BLUE,
                     line_width=2,)
 
-                p_x = e.front_x + cos(theta + pi / 6) * 20
-                p_y = e.front_y + sin(theta + pi / 6) * 20
+                p_x = a.front_x + cos(theta + pi / 6) * 20
+                p_y = a.front_y + sin(theta + pi / 6) * 20
                 pole_test = np.array((p_x, p_y))
-                pole_angle = e.get_angle_to_point(pole_test)
+                pole_angle = a.get_angle_to_point(pole_test)
 
                 arcade.draw_circle_filled(
                     center_x=pole_test[0] * ppm,
@@ -292,8 +294,8 @@ class Deepdrive2DPlayer(arcade.Window):
                 arcade.draw_line(
                     start_x=fx * ppm,
                     start_y=fy * ppm,
-                    end_x=(e.static_obstacle_points[1][0]) * ppm,
-                    end_y=(e.static_obstacle_points[1][1]) * ppm,
+                    end_x=(a.static_obstacle_points[1][0]) * ppm,
+                    end_y=(a.static_obstacle_points[1][1]) * ppm,
                     color=color.RED,
                     line_width=2,)
 
@@ -358,8 +360,10 @@ class Deepdrive2DPlayer(arcade.Window):
     def update(self, _delta_time):
         """ Movement and game logic """
 
+        a = self.env.agents[0]
+
         # self.bike_model.velocity += self.accel
-        log.trace(f'v:{self.env.speed}')
+        log.trace(f'v:{a.speed}')
         log.trace(f'a:{self.accel}')
         log.trace(f'dt2:{_delta_time}')
 
@@ -373,14 +377,14 @@ class Deepdrive2DPlayer(arcade.Window):
         # log.debug(f'Deviation: '
         #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
 
-        self.player_sprite.center_x = self.env.x * self.px_per_m
-        self.player_sprite.center_y = self.env.y * self.px_per_m
+        self.player_sprite.center_x = a.x * self.px_per_m
+        self.player_sprite.center_y = a.y * self.px_per_m
 
         # TODO: Change rotation axis to rear axle (now at center)
-        self.player_sprite.angle = math.degrees(self.env.angle)
+        self.player_sprite.angle = math.degrees(a.angle)
 
-        log.trace(f'x:{self.env.x}')
-        log.trace(f'y:{self.env.y}')
+        log.trace(f'x:{a.x}')
+        log.trace(f'y:{a.y}')
         log.trace(f'angle:{self.player_sprite.angle}')
 
 
