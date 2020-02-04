@@ -47,8 +47,7 @@ class Deepdrive2DEnv(gym.Env):
                  incent_win=False,
                  gamma=0.99,
                  add_static_obstacle=False,
-                 disable_gforce_penalty=False,
-                 num_agents=1, ):
+                 disable_gforce_penalty=False,):
 
         log.info(f'{sys.executable} {sys.argv}')
 
@@ -122,14 +121,18 @@ class Deepdrive2DEnv(gym.Env):
         self.should_render = False
         self._has_enabled_render = False
 
-        self.agents: List[Agent] = [
-            Agent(env=self,
-                  agent_index=i,
-                  ignore_brake=ignore_brake,
-                  disable_gforce_penalty=disable_gforce_penalty,
-                  incent_win=incent_win)
-            for i in range(num_agents)
-        ]
+        if self.is_intersection_map:
+            num_agents = 2
+        else:
+            num_agents = 1
+
+        self.agents: List[Agent] = [Agent(
+            env=self,
+            agent_index=i,
+            ignore_brake=ignore_brake,
+            disable_gforce_penalty=disable_gforce_penalty,
+            incent_win=incent_win)
+            for i in range(num_agents)]
 
         self.reset()
 

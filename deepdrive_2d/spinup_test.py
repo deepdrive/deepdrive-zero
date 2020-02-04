@@ -5,7 +5,7 @@ import gym_match_input_continuous
 import deepdrive_2d
 import gym
 
-TEST_STATIC_OBSTACLE = False
+TEST_STATIC_OBSTACLE = True
 
 
 
