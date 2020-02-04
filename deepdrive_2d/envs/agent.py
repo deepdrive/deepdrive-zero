@@ -975,6 +975,7 @@ class Agent:
         self.gforce_levels = self.blank_gforce_levels()
         # TODO: Numba this
         for i in range(n):
+            start = time.time()
             interp = (i + 1) / n
             i_steer = self.prev_steer + interp * (steer - self.prev_steer)
             i_accel = self.prev_accel + interp * (accel - self.prev_accel)
@@ -997,6 +998,18 @@ class Agent:
 
             self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
 
+            step_time = time.time() - start
+            if self.env.should_render:
+
+                if self.last_sleep_time is None:
+                    sleep_time = self.env.target_dt
+                    sleep_makeup = 0
+                else:
+                    sleep_makeup = self.env.target_dt - step_time
+                    sleep_time = max(sleep_makeup, 0)
+                # log.info(f'sleeping {sleep_time} sleep_makeup {sleep_makeup}')
+                time.sleep(sleep_time)
+                self.last_sleep_time = sleep_time
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
