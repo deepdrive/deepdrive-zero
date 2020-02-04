@@ -56,10 +56,10 @@ def get_intersect(a1, a2, b1, b2):
 @njit(cache=True, nogil=True)
 def get_lines_from_rect_points(rect_points: tuple):
     p = rect_points
-    ret = ((p[0], p[1]),
-           (p[1], p[2]),
-           (p[2], p[3]),
-           (p[3], p[0]))
+    ret = ((tuple(p[0]), tuple(p[1])),
+           (tuple(p[1]), tuple(p[2])),
+           (tuple(p[2]), tuple(p[3])),
+           (tuple(p[3]), tuple(p[0])))
     return ret
 
 

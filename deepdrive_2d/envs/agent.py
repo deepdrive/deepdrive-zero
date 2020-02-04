@@ -265,10 +265,7 @@ class Agent:
         self.prev_accel = accel
         self.prev_brake = brake
 
-        self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
-
-        self.ego_lines = get_lines_from_rect_points(self.ego_rect)
+        self.set_calculated_props()
 
         return observation, reward, done, info.to_dict()
 
@@ -479,8 +476,7 @@ class Agent:
         if self.map is None or not self.static_map:
             self.gen_map()
 
-        self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+        self.set_calculated_props()
 
         if self.env.observation_space is None and self.agent_index == 0:
             # All agents must have the same observation space
@@ -489,7 +485,16 @@ class Agent:
             self.experience_buffer = ExperienceBuffer()
         self.experience_buffer.reset()
         obz = self.get_blank_observation()
+
+
+
         return obz
+
+    def set_calculated_props(self):
+        self.ego_rect, self.ego_rect_tuple = get_rect(
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+
+        self.ego_lines = get_lines_from_rect_points(self.ego_rect_tuple)
 
     def get_done(self, closest_map_point, lane_deviation,
                  collided: bool) -> Tuple[bool, bool, bool]:
@@ -896,9 +901,15 @@ class Agent:
 
         self.map_flat = flatten_points(self.map.waypoints)
         if self.is_one_waypoint_map:
-            self.angle = -math.pi / 2
+            self.angle = -pi / 2
         elif self.is_intersection_map:
-            self.angle = 0
+            if self.agent_index == 0:
+                self.angle = 0
+            elif self.agent_index == 1:
+                self.angle = pi
+            else:
+                raise NotImplementedError('More than 2 agents not supported')
+
         else:
             raise NotImplementedError()
             # self.angle = self.get_start_angle()
@@ -930,28 +941,25 @@ class Agent:
                 map(tuple, self.static_obstacle_points.tolist()))
         return x, y
 
-    @staticmethod
-    def gen_intersection_map():
-        # TODO: Get x, y of two waypoints
-        #   - The first waypoint is the one you touch upon entering the
-        #     intersection turning left
-        #   - The second waypoint is the one you touch upon leaving the
-        #     the intersection
-        # TODO: Set initial ego position on bottom right lane
-        #       {'x': 27.0770290995851, 'y': 5.719717783033244, 'angle': 0.00790589940057672}
-        # TODO: Return lane width at waypoints
+    def gen_intersection_map(self):
         lines, lane_width = get_intersection()
         left_vert, mid_vert, right_vert, top_horiz, mid_horiz, bottom_horiz = \
             lines
-        # TODO: Return x, y of waypoints as normalized coordinates 0=>1
 
         # Get waypoints
-        wp0 = 27.0770290995851, 5.719717783033244
-        wp1 = mid_vert[0][0] + lane_width / 2, bottom_horiz[0][1]
-        wp2 = left_vert[0][0], mid_horiz[0][1] + lane_width / 2
-        wp3 = 1.840549443086846, mid_horiz[0][1] + lane_width / 2
+        wps = []
+        if self.agent_index == 0:
+            wps.append((27.0770290995851, 5.719717783033244))
+            wps.append((mid_vert[0][0] + lane_width / 2, bottom_horiz[0][1]))
+            wps.append((left_vert[0][0], mid_horiz[0][1] + lane_width / 2))
+            wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
+        elif self.agent_index == 1:
+            wps.append((mid_vert[0][0] - lane_width / 2, 46.625536615404805))
+            wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
+        else:
+            raise NotImplementedError('More than 2 agents not yet supported')
 
-        x, y = np.array(list(zip(wp0, wp1, wp2, wp3)))
+        x, y = np.array(list(zip(*wps)))
 
         return x, y, lane_width, lines
 
