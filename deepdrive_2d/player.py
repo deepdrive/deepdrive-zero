@@ -367,7 +367,8 @@ class Deepdrive2DPlayer(arcade.Window):
 
                 obz, reward, done, info = self.env.step([steer, accel, brake])
                 if done:
-                    self.env.reset()
+                    for agent in self.env.agents:
+                        agent.reset()
                     return
 
             # log.debug(f'Deviation: '
