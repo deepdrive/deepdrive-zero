@@ -179,6 +179,8 @@ class Agent:
         self.observation_space = env.observation_space
         self.collided_with: list = []
 
+        self.done: bool = False
+
         self.reset()
 
     @log.catch
@@ -258,6 +260,7 @@ class Agent:
                       f'Avg gforce: {round(episode_gforce_avg, 4)}, '
                       f'Trip pct {round(self.trip_pct, 2)}, '
                       f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
+                      f'Agent index {round(self.agent_index, 2)}, '
                       f'Num episodes {self.num_episodes}')
 
         self.total_steps += 1
@@ -392,10 +395,11 @@ class Agent:
                     _angles_ahead = [angles_ahead[0], angles_ahead[0]]
                 else:
                     _angles_ahead = angles_ahead
+                done_input = 1 if self.done else 0
                 ret = [_angles_ahead[0], _angles_ahead[1],
                        self.prev_steer, self.prev_accel,
                        self.speed, self.waypoint_distance,
-                       left_lane_distance, right_lane_distance]
+                       left_lane_distance, right_lane_distance, done_input]
                 if self.env.add_static_obstacle:
                     ret += self.get_static_obstacle_inputs()
                 return np.array(ret)
@@ -455,6 +459,7 @@ class Agent:
         self.angle_change = 0
         self.speed = 0
         self.episode_reward = 0
+        self.episode_steps = 0
         self.distance = None
         self.prev_distance = None
         self.furthest_distance = 0
@@ -471,6 +476,7 @@ class Agent:
         self.angle_accuracies = []
         self.episode_gforces = []
         self.collided_with = []
+        self.done = False
 
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
@@ -485,8 +491,6 @@ class Agent:
             self.experience_buffer = ExperienceBuffer()
         self.experience_buffer.reset()
         obz = self.get_blank_observation()
-
-
 
         return obz
 
@@ -538,7 +542,7 @@ class Agent:
                 won = True
                 # You win!
                 log.success(f'Reached destination! '
-                            f'Steps: {self.env.episode_steps}'
+                            f'Steps: {self.env.episode_steps} '
                             f'Agent: {self.agent_index}')
         elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
@@ -548,6 +552,7 @@ class Agent:
                         f'Steps: {self.env.episode_steps}')
         if '--test-win' in sys.argv:
             won = True
+        self.done = done
         return done, won, lost
 
 
@@ -647,9 +652,6 @@ class Agent:
         if self.speed > 100:
             log.warning('Cutting off throttle at speed > 100m/s')
             accel = 0
-
-        prev_x, prev_y, prev_angle, prev_angle_change = \
-            self.x, self.y, self.angle, self.angle_change
 
         self.step_physics(dt, steer, accel, brake, info)
 
@@ -1008,12 +1010,12 @@ class Agent:
 
             step_time = time.time() - start
             if self.env.should_render:
-
+                target_dt = self.env.target_dt / self.env.num_agents
                 if self.last_sleep_time is None:
-                    sleep_time = self.env.target_dt
+                    sleep_time = target_dt
                     sleep_makeup = 0
                 else:
-                    sleep_makeup = self.env.target_dt - step_time
+                    sleep_makeup = target_dt - step_time
                     sleep_time = max(sleep_makeup, 0)
                 # log.info(f'sleeping {sleep_time} sleep_makeup {sleep_makeup}')
                 time.sleep(sleep_time)

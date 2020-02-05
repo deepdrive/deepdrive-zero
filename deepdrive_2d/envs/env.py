@@ -122,9 +122,9 @@ class Deepdrive2DEnv(gym.Env):
         self._has_enabled_render = False
 
         if self.is_intersection_map:
-            num_agents = 2
+            self.num_agents = 2
         else:
-            num_agents = 1
+            self.num_agents = 1
 
         self.agents: List[Agent] = [Agent(
             env=self,
@@ -132,7 +132,9 @@ class Deepdrive2DEnv(gym.Env):
             ignore_brake=ignore_brake,
             disable_gforce_penalty=disable_gforce_penalty,
             incent_win=incent_win)
-            for i in range(num_agents)]
+            for i in range(self.num_agents)]
+
+        self.agent_index: int = 0  # Current agent we are stepping
 
         self.reset()
 
@@ -152,10 +154,10 @@ class Deepdrive2DEnv(gym.Env):
     def reset(self):
         self.episode_steps = 0
         self.total_episode_time = 0
-        for agent in self.agents:
-            agent.reset()
-        obz = self.get_blank_observation()
-        return obz
+        self.agent_index = 0
+        agent = self.agents[self.agent_index]
+        ret = agent.reset()
+        return ret
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
@@ -183,11 +185,24 @@ class Deepdrive2DEnv(gym.Env):
                 return obz, reward, done, info
 
     def _step(self, action):
-        self.check_for_collisions()
-        agent_index = self.episode_steps % len(self.agents)
+        agent = self.agents[self.agent_index]
+        if agent.done and not all(a.done for a in self.agents):
+            # Report empty observations until all agents are finished
+            obs = self.get_blank_observation()
+            reward = 0
+            done = False
+            info = {}
+        else:
+            self.check_for_collisions()
+            obs, reward, done, info = agent.step(action)
+            if done and not all(a.done for a in self.agents):
+                # Let other agents complete
+                done = False
+
         self.episode_steps += 1
-        ret = self.agents[agent_index].step(action)
-        return ret
+        self.agent_index = self.episode_steps % len(self.agents)
+
+        return obs, reward, done, info
 
     def get_dt(self):
         if self.last_step_time is not None:
