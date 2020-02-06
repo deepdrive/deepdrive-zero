@@ -1,3 +1,5 @@
+Rename to deepdrive-0, deepdrive-zero? - We will want to add 3D eventually, but the main advantage of this env is that it doesn't depend on Unreal or require Linux / GPUs - with all the physics in numba/python making it accessible, fast, and tailor made for the self-driving problem. The Unreal based sim will be the ultimate test for agents trained here, but is likely too heavyweight for fast iteration and scaled up training.
+
 Create multi-agent unprotected left, 2 agents A and B, A is turning left B is coming towards A in opposing lane
  - First waypoint for agent A will be inside intersection, second will be after left
  - Waypoint for agent B will be past intersection going straight
