@@ -1,8 +1,16 @@
-# Deepdrive 2D
+# Deepdrive 2D alpha
+
+:warning: **This project is in high flux - expect many breaking API changes**
+
+
 
 _A 2D environment for self-driving_
 
 The purpose of this environment is to create a useful "toy" environment for self-driving that allows quickly working out bugs in deep RL algorithms before transferring them to a 3D simulator.
+
+### Try it out
+
+
 
 ### Bike Model
 
