@@ -200,6 +200,7 @@ class Deepdrive2DEnv(gym.Env):
                     self.num_episodes += 1
 
         self.episode_steps += 1
+        self.total_steps += 1
         self.agent_index = self.episode_steps % len(self.agents)
 
         return obs, reward, done, info
