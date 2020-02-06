@@ -244,7 +244,7 @@ class Agent:
         self.prev_action = action
         self.episode_steps += 1
 
-        if done:
+        if done and not self.done:
             self.num_episodes += 1
             self._trip_pct_total += self.trip_pct
             self.avg_trip_pct = self._trip_pct_total / self.num_episodes
@@ -254,6 +254,7 @@ class Agent:
                       f'Steps: {self.episode_steps}, '
                       # f'Closest map indx: {self.closest_map_index}, '
                       f'Distance {round(self.distance, 2)}, '
+                      f'Wp {self.next_map_index - 1}, '
                       f'Angular velocity {round(self.angular_velocity, 2)}, '
                       f'Speed: {round(self.speed, 2)}, '
                       f'Max gforce: {round(self.max_gforce, 4)}, '
@@ -261,7 +262,8 @@ class Agent:
                       f'Trip pct {round(self.trip_pct, 2)}, '
                       f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
                       f'Agent index {round(self.agent_index, 2)}, '
-                      f'Num episodes {self.num_episodes}')
+                      f'Env ep# {self.env.num_episodes}, '
+                      f'Ep# {self.num_episodes}')
 
         self.total_steps += 1
         self.prev_steer = steer
@@ -513,11 +515,11 @@ class Agent:
             lost = True
         elif self.gforce_levels.harmful:
             # Only end on g-force once we've learned to complete part of the trip.
-            log.warning(f'Harmful g-forces, game over {self.agent_index}')
+            log.warning(f'Harmful g-forces, game over agent {self.agent_index}')
             done = True
             lost = True
-        elif (self.env.episode_steps + 1) % self.env._max_episode_steps == 0:
-            log.warning(f'Time\'s up')
+        elif (self.episode_steps + 1) % self.env._max_episode_steps == 0:
+            log.warning(f"Time's up agent {self.agent_index}")
             done = True
         elif 'DISABLE_CIRCLE_CHECK' not in os.environ and \
                 abs(math.degrees(self.angle)) > 400:
@@ -542,14 +544,14 @@ class Agent:
                 won = True
                 # You win!
                 log.success(f'Reached destination! '
-                            f'Steps: {self.env.episode_steps} '
+                            f'Steps: {self.episode_steps} '
                             f'Agent: {self.agent_index}')
         elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
             done = True
             won = True
             log.success(f'Reached destination! '
-                        f'Steps: {self.env.episode_steps}')
+                        f'Steps: {self.episode_steps}')
         if '--test-win' in sys.argv:
             won = True
         self.done = done
