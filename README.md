@@ -10,7 +10,28 @@ The purpose of this environment is to create a useful "toy" environment for self
 
 ### Try it out
 
+#### Install
 
+Install our fork of [spinning up](https://github.com/crizCraig/spinningup)
+
+```
+git clone https://github.com/deepdrive/deepdrive-2d
+pip install -r requirements.txt
+```
+
+#### Play
+
+You can play this sim like any other game. 
+
+Unprotected left scenario
+
+```
+player.py --intersection --no-timeout
+```
+
+More examples from which you can use the SCRIPT_NAME and PARAMETERS to see what commands I'm running to do things. Or if you use PyCharm, you can use these directly.
+
+https://github.com/deepdrive/deepdrive-2d/blob/master/.idea/runConfigurations/play_dd2d_all_friction_one_waypoint_static_obstacle_DISABLE_GAME_OVER_1.xml
 
 ### Bike Model
 
