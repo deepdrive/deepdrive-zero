@@ -31,8 +31,8 @@ DRAW_INTERSECTION = True
 # noinspection PyAbstractClass
 class Deepdrive2DPlayer(arcade.Window):
     """Allows playing the env as a human"""
-    def __init__(self, add_rotational_friction=False,
-                 add_longitudinal_friction=False, env=None,
+    def __init__(self, add_rotational_friction=True,
+                 add_longitudinal_friction=True, env=None,
                  fps=60, static_obstacle=False, one_waypoint=False,
                  is_intersection_map=False):
 
@@ -388,8 +388,6 @@ class Deepdrive2DPlayer(arcade.Window):
 
 def start(env=None, fps=60):
     player = Deepdrive2DPlayer(
-        add_rotational_friction='--rotational-friction' in sys.argv,
-        add_longitudinal_friction='--longitudinal-friction' in sys.argv,
         static_obstacle='--static-obstacle' in sys.argv,
         one_waypoint='--one-waypoint-map' in sys.argv,
         is_intersection_map='--intersection' in sys.argv,
