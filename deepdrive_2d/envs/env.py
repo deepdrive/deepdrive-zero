@@ -192,9 +192,12 @@ class Deepdrive2DEnv(gym.Env):
         else:
             self.check_for_collisions()
             obs, reward, done, info = agent.step(action)
-            if done and not all(a.done for a in self.agents):
-                # Let other agents complete
-                done = False
+            if done:
+                if not all(a.done for a in self.agents):
+                    # Let other agents complete
+                    done = False
+                else:
+                    self.num_episodes += 1
 
         self.episode_steps += 1
         self.agent_index = self.episode_steps % len(self.agents)
