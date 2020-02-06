@@ -155,9 +155,6 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_steps = 0
         self.total_episode_time = 0
         self.agent_index = 0
-        agent = self.agents[self.agent_index]
-        ret = agent.reset()
-        return ret
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
