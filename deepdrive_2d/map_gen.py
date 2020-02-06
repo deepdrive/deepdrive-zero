@@ -3,7 +3,6 @@ import time
 
 import numpy
 import numpy as np
-from Cython.Includes import numpy
 from loguru import logger as log
 from scipy.interpolate import interp1d
 
