@@ -110,7 +110,9 @@ def check_collision(obj1: tuple, ob2: tuple):
 def get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
-    :return: 4 points of the rectangle
+    :return: 4 points of the rectangle:
+            Starts at top left and goes clockwise
+            top left, top right, bottom right, bottom left
     """
     ego_rect = _get_rect(center_x, center_y, angle, width, height)
 
@@ -124,7 +126,9 @@ def get_rect(center_x, center_y, angle, width, height):
 def _get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
-    :return: 4 points of the rectangle
+    :return: 4 points of the rectangle:
+            Starts at top left and goes clockwise
+            top left, top right, bottom right, bottom left
     """
     w = width
     h = height

@@ -11,7 +11,6 @@ from collections import deque
 import time
 from typing import List, Tuple
 from math import pi, cos, sin
-from gym import spaces
 from scipy import spatial
 
 import numpy as np
@@ -70,6 +69,9 @@ class Agent:
         self.static_obst_pixels: np.array = None
         self.static_obstacle_tuple: tuple = ()
 
+        # Other agents
+        self.other_agent_inputs: list = None
+
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
         self.vehicle_model:List[float] = get_vehicle_model(vehicle_width)
@@ -114,7 +116,7 @@ class Agent:
         self.distance_to_end: float = 0
         self.prev_distance: float = None
         self.furthest_distance: float = 0
-        self.velocity: List[float] = [0, 0]
+        self.velocity: np.array = np.array((0, 0))
         self.angular_velocity: float = 0
 
         # TODO: Use accel_magnitude instead so we're in SI units
@@ -128,7 +130,7 @@ class Agent:
         self.closest_map_index: int = 0
         self.next_map_index: int = 1
         self.closest_waypoint_distance: float = 0
-        self.waypoint_distance: float = 0
+        self.waypoint_distances: np.array = np.array((0,0))
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
@@ -172,7 +174,7 @@ class Agent:
 
         # TODO: Change random seed on fine-tune to prevent overfitting?
 
-        self.ego_rect: np.array = None  # 4 points of ego corners
+        self.ego_rect: np.array = np.array([0,0]*4)  # 4 points of ego corners
         self.ego_rect_tuple: tuple = ()  # 4 points of ego corners as tuple
         self.ego_lines: tuple = ()  # 4 edges of ego
 
@@ -244,13 +246,13 @@ class Agent:
         self.prev_action = action
         self.episode_steps += 1
 
-        if done and not self.done:
+        if done:
             self.num_episodes += 1
             self._trip_pct_total += self.trip_pct
             self.avg_trip_pct = self._trip_pct_total / self.num_episodes
             episode_angle_accuracy = np.array(self.angle_accuracies).mean()
             episode_gforce_avg = np.array(self.episode_gforces).mean()
-            log.debug(f'Episode score {round(self.episode_reward, 2)}, '
+            log.debug(f'Score {round(self.episode_reward, 2)}, '
                       f'Steps: {self.episode_steps}, '
                       # f'Closest map indx: {self.closest_map_index}, '
                       f'Distance {round(self.distance, 2)}, '
@@ -262,6 +264,7 @@ class Agent:
                       f'Trip pct {round(self.trip_pct, 2)}, '
                       f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
                       f'Agent index {round(self.agent_index, 2)}, '
+                      f'Total steps {self.total_steps}, '
                       f'Env ep# {self.env.num_episodes}, '
                       f'Ep# {self.num_episodes}')
 
@@ -390,8 +393,11 @@ class Agent:
                     ret = [angles_ahead[0], self.prev_steer, self.prev_accel,
                            self.speed, self.distance_to_end]
                     if self.env.add_static_obstacle:
-                        ret += self.get_static_obstacle_inputs()
-                    return np.array(ret)
+                        ret += self.get_static_obstacle_inputs(is_blank)
+                    if is_blank:
+                        return np.array(ret) * 0
+                    else:
+                        return np.array(ret)
             elif self.is_intersection_map:
                 if len(angles_ahead) == 1:
                     _angles_ahead = [angles_ahead[0], angles_ahead[0]]
@@ -400,11 +406,18 @@ class Agent:
                 done_input = 1 if self.done else 0
                 ret = [_angles_ahead[0], _angles_ahead[1],
                        self.prev_steer, self.prev_accel,
-                       self.speed, self.waypoint_distance,
-                       left_lane_distance, right_lane_distance, done_input]
-                if self.env.add_static_obstacle:
-                    ret += self.get_static_obstacle_inputs()
-                return np.array(ret)
+                       self.speed, left_lane_distance, right_lane_distance,
+                       done_input,]
+                if is_blank:
+                    self.set_distance()
+                ret += list(self.waypoint_distances)
+                ret += list(self.velocity)
+                ret += list(self.acceleration)
+                ret += self.get_other_agent_inputs(is_blank)
+                if is_blank:
+                    return np.array(ret) * 0
+                else:
+                    return np.array(ret)
             else:
                 observation = np.array(observation.values())
                 observation = np.concatenate((observation, angles_ahead),
@@ -437,21 +450,50 @@ class Agent:
 
         return observation
 
-    def get_static_obstacle_inputs(self):
-        if self.front_pos is not None and self.heading is not None:
-            start_static_obs = self.static_obstacle_points[0]
-            end_static_obs = self.static_obstacle_points[1]
-            start_obst_angle = self.get_angle_to_point(start_static_obs)
-            end_obst_angle = self.get_angle_to_point(end_static_obs)
-            start_obst_dist = np.linalg.norm(start_static_obs - self.front_pos)
-            end_obst_dist = np.linalg.norm(end_static_obs - self.front_pos)
-            ret = [start_obst_dist, end_obst_dist, start_obst_angle,
-                   end_obst_angle]
-            self.static_obst_angle_info = ret
+    def get_other_agent_inputs(self, is_blank=False):
 
-            # log.info(f'start obs angle {math.degrees(start_obst_angle)}')
+        # TODO: Perhaps we should feed this into a transformer / LSTM
+        #  as the number of agents can be variable in length
+        ret = []
+        v = self.velocity
+        ang = self.get_angle_to_point
+        dst = np.linalg.norm
+        f = self.front_pos
+        for i in range(self.env.num_agents):
+            if i == self.agent_index:
+                continue
+            if is_blank:
+                agent = self
+            else:
+                agent = self.env.agents[i]
+            ret += list(agent.velocity - v)  # ego relative velocity
+            ret += list(agent.velocity)
+            ret += list(agent.acceleration)
+            for p in agent.ego_rect:
+                ret.append(ang(p))
+                ret.append(dst(p - f))
 
-            return ret
+        if is_blank:
+            ret = list(np.array(ret) * 0)
+        self.other_agent_inputs = ret
+        return ret
+
+    def get_static_obstacle_inputs(self, is_blank=False):
+        start_static_obs = self.static_obstacle_points[0]
+        end_static_obs = self.static_obstacle_points[1]
+        start_obst_angle = self.get_angle_to_point(start_static_obs)
+        end_obst_angle = self.get_angle_to_point(end_static_obs)
+        start_obst_dist = np.linalg.norm(start_static_obs - self.front_pos)
+        end_obst_dist = np.linalg.norm(end_static_obs - self.front_pos)
+        ret = [start_obst_dist, end_obst_dist, start_obst_angle,
+               end_obst_angle]
+        self.static_obst_angle_info = ret
+
+        # log.info(f'start obs angle {math.degrees(start_obst_angle)}')
+        if is_blank:
+            ret = list(np.array(ret) * 0)
+
+        return ret
 
     def reset(self):
         self.angle = self.start_angle
@@ -465,9 +507,9 @@ class Agent:
         self.distance = None
         self.prev_distance = None
         self.furthest_distance = 0
-        self.velocity = [0, 0]
+        self.velocity = np.array((0,0))
         self.angular_velocity = 0
-        self.acceleration = [0, 0]
+        self.acceleration = np.array((0,0))
         self.gforce = 0
         self.gforce_levels = self.blank_gforce_levels()
         self.max_gforce = 0
@@ -486,9 +528,6 @@ class Agent:
 
         self.set_calculated_props()
 
-        if self.env.observation_space is None and self.agent_index == 0:
-            # All agents must have the same observation space
-            self.setup_spaces()
         if self.experience_buffer is None:
             self.experience_buffer = ExperienceBuffer()
         self.experience_buffer.reset()
@@ -796,13 +835,28 @@ class Agent:
             self.distance_to_end = np.linalg.norm(end - pos)
 
             self.distance = mp.length - self.distance_to_end
-        elif self.is_intersection_map:
+        elif self.is_intersection_map and self.env.agents is not None:
+            # Add the next waypoint distance to the beginning of the array,
+            # then add the remaining distances.
+            # Finally pad with zeroes at the end to keep a static length.
+            # So with 3 waypoints distances would take on the following schema,
+            # where waypoint 0 is the start point.
+            # [wp1dist, wp2dist] => before reaching first waypoint
+            # [wp2dist, 0] => after waypoint 1, before waypoint 2
+            # Also, for multi-agent, we need the max number of waypoints for
+            # all agents which is why self.env.agents must be set
+            max_waypoints = max(len(a.map.waypoints) for a in self.env.agents)
+            waypoint_distances = np.zeros((max_waypoints - 1,))
             next_index = self.next_map_index
-            next_pos = np.array([mp.x[next_index],
-                                 mp.y[next_index]])
-            next_dist = np.linalg.norm(next_pos - self.front_pos)
-            self.waypoint_distance = next_dist
-            self.distance = mp.distances[self.next_map_index] - abs(next_dist)
+            for i in range(len(self.map.waypoints) - next_index):
+                wi = next_index + i
+                next_pos = np.array([mp.x[wi], mp.y[wi]])
+                dist = np.linalg.norm(next_pos - self.front_pos)
+                waypoint_distances[i] = dist
+            self.distance = (mp.distances[self.next_map_index] -
+                             abs(waypoint_distances[0]))
+            self.waypoint_distances = waypoint_distances
+            # log.debug(waypoint_distances)
         else:
             # Assumes waypoints are very close, i.e. 1m apart
             self.distance = mp.distances[self.closest_map_index]
@@ -811,6 +865,7 @@ class Agent:
         if self.prev_distance is None:
             # Init prev distance
             self.prev_distance = self.distance
+
 
     def get_gforce_levels(self, dt, prev_angle, prev_x, prev_y, info):
         # TODO: Numba this
@@ -1040,24 +1095,6 @@ steer, accel, brake, dt, info
 {steer, accel, brake, dt, info}
 """)
             raise RuntimeError('Position is infinity')
-
-    def setup_spaces(self):
-        # TODO: Multiply this by num agents
-
-        # Action space: ----
-        # Accel, Brake, Steer
-        if self.expect_normalized_actions:
-            self.env.action_space = spaces.Box(low=-1, high=1,
-                                               shape=(self.num_actions,))
-        else:
-            # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
-            # Max voyage accel m/s/f = 3.625 * FPS = 217.5 m/s/f
-            # TODO: Set steering limits as well
-            self.env.action_space = spaces.Box(low=-10.2, high=10.2,
-                                               shape=(self.num_actions,))
-        blank_obz = self.get_blank_observation()
-        self.env.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                                shape=(len(blank_obz),))
 
 def get_closest_point(point, kd_tree):
     distance, index = kd_tree.query(point)

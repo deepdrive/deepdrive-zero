@@ -1,30 +1,20 @@
-import math
-import json
 import os
 import sys
 import time
-from collections import deque
-from math import pi, cos, sin
 from typing import Tuple, List
 import random
 import gym
 import numpy as np
-from box import Box
-from numba import njit
+from gym import spaces
 
 import pyglet
 
 from deepdrive_2d.envs.agent import Agent
-from deepdrive_2d.physics.bike_model import bike_with_friction_step, \
-    get_vehicle_model
-from deepdrive_2d.physics.collision_detection import check_collision_ego_obj, \
-    get_rect, check_collision_agents
+from deepdrive_2d.physics.collision_detection import check_collision_ego_obj,\
+    check_collision_agents
 from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY
-from deepdrive_2d.experience_buffer import ExperienceBuffer
-from deepdrive_2d.map_gen import gen_random_map, get_intersection
-from deepdrive_2d.utils import flatten_points, get_angles_ahead, get_angle
 from deepdrive_2d.logs import log
 
 
@@ -126,6 +116,7 @@ class Deepdrive2DEnv(gym.Env):
         else:
             self.num_agents = 1
 
+        self.agents = None
         self.agents: List[Agent] = [Agent(
             env=self,
             agent_index=i,
@@ -137,6 +128,21 @@ class Deepdrive2DEnv(gym.Env):
         self.agent_index: int = 0  # Current agent we are stepping
 
         self.reset()
+        self.setup_spaces()
+
+    def setup_spaces(self):
+        # Action space: ----
+        # Accel, Brake, Steer
+        agent = self.agents[0]
+        if self.expect_normalized_actions:
+            self.action_space = spaces.Box(low=-1, high=1, shape=(agent.num_actions,))
+        else:
+            # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4
+            # Max voyage accel m/s/f = 3.625 * FPS = 217.5 m/s/f
+            # TODO: Set steering limits as well
+            self.action_space = spaces.Box(low=-10.2, high=10.2, shape=(agent.num_actions,))
+        blank_obz = agent.get_blank_observation()
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(len(blank_obz),))
 
     def _enable_render(self):
         from deepdrive_2d import player
@@ -154,7 +160,11 @@ class Deepdrive2DEnv(gym.Env):
     def reset(self):
         self.episode_steps = 0
         self.total_episode_time = 0
-        self.agent_index = 0
+
+        # Don't reset agent_index.
+        # Needs to be consistently incremented toggle between agents
+        # between episodes so that same number of observations per agent
+        # are returned
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
@@ -201,7 +211,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self.episode_steps += 1
         self.total_steps += 1
-        self.agent_index = self.episode_steps % len(self.agents)
+        self.agent_index = self.total_steps % len(self.agents)
 
         return obs, reward, done, info
 
