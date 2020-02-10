@@ -4,9 +4,9 @@
 
 
 
-_A 2D environment for self-driving_
+_A (currently) 2D environment for self-driving_
 
-The purpose of this environment is to create a useful "toy" environment for self-driving that allows quickly working out bugs in deep RL algorithms before transferring them to a 3D simulator.
+The purpose of this environment is to create a useful "toy" environment for self-driving that allows quickly working out bugs in deep RL algorithms before transferring them to a [3D simulator](https://github.com/deepdrive/deepdrive). No dependency on Unreal, Linux, or GPU's - with all the physics in numba/python making it accessible, fast, and tailor made for the self-driving problem. The Unreal based sim will be the ultimate test for agents trained here, but is likely too heavyweight for fast iteration and scaled up training.
 
 ### Try it out
 
