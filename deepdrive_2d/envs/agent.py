@@ -640,7 +640,7 @@ class Agent:
         jerk_magnitude = np.linalg.norm(self.jerk)
         jerk_penalty = 10 * jerk_magnitude
 
-        accel_magnitude = self.gforce * G_ACCEL
+        # accel_magnitude = self.gforce * G_ACCEL
 
         # log.debug(f'jerk {round(jerk_magnitude)} accel {round(accel_magnitude)}')
 
