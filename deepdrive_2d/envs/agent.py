@@ -170,9 +170,7 @@ class Agent:
         self.experience_buffer = None
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
 
-        # TODO: Think about tree of neural nets for RL options
-
-        # TODO: Change random seed on fine-tune to prevent overfitting?
+        # TODO (research): Think about tree of neural nets for RL options
 
         self.ego_rect: np.array = np.array([0,0]*4)  # 4 points of ego corners
         self.ego_rect_tuple: tuple = ()  # 4 points of ego corners as tuple
@@ -452,8 +450,9 @@ class Agent:
 
     def get_other_agent_inputs(self, is_blank=False):
 
-        # TODO: Perhaps we should feed this into a transformer / LSTM
-        #  as the number of agents can be variable in length
+        # TODO: Perhaps we should feed this into a transformer / LSTM / or
+        #  use attention as the number of agents can be variable in length and
+        #  may exceed the amount of input we want to pass to the net.
         ret = []
         v = self.velocity
         ang = self.get_angle_to_point
@@ -620,8 +619,9 @@ class Agent:
 
         # log.info(speed_reward)
 
-        # TODO: Penalize residuals of a quadratic regression fit to history
-        #  of actions.
+        # TODO: Idea penalize residuals of a quadratic regression fit to history
+        #  of actions. Currently penalizing jerk instead which may or may not
+        #  be better (but it is simpler).
         if 'ACTION_PENALTY' in os.environ:
             action_penalty = float(os.environ['ACTION_PENALTY'])
             steer_penalty = abs(self.prev_steer - steer) * action_penalty
@@ -720,9 +720,6 @@ class Agent:
                 self.get_intersection_observation(half_lane_width,
                                                   left_lane_distance,
                                                   right_lane_distance)
-
-            # TODO: Get distance from left right, before waypoint, then
-            #  top bottom after first waypoint
         else:
             self.trip_pct = 100 * closest_map_index / (len(self.map.waypoints) - 1)
             angles_ahead = self.get_angles_ahead(closest_map_index)
@@ -778,7 +775,10 @@ class Agent:
 
     def get_angles_ahead(self, closest_map_index):
         """
-        Note: this assumes we are on the old meter per waypoint map path
+        Note: this assumes we are on the old meter per waypoint map path.
+        This meter per waypoint map is not being used for current training
+        but we may want to bring it back as we are able to achieve more complex
+        behavior.
         """
         distances = self.map.distances
 
@@ -914,7 +914,7 @@ class Agent:
         return self.gforce
 
     def gen_map(self):
-        # TODO: Move map to env.py. Right not the map is really just a couple
+        # TODO: Move map to env.py. Right now the map is really just a couple
         #   of waypoints, so it's fine to duplicate it for each agent.
 
         lane_width = 10 * 0.3048

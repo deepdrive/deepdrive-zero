@@ -102,9 +102,9 @@ class Deepdrive2DEnv(gym.Env):
 
         np.random.seed(self.seed_value)
 
-        # TODO: Think about tree of neural nets for RL options
+        # TODO (research): Think about tree of neural nets for RL options
 
-        # TODO: Change random seed on fine-tune
+        # TODO: Change random seed on fine-tune to prevent overfitting
 
         self.player = None
 
@@ -195,6 +195,28 @@ class Deepdrive2DEnv(gym.Env):
         agent = self.agents[self.agent_index]
         if agent.done and not all(a.done for a in self.agents):
             # Report empty observations until all agents are finished
+
+            # TODO: Respawn
+            #  Note that we pass is_done=1 to agent so that it (hopefully)
+            #  doesn't associate the current actions with 0 observations.
+            #  What we _SHOULD_ do is to respawn/reset the agents
+            #  independently - provided the spawn point is not occupied.
+            #  Really though, we should just not store this agents
+            #  experiences while the spawn point is occupied.
+            #  We then run into the problem where the PPO buffer is not
+            #  split up evenly and therefore memory allocation becomes
+            #  a bit trickier / more dynamic / less efficient,
+            #  but we need some unevenness in the epoch buffer I think.
+            #  So for now we should respawn, and don't count collisions
+            #  inside the respawn areas for a few seconds after respawn and
+            #  if the collision was recorded the previous frame (i.e. let
+            #  the agents get clear of each other on respawn).
+            #  Then we will have even buffers for all agents and be maximally
+            #  using the env with all agents active. We should also try to
+            #  make the respawn points like one-way garages where agents can
+            #  only exit them, and other agents can collide with them - that way
+            #  you wouldn't have to deal with overlap on spawn as much.
+
             obs = self.get_blank_observation()
             reward = 0
             done = False

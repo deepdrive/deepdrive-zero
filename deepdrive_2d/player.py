@@ -378,7 +378,7 @@ class Deepdrive2DPlayer(arcade.Window):
             sprite.center_x = a.x * self.px_per_m
             sprite.center_y = a.y * self.px_per_m
 
-            # TODO: Change rotation axis to rear axle (now at center)
+            # TODO: Change rotation axis to rear axle?? (now at center)
             sprite.angle = math.degrees(a.angle)
 
             # log.trace(f'x:{a.x}')
