@@ -1,4 +1,4 @@
-# Deepdrive 2D alpha
+# Deepdrive Zero alpha
 
 :warning: **This project is in high flux - expect many breaking API changes**
 
