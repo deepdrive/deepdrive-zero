@@ -633,6 +633,8 @@ class Agent:
 
         gforce_penalty = 0
         if not self.disable_gforce_penalty and self.gforce > 0.05:
+            # Note that it's useful to give a low or no g-force penalty
+            # at first, then to scale it up once waypoints are being reached.
             gforce_penalty = pi * self.gforce  # G-force penalty
 
         jerk_magnitude = np.linalg.norm(self.jerk)
