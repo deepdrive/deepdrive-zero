@@ -9,6 +9,7 @@ import os
 import sys
 from collections import deque
 import time
+import json
 from typing import List, Tuple
 from math import pi, cos, sin
 from scipy import spatial
@@ -1016,6 +1017,7 @@ class Agent:
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
             wps.append((mid_vert[0][0] - lane_width / 2, 46.625536615404805))
+            wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
             wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
         else:
             raise NotImplementedError('More than 2 agents not yet supported')
@@ -1066,19 +1068,6 @@ class Agent:
             self.check_for_nan(dt, i_steer, i_accel, i_brake, info)
 
             self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
-
-            step_time = time.time() - start
-            if self.env.should_render:
-                target_dt = self.env.target_dt / self.env.num_agents
-                if self.last_sleep_time is None:
-                    sleep_time = target_dt
-                    sleep_makeup = 0
-                else:
-                    sleep_makeup = target_dt - step_time
-                    sleep_time = max(sleep_makeup, 0)
-                # log.info(f'sleeping {sleep_time} sleep_makeup {sleep_makeup}')
-                time.sleep(sleep_time)
-                self.last_sleep_time = sleep_time
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)

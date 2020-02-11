@@ -52,6 +52,10 @@ class Deepdrive2DEnv(gym.Env):
         self.static_map: bool = '--static-map' in sys.argv
         self.physics_steps_per_observation: int = physics_steps_per_observation
 
+        # The previous observation, reward, done, info for each agent
+        # Useful for running / training the agents
+        self.previous_step_outputs = []  # TODO: Use pre-allocated numpy array here
+
 
         # For faster / slower than real-time stepping
         self.decouple_step_time = decouple_step_time
@@ -63,6 +67,7 @@ class Deepdrive2DEnv(gym.Env):
         self.last_step_time: float = None
         self.wall_dt: float = None
         self.last_sleep_time: float = None
+        self.start_step_time: float = None
 
         self.fps: int = 60
 
@@ -158,13 +163,19 @@ class Deepdrive2DEnv(gym.Env):
         self.should_render = True
 
     def reset(self):
-        self.episode_steps = 0
-        self.total_episode_time = 0
+        if self.previous_step_outputs:
+            # Just reset the current agent
+            return self.agents[self.agent_index].reset()
+        else:
+            # First reset, reset entire env
+            self.episode_steps = 0
+            self.total_episode_time = 0
 
-        # Don't reset agent_index.
-        # Needs to be consistently incremented toggle between agents
-        # between episodes so that same number of observations per agent
-        # are returned
+            for agent in self.agents:
+                o, r, done, info = agent.reset(), 0, False, {}
+                self.previous_step_outputs.append((o, r, done, info))
+
+        return self.get_blank_observation()
 
     def seed(self, seed=None):
         self.seed_value = seed or 0
@@ -192,50 +203,42 @@ class Deepdrive2DEnv(gym.Env):
                 return obz, reward, done, info
 
     def _step(self, action):
-        agent = self.agents[self.agent_index]
-        if agent.done and not all(a.done for a in self.agents):
-            # Report empty observations until all agents are finished
+        self.start_step_time = time.time()
+        agent_index = self.agent_index
+        agent = self.agents[agent_index]
 
-            # TODO: Respawn
-            #  Note that we pass is_done=1 to agent so that it (hopefully)
-            #  doesn't associate the current actions with 0 observations.
-            #  What we _SHOULD_ do is to respawn/reset the agents
-            #  independently - provided the spawn point is not occupied.
-            #  Really though, we should just not store this agents
-            #  experiences while the spawn point is occupied.
-            #  We then run into the problem where the PPO buffer is not
-            #  split up evenly and therefore memory allocation becomes
-            #  a bit trickier / more dynamic / less efficient,
-            #  but we need some unevenness in the epoch buffer I think.
-            #  So for now we should respawn, and don't count collisions
-            #  inside the respawn areas for a few seconds after respawn and
-            #  if the collision was recorded the previous frame (i.e. let
-            #  the agents get clear of each other on respawn).
-            #  Then we will have even buffers for all agents and be maximally
-            #  using the env with all agents active. We should also try to
-            #  make the respawn points like one-way garages where agents can
-            #  only exit them, and other agents can collide with them - that way
-            #  you wouldn't have to deal with overlap on spawn as much.
-
-            obs = self.get_blank_observation()
-            reward = 0
-            done = False
-            info = {}
-        else:
-            self.check_for_collisions()
-            obs, reward, done, info = agent.step(action)
-            if done:
-                if not all(a.done for a in self.agents):
-                    # Let other agents complete
-                    done = False
-                else:
-                    self.num_episodes += 1
+        self.check_for_collisions()
+        obs, reward, done, info = agent.step(action)
+        if done:
+            self.num_episodes += 1
 
         self.episode_steps += 1
         self.total_steps += 1
-        self.agent_index = self.total_steps % len(self.agents)
+        self.previous_step_outputs[agent_index] = (obs, reward, done, info)
+        agent_index = self.total_steps % len(self.agents)
+        ret = self.previous_step_outputs[agent_index]
+        self.agent_index = agent_index
 
-        return obs, reward, done, info
+        if self.should_render:
+            self.regulate_fps()
+
+        return ret
+
+    def regulate_fps(self):
+        step_time = time.time() - self.start_step_time
+        if self.should_render:
+            target_dt = self.target_dt / self.num_agents
+            if self.last_sleep_time is None:
+                sleep_time = target_dt
+                sleep_makeup = 0
+            else:
+                sleep_makeup = target_dt - step_time
+                sleep_time = max(sleep_makeup, 0)
+            time.sleep(sleep_time)
+            self.last_sleep_time = sleep_time
+            # final_step_time = time.time() - self.start_step_time
+            # log.info(f'step time {final_step_time} slept {sleep_time} '
+            #          f'sleep_makeup {sleep_makeup}')
 
     def get_dt(self):
         if self.last_step_time is not None:

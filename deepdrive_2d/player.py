@@ -347,8 +347,8 @@ class Deepdrive2DPlayer(arcade.Window):
 
     def update(self, _delta_time):
         """ Movement and game logic """
-
-        for i, a in enumerate(self.env.agents):
+        env = self.env
+        for i, agent in enumerate(env.agents):
             sprite = self.player_list[i]
 
             # log.trace(f'v:{a.speed}')
@@ -356,7 +356,7 @@ class Deepdrive2DPlayer(arcade.Window):
             # log.trace(f'dt2:{_delta_time}')
 
             if self.human_controlled:
-                if a.agent_index == 0:
+                if env.agent_index == 0:
                     steer = self.steer
                     accel = self.accel
                     brake = self.brake
@@ -365,21 +365,19 @@ class Deepdrive2DPlayer(arcade.Window):
                     accel = random()
                     brake = 0
 
-                obz, reward, done, info = self.env.step([steer, accel, brake])
+                obz, reward, done, info = env.step([steer, accel, brake])
                 if done:
-                    for agent in self.env.agents:
-                        agent.reset()
-                    return
+                    agent.reset()
 
             # log.debug(f'Deviation: '
             #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
 
 
-            sprite.center_x = a.x * self.px_per_m
-            sprite.center_y = a.y * self.px_per_m
+            sprite.center_x = agent.x * self.px_per_m
+            sprite.center_y = agent.y * self.px_per_m
 
             # TODO: Change rotation axis to rear axle?? (now at center)
-            sprite.angle = math.degrees(a.angle)
+            sprite.angle = math.degrees(agent.angle)
 
             # log.trace(f'x:{a.x}')
             # log.trace(f'y:{a.y}')
