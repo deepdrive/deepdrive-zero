@@ -1,12 +1,12 @@
-# Deepdrive 2D alpha
+# Deepdrive Zero alpha
 
 :warning: **This project is in high flux - expect many breaking API changes**
 
 
 
-_A 2D environment for self-driving_
+_A (currently) 2D environment for self-driving_
 
-The purpose of this environment is to create a useful "toy" environment for self-driving that allows quickly working out bugs in deep RL algorithms before transferring them to a 3D simulator.
+The purpose of this environment is to create a useful "toy" environment for self-driving that allows quickly working out bugs in deep RL algorithms before transferring them to a [3D simulator](https://github.com/deepdrive/deepdrive). There's no dependency on Unreal, Linux, or GPU's - with all the physics in numba/python making it accessible, fast, and tailor made for the self-driving problem. For example, we currently end the episode on collision, avoiding the need for more complex collision handling usually used in games or simulations where the results of many collisions are of more interest than how to avoid collisions altogether as in the case of self-driving. The Unreal based sim will be the ultimate test for agents trained here, but is likely too heavyweight for fast iteration and scaled up training.
 
 ### Try it out
 
