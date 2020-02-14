@@ -53,6 +53,7 @@ class Agent:
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
         self.expect_normalized_actions: bool = env.expect_normalized_actions
+        self.forbid_deceleration = env.forbid_deceleration
 
         self.px_per_m = self.env.px_per_m
 
@@ -226,12 +227,15 @@ class Agent:
         else:
             collided = bool(self.collided_with)
 
-            lane_deviation, observation, closest_map_point = \
+            lane_deviation, observation, closest_map_point, left_lane_distance,\
+                right_lane_distance = \
                 self.get_observation(steer, accel, brake, dt, info)
             done, won, lost = self.get_done(closest_map_point, lane_deviation,
                                             collided)
-            reward, info = self.get_reward(lane_deviation, won, lost, collided,
-                                           info, steer, accel)
+            reward, info = self.get_reward(
+                lane_deviation, won, lost, collided, info, steer, accel,
+                left_lane_distance, right_lane_distance
+            )
             info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
@@ -321,9 +325,10 @@ class Agent:
 
             steer = steer * pi / 6  # About 33 degrees max steer
 
-            # Forward only for now
-            accel = MAX_METERS_PER_SEC_SQ * ((1 + accel) / 2)
-
+            if self.forbid_deceleration:
+                accel = MAX_METERS_PER_SEC_SQ * ((1 + accel) / 2)
+            else:
+                accel *= MAX_METERS_PER_SEC_SQ
 
             brake = MAX_METERS_PER_SEC_SQ * ((1 + brake) / 2)
         return steer, accel, brake

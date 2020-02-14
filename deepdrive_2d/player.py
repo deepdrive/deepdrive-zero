@@ -91,7 +91,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 physics_steps_per_observation=1,
                 add_static_obstacle=self.static_obstacle,
                 is_one_waypoint_map=self.one_waypoint,
-                is_intersection_map=self.is_intersection_map, )
+                is_intersection_map=self.is_intersection_map,)
         self.env.reset()
 
         for i, agent in enumerate(self.env.agents):
@@ -356,7 +356,7 @@ class Deepdrive2DPlayer(arcade.Window):
             # log.trace(f'dt2:{_delta_time}')
 
             if self.human_controlled:
-                if env.agent_index == 0:
+                if env.agent_index == 1:
                     steer = self.steer
                     accel = self.accel
                     brake = self.brake

@@ -51,10 +51,11 @@ class Deepdrive2DEnv(gym.Env):
         self.add_longitudinal_friction: bool = add_longitudinal_friction
         self.static_map: bool = '--static-map' in sys.argv
         self.physics_steps_per_observation: int = physics_steps_per_observation
+        self.forbid_deceleration = forbid_deceleration
 
         # The previous observation, reward, done, info for each agent
         # Useful for running / training the agents
-        self.previous_step_outputs = []  # TODO: Use pre-allocated numpy array here
+        self.agent_step_outputs = []  # TODO: Use pre-allocated numpy array here
 
 
         # For faster / slower than real-time stepping
@@ -163,7 +164,7 @@ class Deepdrive2DEnv(gym.Env):
         self.should_render = True
 
     def reset(self):
-        if self.previous_step_outputs:
+        if self.agent_step_outputs:
             # Just reset the current agent
             return self.agents[self.agent_index].reset()
         else:
@@ -173,7 +174,7 @@ class Deepdrive2DEnv(gym.Env):
 
             for agent in self.agents:
                 o, r, done, info = agent.reset(), 0, False, {}
-                self.previous_step_outputs.append((o, r, done, info))
+                self.agent_step_outputs.append((o, r, done, info))
 
         return self.get_blank_observation()
 
@@ -204,8 +205,7 @@ class Deepdrive2DEnv(gym.Env):
 
     def _step(self, action):
         self.start_step_time = time.time()
-        agent_index = self.agent_index
-        agent = self.agents[agent_index]
+        agent = self.agents[self.agent_index]
 
         self.check_for_collisions()
         obs, reward, done, info = agent.step(action)
@@ -214,14 +214,44 @@ class Deepdrive2DEnv(gym.Env):
 
         self.episode_steps += 1
         self.total_steps += 1
-        self.previous_step_outputs[agent_index] = (obs, reward, done, info)
-        agent_index = self.total_steps % len(self.agents)
-        ret = self.previous_step_outputs[agent_index]
-        self.agent_index = agent_index
+
+        ret = self.get_step_output(done, info, obs, reward)
 
         if self.should_render:
             self.regulate_fps()
 
+        return ret
+
+    def get_step_output(self, done, info, obs, reward):
+        """ Return the observation that corresponds with the correct agent/action
+
+        i.e. since we are looping through agents:
+
+        agent_1_obs = reset()  # Get a blank observation, i.e. just zeroes
+        agent_1_action = model(agent_1_obs)
+        agent_2_obs = step(agent_1_action)  # step 1 - agent_2_obs is just blank
+        agent_2_action = model(agent_2_obs)
+        agent_1_obs = step(agent_2_action)  # step 2 - where agent_1_obs was from step 1 above
+        agent_1_action = model(agent_1_obs)
+        agent_2_obs = step(agent_1_action)  # step 3
+
+        etc...
+
+        This allows you to run the env the same as any other gym env
+        in a step/reset loop.
+
+        Just be sure to store states, actions, and rewards
+        according to the env.agent_index as we do in PPOBuffer.
+
+        NOTE: done and info are returned for the current agent, not the next
+        agent, as those need to be acted on before querying the model.
+
+        """
+        agent_index = self.agent_index
+        self.agent_step_outputs[agent_index] = (obs, reward, done, info)
+        agent_index = self.total_steps % len(self.agents)
+        ret = self.agent_step_outputs[agent_index]
+        self.agent_index = agent_index
         return ret
 
     def regulate_fps(self):

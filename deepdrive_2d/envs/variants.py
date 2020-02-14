@@ -46,3 +46,8 @@ class IntersectionWithGsEnv(Deepdrive2DEnv):
     def __init__(self):
         super().__init__(is_intersection_map=True, match_angle_only=False,
                          incent_win=True)
+
+class IntersectionWithGsAllowDecelEnv(Deepdrive2DEnv):
+    def __init__(self):
+        super().__init__(is_intersection_map=True, match_angle_only=False,
+                         incent_win=True, forbid_deceleration=False)
