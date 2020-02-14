@@ -464,6 +464,11 @@ class Agent:
         ang = self.get_angle_to_point
         dst = np.linalg.norm
         f = self.front_pos
+
+        # TODO: These should be sorted by time to collision TTC where
+        #   TTC is approximated by assuming vehicles immediately change
+        #   direction towards each other at current velocity.
+
         for i in range(self.env.num_agents):
             if i == self.agent_index:
                 continue
