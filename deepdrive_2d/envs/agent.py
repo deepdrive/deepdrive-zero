@@ -604,7 +604,8 @@ class Agent:
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
                    collided: bool, info: Box, steer: float,
-                   accel: float) -> Tuple[float, Box]:
+                   accel: float, left_lane_distance: float,
+                   right_lane_distance: float) -> Tuple[float, Box]:
 
         angle_diff = abs(self.angles_ahead[0])
 
@@ -646,12 +647,28 @@ class Agent:
         jerk_magnitude = np.linalg.norm(self.jerk)
         jerk_penalty = 10 * jerk_magnitude
 
+        lane_penalty = 0
+        if left_lane_distance < 0:
+            lane_penalty += abs(left_lane_distance)
+
+        if right_lane_distance < 0:
+            # yes both can happen if you're orthogonal to the lane
+            lane_penalty += abs(right_lane_distance)
+
+
+
+        # if self.agent_index == 1:
+        #     log.info(f'left distance {left_lane_distance} '
+        #              f'right distance {right_lane_distance} '
+        #              f'agent {self.agent_index}')
+
         # accel_magnitude = self.gforce * G_ACCEL
 
         # log.debug(f'jerk {round(jerk_magnitude)} accel {round(accel_magnitude)}')
 
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
+
 
         if collided:
             # TODO: Increase this!
@@ -668,6 +685,7 @@ class Agent:
            - steer_penalty
            - accel_penalty
            - jerk_penalty
+           - lane_penalty
         )
 
         # IDEA: Induce curriculum by zeroing things like static obstacle
@@ -722,7 +740,7 @@ class Agent:
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
         elif self.is_intersection_map:
-            angles_ahead, left_lane_distance, right_lane_distance = \
+            angles_ahead, left_lane_distance, right_lane_distance, = \
                 self.get_intersection_observation(half_lane_width,
                                                   left_lane_distance,
                                                   right_lane_distance)
@@ -753,30 +771,42 @@ class Agent:
             right_lane_distance=right_lane_distance,
         )
 
-        return closest_waypoint_distance, observation, closest_map_point
+        return (closest_waypoint_distance, observation, closest_map_point,
+                left_lane_distance, right_lane_distance)
+
 
     def get_intersection_observation(self, half_lane_width, left_distance,
                                      right_distance):
+        # TODO: Move other agent info here!
         a2w = self.get_angle_to_point
         wi = self.next_map_index
         mp = self.map
         angles_ahead = [a2w(p) for p in mp.waypoints[wi:wi+2]]
-
-        if self.front_y < mp.waypoints[0][1]:
-            # Before entering intersection
+        if self.agent_index == 0:
+            # left turn agent
+            if self.front_y < mp.waypoints[1][1]:
+                # Before entering intersection
+                x = mp.waypoints[0][0]
+                left_x = x - half_lane_width
+                right_x = x + half_lane_width
+                left_distance = min(self.ego_rect.T[0]) - left_x
+                right_distance = right_x - max(self.ego_rect.T[0])
+            else:
+                if self.front_x < mp.waypoints[2][0]:
+                    # Exiting intersection
+                    y = mp.waypoints[2][1]
+                    bottom_y = y - half_lane_width
+                    top_y = y + half_lane_width
+                    left_distance = min(self.ego_rect.T[1]) - bottom_y
+                    right_distance = top_y - max(self.ego_rect.T[1])
+        else:
+            # Straight agent
             x = mp.waypoints[0][0]
             left_x = x - half_lane_width
             right_x = x + half_lane_width
-            left_distance = min(self.ego_rect.T[0]) - left_x
-            right_distance = right_x - max(self.ego_rect.T[0])
-        else:
-            if self.front_x < mp.waypoints[1][0]:
-                # Exiting intersection
-                y = mp.waypoints[1][1]
-                bottom_y = y - half_lane_width
-                top_y = y + half_lane_width
-                left_distance = min(self.ego_rect.T[1]) - bottom_y
-                right_distance = top_y - max(self.ego_rect.T[1])
+            right_distance = min(self.ego_rect.T[0]) - left_x
+            left_distance = right_x - max(self.ego_rect.T[0])
+
         return angles_ahead, left_distance, right_distance
 
     def get_angles_ahead(self, closest_map_index):

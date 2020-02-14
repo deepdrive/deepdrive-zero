@@ -37,7 +37,8 @@ class Deepdrive2DEnv(gym.Env):
                  incent_win=False,
                  gamma=0.99,
                  add_static_obstacle=False,
-                 disable_gforce_penalty=False,):
+                 disable_gforce_penalty=False,
+                 forbid_deceleration=True):
 
         log.info(f'{sys.executable} {sys.argv}')
 
