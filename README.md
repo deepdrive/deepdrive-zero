@@ -16,7 +16,7 @@ Install our fork of [spinning up](https://github.com/crizCraig/spinningup)
 
 ```
 git clone https://github.com/deepdrive/deepdrive-2d
-pip install -r requirements.txt
+pip install -e .
 ```
 
 #### Play
