@@ -652,15 +652,8 @@ class Agent:
         jerk_magnitude = np.linalg.norm(self.jerk)
         jerk_penalty = 10 * jerk_magnitude
 
-        lane_penalty = 0
-        if left_lane_distance < 0:
-            lane_penalty += abs(left_lane_distance)
-
-        if right_lane_distance < 0:
-            # yes both can happen if you're orthogonal to the lane
-            lane_penalty += abs(right_lane_distance)
-
-
+        lane_penalty = self.get_lane_penalty(left_lane_distance,
+                                             right_lane_distance)
 
         # if self.agent_index == 1:
         #     log.info(f'left distance {left_lane_distance} '
@@ -674,12 +667,7 @@ class Agent:
         self.angle_accuracies.append(angle_accuracy)
         info.stats.angle_accuracy = angle_accuracy
 
-
-        if collided:
-            # TODO: Increase this!
-            collision_penalty = pi
-        else:
-            collision_penalty = 0
+        collision_penalty = self.get_collision_penalty(collided)
 
         win_reward = self.get_win_reward(won)
         ret = (
@@ -711,6 +699,28 @@ class Agent:
 
         return ret, info
 
+    @staticmethod
+    def get_collision_penalty(collided):
+        if collided:
+            # TODO: Increase this!
+            collision_penalty = pi
+        else:
+            collision_penalty = 0
+
+        collision_penalty *= 10
+
+        return collision_penalty
+
+    @staticmethod
+    def get_lane_penalty(left_lane_distance, right_lane_distance):
+        lane_penalty = 0
+        if left_lane_distance < 0:
+            lane_penalty += abs(left_lane_distance)
+        if right_lane_distance < 0:
+            # yes both can happen if you're orthogonal to the lane
+            lane_penalty += abs(right_lane_distance)
+        lane_penalty *= 2
+        return lane_penalty
 
     def get_win_reward(self, won):
         win_reward = 0

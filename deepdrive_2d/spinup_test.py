@@ -17,7 +17,7 @@ if TEST_STATIC_OBSTACLE:
     env = gym.make('deepdrive-2d-static-obstacle-no-g-pen-v0')
 else:
     _, get_action = load_policy(
-        '/home/c2/src/spinningup/data/dd2d-ppo-intersection-g-lane-decel-snapshot/dd2d-ppo-intersection-g-lane-decel_s0',
+        '/home/c2/src/spinningup/data/dd2d-ppo-intersection-g-lane-decel-fine-tune/dd2d-ppo-intersection-g-lane-decel-fine-tune_s0',
         use_model_only=False, deterministic=True)
     # env = gym.make('deepdrive-2d-intersection-v0')
     env = gym.make('deepdrive-2d-intersection-w-gs-allow-decel-v0')
