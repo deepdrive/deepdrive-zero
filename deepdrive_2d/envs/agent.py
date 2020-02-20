@@ -654,8 +654,13 @@ class Agent:
         info.stats.jerk = jerk_magnitude
         jerk_penalty = 10 * jerk_magnitude
 
-        lane_penalty = self.get_lane_penalty(left_lane_distance,
-                                             right_lane_distance)
+        lane_penalty = 0
+        if left_lane_distance < 0:
+            lane_penalty += abs(left_lane_distance)
+        if right_lane_distance < 0:
+            # yes both can happen if you're orthogonal to the lane
+            lane_penalty += abs(right_lane_distance)
+        lane_penalty *= 2
 
         # if self.agent_index == 1:
         #     log.info(f'left distance {left_lane_distance} '
