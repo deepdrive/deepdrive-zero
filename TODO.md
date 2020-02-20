@@ -1,11 +1,18 @@
-Rename to deepdrive-0, deepdrive-zero? - We will want to add 3D eventually, but the main advantage of this env is that it doesn't depend on Unreal or require Linux / GPUs - with all the physics in numba/python making it accessible, fast, and tailor made for the self-driving problem. The Unreal based sim will be the ultimate test for agents trained here, but is likely too heavyweight for fast iteration and scaled up training.
+Save model when new max episode return avg or max, horizon return avg or max, 
+or trip completion max achieved on epoch
 
-Create multi-agent unprotected left, 2 agents A and B, A is turning left B is coming towards A in opposing lane
- - First waypoint for agent A will be inside intersection, second will be after left
- - Waypoint for agent B will be past intersection going straight
- - A must yield to B if time to collision under threshold
- - Lane boundaries? Eventually we will need lane widths for waypoints and start positions. If we avoid this now, agent may do something crazy. We could import some map. We could put static obstacles on edges of lanes, but that doesn't work for intersection.
- 
+Fix mpi training - somehow agent performance is much worse when num_cpu > 1. 
+Could be due to my multi-agent setup somehow being flawed, a problem in the
+original spinningup, or something else. Also just try num_cpu=1 to see
+if the backgrounding somehow hurts things. It's also obvious they didn't
+try num_cpu with tensorflow as they don't limit the GPU memory tensorflow takes
+and setting num_cpu=2 will crash immediately.
+
+We need to take many agents actions as input into the env, instead of 
+just one. Especially, we need to compute physics for each agent more 
+concurrently than we do now. Ideally, it would be a parallel numba calc
+that computed all agents positions at once. Collisions could then be computed
+at the physics tic rate (currently 60fps) during every physics loop step.
 
 Make sure we can take drastic action to avoid collision even with action/gforce penalties
 
