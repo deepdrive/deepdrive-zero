@@ -650,6 +650,7 @@ class Agent:
             gforce_penalty = pi * self.gforce  # G-force penalty
 
         jerk_magnitude = np.linalg.norm(self.jerk)
+        info.stats.jerk = jerk_magnitude
         jerk_penalty = 10 * jerk_magnitude
 
         lane_penalty = self.get_lane_penalty(left_lane_distance,
