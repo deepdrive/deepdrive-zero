@@ -627,7 +627,8 @@ class Agent:
 
 
         frame_distance = self.distance - self.prev_distance
-        speed_reward = frame_distance * 16 * pi
+        speed_reward_mult = float(os.environ.get('SPEED_REWARD_MULT', 16))
+        speed_reward = frame_distance * speed_reward_mult * pi
 
         # log.info(speed_reward)
 
