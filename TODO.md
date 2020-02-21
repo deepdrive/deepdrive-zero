@@ -1,5 +1,9 @@
+Create random spawn positions for intersection env
+
 Save model when new max episode return avg or max, horizon return avg or max, 
 or trip completion max achieved on epoch
+
+Add left-yield road rule reward
 
 Fix mpi training - somehow agent performance is much worse when num_cpu > 1. 
 Could be due to my multi-agent setup somehow being flawed, a problem in the
