@@ -6,6 +6,7 @@
 #   Figure out how to deal with end of episode for one actor, could just end for everybody!
 import math
 import os
+import random
 import sys
 from collections import deque
 import time
@@ -59,7 +60,7 @@ class Agent:
         self.env = env
         self.agent_index = agent_index
         self.match_angle_only = match_angle_only
-        self.static_map = static_map  # For old waypoint per meter map
+        self.static_map = static_map
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
         self.expect_normalized_actions: bool = env.expect_normalized_actions
@@ -1066,13 +1067,13 @@ class Agent:
         # Get waypoints
         wps = []
         if self.agent_index == 0:
-            wps.append((27.0770290995851, 5.719717783033244))
+            wps.append((27.0770290995851, random.uniform(6, 18)))
             wps.append((mid_vert[0][0] + lane_width / 2, bottom_horiz[0][1]))
             wps.append((left_vert[0][0], mid_horiz[0][1] + lane_width / 2))
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
-            wps.append((mid_vert[0][0] - lane_width / 2, 46.625536615404805))
-            wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
+            wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+            # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
             wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
         else:
             raise NotImplementedError('More than 2 agents not yet supported')
