@@ -1,9 +1,21 @@
-Create random spawn positions for intersection env
-
-Save model when new max episode return avg or max, horizon return avg or max, 
+Code complete: Save model when new max episode return avg or max, horizon return avg or max, 
 or trip completion max achieved on epoch
 
-Add left-yield road rule reward
+Add left yield road rule reward (eventually need against-traffic-turn input 
+signal i.e. turn left for right-hand-traffic and turn right for 
+left-hand-traffic - )
+
+Do curriculum again
+    First no g penalty - no jerk penalty - just destination and collision.
+    Then add high g penalty + jerk penalty and perhaps reduce gamma to 0.9 (1 second lookahead) or 0.95 (2 second lookahead) 
+
+Also try lower lr and gamma
+
+Try LSTM / GTrXL
+
+
+
+Also try multi timescale net a la deep mind ctf 
 
 Fix mpi training - somehow agent performance is much worse when num_cpu > 1. 
 Could be due to my multi-agent setup somehow being flawed, a problem in the
