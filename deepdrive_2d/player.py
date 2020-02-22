@@ -142,12 +142,16 @@ class Deepdrive2DPlayer(arcade.Window):
                     line_width=5,
                 )
         elif self.is_intersection_map:
+            if agent.agent_index == 0:
+                wp_clr = (10, 210, 50)
+            else:
+                wp_clr = (250, 140, 20)
             for i in range(len(m.waypoints)):
                 arcade.draw_circle_filled(
                     center_x=m.x_pixels[i],
                     center_y=m.y_pixels[i],
                     radius=21,
-                    color=color.ORANGE)
+                    color=wp_clr)
         else:
             # Draw the background texture
             bg_scale = 1.1
