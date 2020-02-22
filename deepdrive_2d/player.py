@@ -369,8 +369,10 @@ class Deepdrive2DPlayer(arcade.Window):
                     accel = random()
                     brake = 0
 
+                # Prev obs for next agent!
                 obz, reward, done, info = env.step([steer, accel, brake])
-                if done:
+
+                if agent.done:
                     agent.reset()
 
             # log.debug(f'Deviation: '
