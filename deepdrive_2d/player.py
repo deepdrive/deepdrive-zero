@@ -318,7 +318,7 @@ class Deepdrive2DPlayer(arcade.Window):
         line = line * self.px_per_m
         arcade.draw_line(
             line[0][0], line[0][1], line[1][0], line[1][1],
-            color=color.GREEN,
+            color=(100, 200, 240),
             line_width=2,
         )
 
