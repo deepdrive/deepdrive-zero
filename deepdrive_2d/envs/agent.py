@@ -31,6 +31,16 @@ from deepdrive_2d.utils import get_angles_ahead, get_angle, flatten_points, \
     np_rand
 
 
+def get_env_coeff(name: str, default: float):
+    ret = os.environ.get(name.upper(), None)
+    if ret:
+        log.info(f'Custom {name.lower()} {ret}')
+    else:
+        log.info(f'Default {name.lower()} {ret}')
+        ret = default
+    return float(ret)
+
+
 class Agent:
     def __init__(self,
                  env,
@@ -182,6 +192,18 @@ class Agent:
         self.collided_with: list = []
 
         self.done: bool = False
+
+        # Reward shaping
+        self.jerk_penalty_coeff = \
+            get_env_coeff('JERK_PENALTY_COEFF', default=10)
+        self.gforce_penalty_coeff = \
+            get_env_coeff('GFORCE_PENALTY_COEFF', default=pi)
+        self.lane_penalty_coeff = \
+            get_env_coeff('LANE_PENALTY_COEFF', default=2)
+        self.collision_penalty_coeff = \
+            get_env_coeff('COLLISION_PENALTY_COEFF', default=10*pi)
+        self.speed_reward_coeff = \
+            get_env_coeff('SPEED_REWARD_COEFF', default=16*pi)
 
         self.reset()
 
@@ -624,13 +646,8 @@ class Agent:
         # TODO: Fix incentive to drive towards waypoint instead of edge of
         #   static obstacle. Perhaps just remove this reward altogether
         #   in favor of end of episode reward.
-
-
         frame_distance = self.distance - self.prev_distance
-        speed_reward_mult = float(os.environ.get('SPEED_REWARD_MULT', 16))
-        speed_reward = frame_distance * speed_reward_mult * pi
-
-        # log.info(speed_reward)
+        speed_reward = frame_distance * self.speed_reward_coeff
 
         # TODO: Idea penalize residuals of a quadratic regression fit to history
         #  of actions. Currently penalizing jerk instead which may or may not
@@ -648,11 +665,11 @@ class Agent:
         if not self.disable_gforce_penalty and self.gforce > 0.05:
             # Note that it's useful to give a low or no g-force penalty
             # at first, then to scale it up once waypoints are being reached.
-            gforce_penalty = pi * self.gforce  # G-force penalty
+            gforce_penalty = self.gforce_penalty_coeff * self.gforce
 
         jerk_magnitude = np.linalg.norm(self.jerk)
         info.stats.jerk = jerk_magnitude
-        jerk_penalty = 10 * jerk_magnitude
+        jerk_penalty = self.jerk_penalty_coeff * jerk_magnitude
 
         lane_penalty = 0
         if left_lane_distance < 0:
@@ -660,7 +677,7 @@ class Agent:
         if right_lane_distance < 0:
             # yes both can happen if you're orthogonal to the lane
             lane_penalty += abs(right_lane_distance)
-        lane_penalty *= 2
+        lane_penalty *= self.lane_penalty_coeff
 
         # if self.agent_index == 1:
         #     log.info(f'left distance {left_lane_distance} '
@@ -676,10 +693,9 @@ class Agent:
 
         if collided:
             # TODO: Make dependent on |Δv|
-            collision_penalty = pi
+            collision_penalty = self.collision_penalty_coeff
         else:
             collision_penalty = 0
-        collision_penalty *= 10
 
         win_reward = self.get_win_reward(won)
         ret = (
