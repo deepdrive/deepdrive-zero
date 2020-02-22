@@ -356,7 +356,7 @@ class Deepdrive2DPlayer(arcade.Window):
             # log.trace(f'dt2:{_delta_time}')
 
             if self.human_controlled:
-                if env.agent_index == 1:
+                if env.agent_index == 0:
                     steer = self.steer
                     accel = self.accel
                     brake = self.brake
