@@ -2,8 +2,9 @@ Code complete: Save model when new max episode return avg or max, horizon return
 or trip completion max achieved on epoch
 
 Add left yield road rule reward (eventually need against-traffic-turn input 
-signal i.e. turn left for right-hand-traffic and turn right for 
-left-hand-traffic - )
+to net i.e. turn left for right-hand-traffic and turn right for 
+left-hand-traffic - right now can be gleaned from other inputs like waypoint 
+angle)
 
 Do curriculum again
     First no g penalty - no jerk penalty - just destination and collision.
