@@ -202,15 +202,16 @@ class Agent:
         log.info(f'Agent {self.agent_index} reward weights '
                  f'--------------------')
         self.jerk_penalty_coeff = \
-            get_env_coeff('JERK_PENALTY_COEFF', default=10)
+            get_env_coeff('JERK_PENALTY_COEFF', default=0.10)
         self.gforce_penalty_coeff = \
-            get_env_coeff('GFORCE_PENALTY_COEFF', default=pi)
+            get_env_coeff('GFORCE_PENALTY_COEFF', default=0.031)
         self.lane_penalty_coeff = \
-            get_env_coeff('LANE_PENALTY_COEFF', default=2)
+            get_env_coeff('LANE_PENALTY_COEFF', default=0.02)
         self.collision_penalty_coeff = \
-            get_env_coeff('COLLISION_PENALTY_COEFF', default=10*pi)
+            get_env_coeff('COLLISION_PENALTY_COEFF', default=0.31)
         self.speed_reward_coeff = \
-            get_env_coeff('SPEED_REWARD_COEFF', default=16*pi)
+            get_env_coeff('SPEED_REWARD_COEFF', default=0.50)
+        log.info('\n')
 
         self.reset()
 

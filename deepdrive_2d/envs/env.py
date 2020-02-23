@@ -136,6 +136,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self.reset()
         self.setup_spaces()
+        self.logger = log
 
     def setup_spaces(self):
         # Action space: ----
