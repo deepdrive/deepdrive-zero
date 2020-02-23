@@ -33,12 +33,16 @@ from deepdrive_2d.utils import get_angles_ahead, get_angle, flatten_points, \
 
 
 def get_env_coeff(name: str, default: float):
-    ret = os.environ.get(name.upper(), None)
-    if ret:
-        log.info(f'Custom {name.lower()} {ret}')
+    env_str = os.environ.get(name.upper(), None)
+    if env_str:
+        name_col = f'Custom {name.lower()}'
+        ret = env_str
     else:
-        log.info(f'Default {name.lower()} {ret}')
+        name_col = f'Default {name.lower()}'
         ret = default
+    name_col_len = 35
+    padding = ' ' * (name_col_len - len(name_col))
+    log.info(f'{name_col}{padding}{ret}')
     return float(ret)
 
 
@@ -195,6 +199,8 @@ class Agent:
         self.done: bool = False
 
         # Reward shaping
+        log.info(f'Agent {self.agent_index} reward weights '
+                 f'--------------------')
         self.jerk_penalty_coeff = \
             get_env_coeff('JERK_PENALTY_COEFF', default=10)
         self.gforce_penalty_coeff = \
