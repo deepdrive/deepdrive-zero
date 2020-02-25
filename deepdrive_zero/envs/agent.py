@@ -605,7 +605,7 @@ class Agent:
             log.warning(f'Collision, game over agent {self.agent_index}')
             done = True
             lost = True
-        elif self.gforce_levels.harmful:
+        elif self.gforce > 1.0 and self.end_on_harmful_gs:
             # Only end on g-force once we've learned to complete part of the trip.
             log.warning(f'Harmful g-forces, game over agent {self.agent_index}')
             done = True
