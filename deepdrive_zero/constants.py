@@ -39,3 +39,4 @@ G_ACCEL = 9.80665
 CONTINUOUS_REWARD = True
 GAME_OVER_PENALTY = -1
 IS_DEBUG_MODE = getattr(sys, 'gettrace', None)
+CACHE_NUMBA = True

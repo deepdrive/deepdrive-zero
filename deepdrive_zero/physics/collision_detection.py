@@ -12,7 +12,7 @@ pi = np.pi
 # TODO: Implement broad phase sweep and prune when you have more than 2 objects
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def lines_intersect(a1, a2, b1, b2):
     p = get_intersect(a1, a2, b1, b2)
     if p is not None:
@@ -21,18 +21,18 @@ def lines_intersect(a1, a2, b1, b2):
     return False
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def distance(x, y):
     return np.sqrt(np.sum((x - y) ** 2))
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def is_between(start, mid, end):
     diff = abs(distance(start, mid) + distance(mid, end) - distance(start, end))
     return diff < 1e-4
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def get_intersect(a1, a2, b1, b2):
     """
     Returns the point of intersection of the lines passing through a2,a1 and b2,b1.
@@ -53,7 +53,7 @@ def get_intersect(a1, a2, b1, b2):
     return np.array([x / z, y / z])
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def get_lines_from_rect_points(rect_points: tuple):
     p = rect_points
     ret = ((tuple(p[0]), tuple(p[1])),
@@ -78,7 +78,7 @@ def check_collision_agents(agents: list):
     return collisions
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def check_collision_ego_obj(ego_rect: tuple, obj2: tuple):
     """
 
@@ -89,7 +89,7 @@ def check_collision_ego_obj(ego_rect: tuple, obj2: tuple):
     return check_collision(get_lines_from_rect_points(ego_rect), obj2)
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def check_collision(obj1: tuple, ob2: tuple):
     """
 
@@ -122,7 +122,7 @@ def get_rect(center_x, center_y, angle, width, height):
     return ego_rect, ego_rect_tuple
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def _get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
@@ -148,7 +148,7 @@ def _get_rect(center_x, center_y, angle, width, height):
     return ret
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def get_pair_indexes(length: int) -> List:
     indexes = list(range(length))
     ret = []

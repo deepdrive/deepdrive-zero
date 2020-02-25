@@ -40,7 +40,7 @@ def get_angles_ahead(ego_angle, closest_map_index, map_points,
     return angles
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def get_angle(vector1, vector2):
     """ Returns the angle in radians between given vectors"""
     v1_u = unit_vector(vector1)
