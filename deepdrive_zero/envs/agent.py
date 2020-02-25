@@ -733,16 +733,20 @@ class Agent:
         # train with the full complexity, then fine-tune to improve
         # smoothness.
 
-        # log.debug(
-        #     f'reward {ret} '
-        #     f'speed {speed_reward} '
-        #     f'gforce {gforce_penalty} '
-        #     f'jerk {jerk_penalty} '
-        #     f'win {win_reward} '
-        #     f'collision {collision_penalty} '
-        #     f'steer {steer_penalty} '
-        #     f'accel {accel_penalty} '
-        # )
+        # if self.agent_index == 0:
+        #     log.debug(
+        #         f'reward {ret} '
+        #         f'next waypoint {self.next_map_index} '
+        #         f'distance {self.distance} '
+        #         f'speed {speed_reward} '
+        #         f'gforce {gforce_penalty} '
+        #         f'jerk {jerk_penalty} '
+        #         f'lane {lane_penalty} '
+        #         f'win {win_reward} '
+        #         f'collision {collision_penalty} '
+        #         f'steer {steer_penalty} '
+        #         f'accel {accel_penalty} '
+        #     )
 
         return ret, info
 
