@@ -204,7 +204,7 @@ class Agent:
         self.done: bool = False
 
         # Reward shaping
-        log.info(f'Agent {self.agent_index} reward weights '
+        log.info(f'Agent {self.agent_index} reward shape '
                  f'--------------------')
         self.jerk_penalty_coeff = \
             get_env_config('JERK_PENALTY_COEFF', default=0.10)
@@ -215,7 +215,9 @@ class Agent:
         self.collision_penalty_coeff = \
             get_env_config('COLLISION_PENALTY_COEFF', default=0.31)
         self.speed_reward_coeff = \
-            get_env_coeff('SPEED_REWARD_COEFF', default=0.50)
+            get_env_config('SPEED_REWARD_COEFF', default=0.50)
+        self.end_on_harmful_gs = \
+            bool(get_env_config('END_ON_HARMFUL_GS', default=True))
         log.info('\n')
 
         self.reset()
