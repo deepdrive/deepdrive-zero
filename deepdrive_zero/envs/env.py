@@ -9,13 +9,13 @@ from gym import spaces
 
 import pyglet
 
-from deepdrive_2d.envs.agent import Agent
-from deepdrive_2d.physics.collision_detection import check_collision_ego_obj,\
+from deepdrive_zero.envs.agent import Agent
+from deepdrive_zero.physics.collision_detection import check_collision_ego_obj,\
     check_collision_agents
-from deepdrive_2d.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
+from deepdrive_zero.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY
-from deepdrive_2d.logs import log
+from deepdrive_zero.logs import log
 
 
 class Deepdrive2DEnv(gym.Env):
@@ -153,7 +153,7 @@ class Deepdrive2DEnv(gym.Env):
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(len(blank_obz),))
 
     def _enable_render(self):
-        from deepdrive_2d import player
+        from deepdrive_zero import player
         self.player = player.start(
             env=self,
             fps=self.fps)

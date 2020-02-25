@@ -1,4 +1,4 @@
-from deepdrive_2d.envs import Deepdrive2DEnv
+from deepdrive_zero.envs import Deepdrive2DEnv
 
 
 class OneWaypointEnv(Deepdrive2DEnv):

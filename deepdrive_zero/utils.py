@@ -3,7 +3,10 @@ from math import pi
 from loguru import logger as log
 from numba import njit
 
-@njit(cache=True, nogil=True)
+from deepdrive_zero.constants import CACHE_NUMBA
+
+
+@njit(cache=CACHE_NUMBA, nogil=True)
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)

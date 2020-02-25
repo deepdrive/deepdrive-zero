@@ -86,7 +86,7 @@ Pytorch SAC does best when auto entropy tuning is on (which spinning up does not
 * Aside: training steps per second is ~20 or 1.629e6 steps in 22 hours.
 * Env steps per second is 2557: 
     ```
-    import deepdrive_2d
+    import deepdrive_zero
     env = gym.make('deepdrive-2d-v0')
     env.reset()
     %time env.step([0.01, 1, 0])
@@ -116,7 +116,7 @@ Pytorch SAC does best when auto entropy tuning is on (which spinning up does not
 
 * Surprisingly, modifying the above experiment to penalize gforce in addition to rewarding angle results in worse angle and gforce performance. Since accel is constant, the network needs to figure out how to provide small corrections to the steering in order to reduce the angle_ahead to the waypoint vs making large corrections and thus large g-force. I only provide angle_ahead as input, but I think that should be enough as reward is based on gforce and angle ahead, and the action (steer) determines those. After looking at the training history, it looks like there *might* be several periods where we converge to an acceptable policy that we could save the network and test with. Next I will do this and also provide prev_steer as input, as changing this too much is what results in large g-forces.
 
-* !!!!!!!!!!!!!!!!!!!!!!!!!! Okay, so using PPO fixed everything for the single waypoint, match angle environment. G-force is perfect, steering is perfect. Also, training at 10FPS and testing at 60FPS works perfectly. AND you can change the waypoint distance from what was trained and go 10x further. This probably works because only the angle to destination and previous steer are input to 32x32 NN. https://github.com/deepdrive/deepdrive-2d/blob/abba502cb29de1b83749fd309424db9b52ad8a15/deepdrive_2d/envs/env.py#L182
+* !!!!!!!!!!!!!!!!!!!!!!!!!! Okay, so using PPO fixed everything for the single waypoint, match angle environment. G-force is perfect, steering is perfect. Also, training at 10FPS and testing at 60FPS works perfectly. AND you can change the waypoint distance from what was trained and go 10x further. This probably works because only the angle to destination and previous steer are input to 32x32 NN. https://github.com/deepdrive/deepdrive-2d/blob/abba502cb29de1b83749fd309424db9b52ad8a15/deepdrive_zero/envs/env.py#L182
 
 * Next step here is to add accel to output. In the previous successful experiment, accel was hardcoded at a low acceptable value for g-force. Now we'll just allow NN to control accel.
 

@@ -9,12 +9,12 @@
       <env name="DISABLE_GAME_OVER" value="1" />
     </envs>
     <option name="SDK_HOME" value="" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/deepdrive_2d" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/deepdrive_zero" />
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deepdrive_2d/player.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deepdrive_zero/player.py" />
     <option name="PARAMETERS" value="--one-waypoint-map --no-timeout --static-obstacle --rotational-friction --longitudinal-friction" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

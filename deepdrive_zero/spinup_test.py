@@ -1,8 +1,10 @@
+import os
+
 from spinup.utils.test_policy import load_policy, run_policy
 
 # Register custom envs
 import gym_match_input_continuous
-import deepdrive_2d
+import deepdrive_zero
 import gym
 
 TEST_STATIC_OBSTACLE = False

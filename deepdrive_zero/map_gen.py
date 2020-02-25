@@ -5,7 +5,7 @@ import numpy as np
 from loguru import logger as log
 from scipy.interpolate import interp1d
 
-from deepdrive_2d.constants import PX_PER_M, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
+from deepdrive_zero.constants import PX_PER_M, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, MAP_IMAGE
 
 GAP_M = 1

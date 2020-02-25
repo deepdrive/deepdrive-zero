@@ -11,14 +11,14 @@ from loguru import logger as log
 
 import arcade
 import arcade.color as color
-from deepdrive_2d.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
+from deepdrive_zero.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
     MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
     SCREEN_TITLE, \
     CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
     USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
 # Constants
-from deepdrive_2d.envs.env import Deepdrive2DEnv
-from deepdrive_2d.map_gen import get_intersection
+from deepdrive_zero.envs.env import Deepdrive2DEnv
+from deepdrive_zero.map_gen import get_intersection
 
 DRAW_COLLISION_BOXES = True
 DRAW_WAYPOINT_VECTORS = False

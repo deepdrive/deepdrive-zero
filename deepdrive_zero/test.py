@@ -2,17 +2,17 @@ import os
 import pkgutil
 import sys
 
-from deepdrive_2d.logs import log
-import deepdrive_2d.physics.collision_detection
-import deepdrive_2d.physics.bike_model
-import deepdrive_2d.envs.env
-import deepdrive_2d.utils
+from deepdrive_zero.logs import log
+import deepdrive_zero.physics.collision_detection
+import deepdrive_zero.physics.bike_model
+import deepdrive_zero.envs.env
+import deepdrive_zero.utils
 
 MODULES_TO_TEST = [
-    deepdrive_2d.physics.collision_detection,
-    deepdrive_2d.physics.bike_model,
-    deepdrive_2d.envs.env,
-    deepdrive_2d.utils,
+    deepdrive_zero.physics.collision_detection,
+    deepdrive_zero.physics.bike_model,
+    deepdrive_zero.envs.env,
+    deepdrive_zero.utils,
 ]
 
 

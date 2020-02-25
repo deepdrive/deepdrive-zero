@@ -18,18 +18,19 @@ from scipy import spatial
 import numpy as np
 from box import Box
 
-from deepdrive_2d.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
+from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
     MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX
-from deepdrive_2d.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
-from deepdrive_2d.experience_buffer import ExperienceBuffer
-from deepdrive_2d.logs import log
-from deepdrive_2d.map_gen import get_intersection
-from deepdrive_2d.physics.bike_model import bike_with_friction_step, \
+from deepdrive_zero.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
+from deepdrive_zero.experience_buffer import ExperienceBuffer
+from deepdrive_zero.logs import log
+from deepdrive_zero.map_gen import get_intersection
+from deepdrive_zero.physics.bike_model import bike_with_friction_step, \
     get_vehicle_model
-from deepdrive_2d.physics.collision_detection import get_rect, \
+from deepdrive_zero.physics.collision_detection import get_rect, \
     get_lines_from_rect_points
-from deepdrive_2d.utils import get_angles_ahead, get_angle, flatten_points, \
-    np_rand
+from deepdrive_zero.physics.tick import physics_tick
+from deepdrive_zero.utils import get_angles_ahead, get_angle, flatten_points, \
+    np_rand, is_number
 
 
 def get_env_config(name: str, default: float):

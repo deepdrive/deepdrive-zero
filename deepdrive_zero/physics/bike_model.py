@@ -3,7 +3,7 @@ from math import pi, cos, sin
 import numpy as np
 from numba import njit
 
-from deepdrive_2d.constants import USE_VOYAGE, VEHICLE_WIDTH
+from deepdrive_zero.constants import USE_VOYAGE, VEHICLE_WIDTH, CACHE_NUMBA
 
 
 @njit(cache=CACHE_NUMBA, nogil=True)
