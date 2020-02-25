@@ -1102,7 +1102,7 @@ class Agent:
             curr_angular_velocity, curr_gforce, curr_max_gforce,
             curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
             prev_brake, prev_steer, steer, vehicle_model, ignore_brake)
-        log.debug(f'step took {time.time() - start}s')
+        # log.debug(f'step took {time.time() - start}s')
 
         self.prev_steer = i_steer
         self.prev_accel = i_accel
