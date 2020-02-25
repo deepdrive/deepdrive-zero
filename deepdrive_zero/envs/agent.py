@@ -317,12 +317,23 @@ class Agent:
         theta = pi / 2 + self.angle
         return self.x + cos(theta) * self.vehicle_height / 2
 
-
     @property
     def front_y(self):
         """Front middle y position of ego"""
         theta = pi / 2 + self.angle
         return self.y + sin(theta) * self.vehicle_height / 2
+
+    @property
+    def back_x(self):
+        """Front middle x position of ego"""
+        theta = pi / 2 + self.angle
+        return self.x - cos(theta) * self.vehicle_height / 2
+
+    @property
+    def back_y(self):
+        """Front middle y position of ego"""
+        theta = pi / 2 + self.angle
+        return self.y - sin(theta) * self.vehicle_height / 2
 
     @property
     def front_pos(self):
