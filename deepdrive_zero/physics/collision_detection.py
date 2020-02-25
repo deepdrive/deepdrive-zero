@@ -6,6 +6,9 @@ from typing import Type, Union, List, Tuple
 
 import numpy as np
 from numba import njit
+
+from deepdrive_zero.constants import CACHE_NUMBA
+
 pi = np.pi
 
 

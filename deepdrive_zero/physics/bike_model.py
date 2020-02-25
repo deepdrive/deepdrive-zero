@@ -6,7 +6,7 @@ from numba import njit
 from deepdrive_2d.constants import USE_VOYAGE, VEHICLE_WIDTH
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def bike_with_friction_step(
         steer, accel, brake, dt,
         x, y, angle, angle_change, speed, add_rotational_friction,
@@ -63,7 +63,7 @@ def bike_with_friction_step(
     return x, y, angle, angle_change, speed
 
 
-@njit(cache=True, nogil=True)
+@njit(cache=CACHE_NUMBA, nogil=True)
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
     process model

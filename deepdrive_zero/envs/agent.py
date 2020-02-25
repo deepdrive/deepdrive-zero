@@ -261,9 +261,10 @@ class Agent:
         else:
             collided = bool(self.collided_with)
 
-            lane_deviation, observation, closest_map_point, left_lane_distance,\
-                right_lane_distance = \
-                self.get_observation(steer, accel, brake, dt, info)
+            obs_data = self.get_observation(steer, accel, brake, dt, info)
+            (lane_deviation, observation, closest_map_point,
+             left_lane_distance, right_lane_distance) = obs_data
+
             done, won, lost = self.get_done(closest_map_point, lane_deviation,
                                             collided)
             reward, info = self.get_reward(
@@ -306,9 +307,6 @@ class Agent:
                       f'Ep# {self.num_episodes}')
 
         self.total_steps += 1
-        self.prev_steer = steer
-        self.prev_accel = accel
-        self.prev_brake = brake
 
         self.set_calculated_props()
 
@@ -951,51 +949,6 @@ class Agent:
             # Init prev distance
             self.prev_distance = self.distance
 
-
-    def get_gforce_levels(self, dt, prev_angle, prev_x, prev_y, info):
-        # TODO: Numba this
-        lvls = self.gforce_levels
-        self.total_episode_time += dt
-        self.env.total_episode_time += dt
-        pos_change = np.array([prev_x - self.x, prev_y - self.y])
-        prev_velocity = self.velocity
-        self.velocity = pos_change / dt
-        acceleration = (self.velocity - prev_velocity) / dt
-        self.angular_velocity = (self.angle - prev_angle) / dt
-        accel_magnitude = np.linalg.norm(acceleration)
-        gforce = accel_magnitude / 9.807
-        if gforce > self.max_gforce:
-            log.trace(f'New max gforce {gforce}')
-        self.max_gforce = max(gforce, self.max_gforce)
-        info.stats.gforce = gforce
-        if gforce > 1:
-            lvls.harmful = True
-            info.stats.episode_gforce_level = 3
-            log.trace(f'Harmful gforce encountered {gforce} '
-                      f'speed: {self.speed}')
-        elif gforce > 0.4 and not lvls.harmful:
-            lvls.jarring = True
-            info.stats.episode_gforce_level = 2
-            log.trace(f'Jarring gforce encountered {gforce} '
-                        f'speed: {self.speed}')
-        elif gforce > 0.1 and not (lvls.harmful or lvls.jarring):
-            lvls.uncomfortable = True
-            info.stats.episode_gforce_level = 1
-            log.trace(f'Uncomfortable gforce encountered {gforce} '
-                      f'speed: {self.speed}')
-        elif not (lvls.harmful or lvls.jarring or lvls.uncomfortable):
-            info.stats.episode_gforce_level = 0
-
-        # self.prev_gforce.append(self.gforce)
-        self.jerk = acceleration - self.acceleration
-        self.acceleration = acceleration
-        self.gforce = gforce
-
-        # log.debug(f'accel {acceleration} prev {self.acceleration}')
-
-
-        return self.gforce
-
     def gen_map(self):
         # TODO: Move map to env.py. Right now the map is really just a couple
         #   of waypoints, so it's fine to duplicate it for each agent.
@@ -1115,59 +1068,63 @@ class Agent:
         intermediate positions between subsequent settings.
         """
 
-        if self.ignore_brake:
-            brake = False
-        if self.speed > 100:
-            log.warning('Cutting off throttle at speed > 100m/s')
-            accel = 0
-
-        # prev_x, prev_y, prev_angle, prev_angle_change = \
-        #     self.x, self.y, self.angle, self.angle_change
-
         n = self.env.physics_steps_per_observation
-        self.gforce_levels = self.blank_gforce_levels()
-        # TODO: Numba this
-        for i in range(n):
-            start = time.time()
-            interp = (i + 1) / n
-            i_steer = self.prev_steer + interp * (steer - self.prev_steer)
-            i_accel = self.prev_accel + interp * (accel - self.prev_accel)
-            if brake:
-                i_brake = self.prev_brake + interp * (float(brake) - self.prev_brake)
-            else:
-                i_brake = 0
-            # log.info(f'steer {steer} accel {accel} brake {brake} vel {self.velocity}')
-            prev_x, prev_y, prev_angle = self.x, self.y, self.angle
-            self.x, self.y, self.angle, self.angle_change, self.speed = \
-                bike_with_friction_step(
-                    steer=i_steer, accel=i_accel, brake=i_brake, dt=dt,
-                    x=self.x, y=self.y, angle=self.angle,
-                    angle_change=self.angle_change,
-                    speed=self.speed,
-                    add_rotational_friction=self.add_rotational_friction,
-                    add_longitudinal_friction=self.add_longitudinal_friction,
-                    vehicle_model=self.vehicle_model,)
-            self.check_for_nan(dt, i_steer, i_accel, i_brake, info)
+        curr_x = self.x
+        curr_y = self.y
+        curr_angle = self.angle
+        curr_angle_change = self.angle_change
+        curr_gforce = self.gforce
+        curr_max_gforce = self.max_gforce
+        curr_jerk = self.jerk
+        curr_acceleration = self.acceleration
+        curr_angular_velocity = self.angular_velocity
+        curr_speed = self.speed
+        curr_velocity = self.velocity
+        vehicle_model = self.vehicle_model
+        add_rotational_friction = self.add_rotational_friction
+        add_longitudinal_friction = self.add_longitudinal_friction
+        ignore_brake = self.ignore_brake
 
-            self.get_gforce_levels(dt, prev_angle, prev_x, prev_y, info)
+        prev_steer = self.prev_steer
+        prev_accel = self.prev_accel
+        prev_brake = self.prev_brake
+
+        start = time.time()
+        (curr_acceleration, curr_angle, curr_angle_change,
+         curr_angular_velocity, curr_gforce, curr_jerk, curr_max_gforce,
+         curr_speed, curr_x, curr_y, i_accel, i_brake,
+         i_steer) = physics_tick(
+            accel, add_longitudinal_friction, add_rotational_friction, brake,
+            curr_acceleration, curr_angle, curr_angle_change,
+            curr_angular_velocity, curr_gforce, curr_max_gforce,
+            curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
+            prev_brake, prev_steer, steer, vehicle_model, ignore_brake)
+        log.debug(f'step took {time.time() - start}s')
+
+        self.prev_steer = i_steer
+        self.prev_accel = i_accel
+        self.prev_brake = i_brake
+        self.x = curr_x
+        self.y = curr_y
+        self.angle = curr_angle
+        self.angle_change = curr_angle_change
+        self.speed = curr_speed
+        self.velocity = curr_velocity
+        self.gforce = curr_gforce
+        self.max_gforce = curr_max_gforce
+        self.jerk = curr_jerk
+        self.acceleration = curr_acceleration
+        self.angular_velocity = curr_angular_velocity
+
+        info.stats.gforce = self.gforce
+        self.total_episode_time += dt * n
+        self.env.total_episode_time += dt * n
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         self.episode_gforces.append(self.gforce)
 
-    def check_for_nan(self, dt, steer, accel, brake, info):
-        if self.x in [np.inf, -np.inf] or self.y in [np.inf, -np.inf]:
-            # Something has went awry in our bike model
-            log.error(f"""
-Position is infinity 
-self.x, self.y, self.angle, self.angle_change, self.speed
-{self.x, self.y, self.angle, self.angle_change, self.speed}
-
-steer, accel, brake, dt, info
-{steer, accel, brake, dt, info}
-""")
-            raise RuntimeError('Position is infinity')
 
 def get_closest_point(point, kd_tree):
     distance, index = kd_tree.query(point)
