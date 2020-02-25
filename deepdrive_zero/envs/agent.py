@@ -770,7 +770,7 @@ class Agent:
         self.step_physics(dt, steer, accel, brake, info)
 
         closest_map_point, closest_map_index, closest_waypoint_distance = \
-            get_closest_point((self.x, self.y), self.map_kd_tree)
+            get_closest_point((self.front_x, self.front_y), self.map_kd_tree)
 
         self.closest_waypoint_distance = closest_waypoint_distance
         self.closest_map_index = closest_map_index
