@@ -929,7 +929,7 @@ class Agent:
             # [wp2dist, 0] => after waypoint 1, before waypoint 2
             # Also, for multi-agent, we need the max number of waypoints for
             # all agents which is why self.env.agents must be set
-            max_waypoints = max(len(a.map.waypoints) for a in self.env.agents)
+            max_waypoints = max(len(a.map.waypoints) for a in self.env.agents)  # TODO: Avoid recalculating this - do it on last agent map gen or create env map gen
             waypoint_distances = np.zeros((max_waypoints - 1,))
             next_index = self.next_map_index
             for i in range(len(self.map.waypoints) - next_index):
