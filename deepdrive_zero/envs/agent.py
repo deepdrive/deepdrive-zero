@@ -837,8 +837,8 @@ class Agent:
                 left_distance = min(self.ego_rect.T[0]) - left_x
                 right_distance = right_x - max(self.ego_rect.T[0])
             else:
-                if self.front_x < mp.waypoints[2][0]:
-                    # Exiting intersection
+                if self.back_x < mp.waypoints[2][0]:
+                    # After exiting intersection
                     y = mp.waypoints[2][1]
                     bottom_y = y - half_lane_width
                     top_y = y + half_lane_width
