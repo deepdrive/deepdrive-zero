@@ -823,7 +823,7 @@ class Agent:
 
     def get_intersection_observation(self, half_lane_width, left_distance,
                                      right_distance):
-        # TODO: Move other agent info here!
+        # TODO: Move other agent observations (like distances) here
         a2w = self.get_angle_to_point
         wi = self.next_map_index
         mp = self.map
