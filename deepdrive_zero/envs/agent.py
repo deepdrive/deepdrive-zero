@@ -453,7 +453,7 @@ class Agent:
                     _angles_ahead = angles_ahead
                 done_input = 1 if self.done else 0
                 ret = [_angles_ahead[0], _angles_ahead[1],
-                       self.prev_steer, self.prev_accel,
+                       self.prev_steer, self.prev_accel, self.prev_brake,
                        self.speed, left_lane_distance, right_lane_distance,
                        done_input,]
                 if is_blank:
