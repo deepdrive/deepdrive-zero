@@ -18,9 +18,10 @@ if TEST_STATIC_OBSTACLE:
 
     env = gym.make('deepdrive-2d-static-obstacle-no-g-pen-v0')
 else:
-    _, get_action = load_policy(
-        '/home/c2/src/spinningup/data/dd2d-ppo-intersection-g-lane-decel-fine-tune/dd2d-ppo-intersection-g-lane-decel-fine-tune_s0',
-        use_model_only=False, deterministic=True)
+    p = '/home/c2/src/spinningup/data/deepdrive-2d-intersection-no-g-or-jerk-no-end-g-v0/deepdrive-2d-intersection-no-g-or-jerk-no-end-g-v0_s0_2020_02-24_15-07.18'
+    if 'no-end-g' in p:
+        os.environ['END_ON_HARMFUL_GS'] = '0'
+    _, get_action = load_policy(p, use_model_only=False, deterministic=True)
     # env = gym.make('deepdrive-2d-intersection-v0')
     env = gym.make('deepdrive-2d-intersection-w-gs-allow-decel-v0')
 
