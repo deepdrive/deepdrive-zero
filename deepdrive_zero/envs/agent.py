@@ -32,7 +32,7 @@ from deepdrive_2d.utils import get_angles_ahead, get_angle, flatten_points, \
     np_rand
 
 
-def get_env_coeff(name: str, default: float):
+def get_env_config(name: str, default: float):
     env_str = os.environ.get(name.upper(), None)
     if env_str:
         name_col = f'Custom {name.lower()}'
@@ -43,8 +43,12 @@ def get_env_coeff(name: str, default: float):
     name_col_len = 35
     padding = ' ' * (name_col_len - len(name_col))
     log.info(f'{name_col}{padding}{ret}')
-    return float(ret)
-
+    if is_number(ret):
+        return float(ret)
+    elif ret.lower() in ['true', 'false']:
+        return bool(ret)
+    else:
+        return ret
 
 class Agent:
     def __init__(self,
@@ -202,13 +206,13 @@ class Agent:
         log.info(f'Agent {self.agent_index} reward weights '
                  f'--------------------')
         self.jerk_penalty_coeff = \
-            get_env_coeff('JERK_PENALTY_COEFF', default=0.10)
+            get_env_config('JERK_PENALTY_COEFF', default=0.10)
         self.gforce_penalty_coeff = \
-            get_env_coeff('GFORCE_PENALTY_COEFF', default=0.031)
+            get_env_config('GFORCE_PENALTY_COEFF', default=0.031)
         self.lane_penalty_coeff = \
-            get_env_coeff('LANE_PENALTY_COEFF', default=0.02)
+            get_env_config('LANE_PENALTY_COEFF', default=0.02)
         self.collision_penalty_coeff = \
-            get_env_coeff('COLLISION_PENALTY_COEFF', default=0.31)
+            get_env_config('COLLISION_PENALTY_COEFF', default=0.31)
         self.speed_reward_coeff = \
             get_env_coeff('SPEED_REWARD_COEFF', default=0.50)
         log.info('\n')
