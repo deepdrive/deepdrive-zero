@@ -27,6 +27,11 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
         accel_change = max(-max_accel_change, accel_change)
         i_steer, i_accel, i_brake = 0, 0, 0
     for i in range(n):
+        """
+        Enforce real-world constraint that you can't teleport the gas pedal
+        or steering wheel between positions, rather you must visit the
+        intermediate positions between subsequent settings.
+        """
         interp = (i + 1) / n
         i_steer = prev_steer + interp * steer_change
         i_accel = prev_accel + interp * accel_change
