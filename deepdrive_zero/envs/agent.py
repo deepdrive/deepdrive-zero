@@ -1095,59 +1095,19 @@ class Agent:
         return x, y, lane_width, lines
 
     def step_physics(self, dt, steer, accel, brake, info):
-        """
-        Enforce real-world constraint that you can't teleport the gas pedal
-        or steering wheel between positions, rather you must visit the
-        intermediate positions between subsequent settings.
-        """
-
         n = self.env.physics_steps_per_observation
-        curr_x = self.x
-        curr_y = self.y
-        curr_angle = self.angle
-        curr_angle_change = self.angle_change
-        curr_gforce = self.gforce
-        curr_max_gforce = self.max_gforce
-        curr_jerk = self.jerk
-        curr_acceleration = self.acceleration
-        curr_angular_velocity = self.angular_velocity
-        curr_speed = self.speed
-        curr_velocity = self.velocity
-        vehicle_model = self.vehicle_model
-        add_rotational_friction = self.add_rotational_friction
-        add_longitudinal_friction = self.add_longitudinal_friction
-        ignore_brake = self.ignore_brake
-
-        prev_steer = self.prev_steer
-        prev_accel = self.prev_accel
-        prev_brake = self.prev_brake
-
         start = time.time()
-        (curr_acceleration, curr_angle, curr_angle_change,
-         curr_angular_velocity, curr_gforce, curr_jerk, curr_max_gforce,
-         curr_speed, curr_x, curr_y, i_accel, i_brake,
-         i_steer) = physics_tick(
-            accel, add_longitudinal_friction, add_rotational_friction, brake,
-            curr_acceleration, curr_angle, curr_angle_change,
-            curr_angular_velocity, curr_gforce, curr_max_gforce,
-            curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
-            prev_brake, prev_steer, steer, vehicle_model, ignore_brake)
+        (self.acceleration, self.angle, self.angle_change,
+         self.angular_velocity, self.gforce, self.jerk, self.max_gforce,
+         self.speed, self.x, self.y, self.prev_accel, self.prev_brake,
+         self.prev_steer, self.velocity) = physics_tick(
+            accel, self.add_longitudinal_friction, self.add_rotational_friction,
+            brake, self.acceleration, self.angle, self.angle_change,
+            self.angular_velocity, self.gforce, self.max_gforce,
+            self.speed, self.velocity, self.x, self.y, dt, n, self.prev_accel,
+            self.prev_brake, self.prev_steer, steer, self.vehicle_model,
+            self.ignore_brake, self.constrain_controls)
         # log.debug(f'step took {time.time() - start}s')
-
-        self.prev_steer = i_steer
-        self.prev_accel = i_accel
-        self.prev_brake = i_brake
-        self.x = curr_x
-        self.y = curr_y
-        self.angle = curr_angle
-        self.angle_change = curr_angle_change
-        self.speed = curr_speed
-        self.velocity = curr_velocity
-        self.gforce = curr_gforce
-        self.max_gforce = curr_max_gforce
-        self.jerk = curr_jerk
-        self.acceleration = curr_acceleration
-        self.angular_velocity = curr_angular_velocity
 
         info.stats.gforce = self.gforce
         self.total_episode_time += dt * n
