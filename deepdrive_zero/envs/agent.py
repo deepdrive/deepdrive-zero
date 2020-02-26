@@ -219,7 +219,8 @@ class Agent:
         self.end_on_harmful_gs = \
             bool(get_env_config('END_ON_HARMFUL_GS', default=True))
         log.info('\n')
-
+        self.constrain_controls = \
+            bool(get_env_config('CONSTRAIN_CONTROLS', default=True))
         self.reset()
 
     @log.catch

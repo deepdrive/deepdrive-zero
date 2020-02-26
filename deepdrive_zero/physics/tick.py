@@ -10,20 +10,22 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
                  brake, curr_acceleration, curr_angle, curr_angle_change,
                  curr_angular_velocity, curr_gforce, curr_max_gforce,
                  curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
-                 prev_brake, prev_steer, steer, vehicle_model, ignore_brake):
+                 prev_brake, prev_steer, steer, vehicle_model, ignore_brake,
+                 constrain_controls=True):
     if ignore_brake:
         brake = 0
     if curr_speed > 100:
         accel = 0
     steer_change = steer - prev_steer
     accel_change = accel - prev_accel
-    max_steer_change = 0.02  # TODO: Make this physically based
-    max_accel_change = 0.02  # TODO: Make this physically based
-    steer_change = min(max_steer_change, steer_change)
-    steer_change = max(-max_steer_change, steer_change)
-    accel_change = min(max_accel_change, accel_change)
-    accel_change = max(-max_accel_change, accel_change)
-    i_steer, i_accel, i_brake = 0, 0, 0
+    if constrain_controls:
+        max_steer_change = 0.02  # TODO: Make this physically based
+        max_accel_change = 0.02  # TODO: Make this physically based
+        steer_change = min(max_steer_change, steer_change)
+        steer_change = max(-max_steer_change, steer_change)
+        accel_change = min(max_accel_change, accel_change)
+        accel_change = max(-max_accel_change, accel_change)
+        i_steer, i_accel, i_brake = 0, 0, 0
     for i in range(n):
         interp = (i + 1) / n
         i_steer = prev_steer + interp * steer_change
