@@ -203,7 +203,10 @@ class Agent:
 
         self.done: bool = False
 
-        # Reward shaping
+        self.prev_desired_accel = 0
+        self.prev_desired_steer = 0
+        self.prev_desired_brake = 0
+
         log.info(f'Agent {self.agent_index} reward shape '
                  f'--------------------')
         self.jerk_penalty_coeff = \
@@ -235,6 +238,9 @@ class Agent:
             steer, accel, brake = action
 
         steer, accel, brake = self.denormalize_actions(steer, accel, brake)
+        self.prev_desired_steer = steer
+        self.prev_desired_accel = accel
+        self.prev_desired_brake = brake
 
         if 'STRAIGHT_TEST' in os.environ:
             steer = 0
@@ -476,6 +482,8 @@ class Agent:
                        self.prev_steer, self.prev_accel,
                        self.prev_brake,
                        self.speed, left_lane_distance, right_lane_distance,
+                       self.prev_desired_steer,
+                       self.prev_desired_accel,
                        done_input,]
                 if is_blank:
                     self.set_distance()
