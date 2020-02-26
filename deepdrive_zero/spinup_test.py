@@ -18,9 +18,11 @@ if TEST_STATIC_OBSTACLE:
 
     env = gym.make('deepdrive-2d-static-obstacle-no-g-pen-v0')
 else:
-    p = '/home/c2/src/spinningup/data/deepdrive-2d-intersection-no-g-or-jerk-no-end-g-v0/deepdrive-2d-intersection-no-g-or-jerk-no-end-g-v0_s0_2020_02-24_15-07.18'
-    if 'no-end-g' in p:
+    p = '/home/c2/src/spinningup/data/dd0-no-contraint-g-fine-tune-w-constraint-v0/dd0-no-contraint-g-fine-tune-w-constraint-v0_s0_2020_02-25_12-37.15/best_EpRet/2020_02-25_16-08.24'
+    if 'no-end-g' in p or 'no-contraint-g' in p or 'no-g' in p:
         os.environ['END_ON_HARMFUL_GS'] = '0'
+    if 'no-contraint' in p and 'w-constraint' not in p:
+        os.environ['CONSTRAIN_CONTROLS'] = '0'
     _, get_action = load_policy(p, use_model_only=False, deterministic=True)
     # env = gym.make('deepdrive-2d-intersection-v0')
     env = gym.make('deepdrive-2d-intersection-w-gs-allow-decel-v0')
