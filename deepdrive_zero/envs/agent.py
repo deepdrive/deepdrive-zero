@@ -844,6 +844,7 @@ class Agent:
                 left_lane_distance, right_lane_distance)
 
 
+    # TOOD: Numba this
     def get_intersection_observation(self, half_lane_width, left_distance,
                                      right_distance):
         # TODO: Move other agent observations (like distances) here
