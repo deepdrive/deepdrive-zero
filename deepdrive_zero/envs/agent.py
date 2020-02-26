@@ -427,6 +427,28 @@ class Agent:
                 left_lane_distance=left_lane_distance,
                 right_lane_distance=right_lane_distance)
 
+        done_input = 1 if self.done else 0
+        if self.is_intersection_map:
+            other_agent_inputs = self.get_other_agent_inputs(is_blank)
+            if len(angles_ahead) == 1:
+                intersection_angles_ahead = [angles_ahead[0], angles_ahead[0]]
+            else:
+                intersection_angles_ahead = angles_ahead
+            # if self.agent_index == 0:
+                # log.debug(
+                #     f'angles ahead {intersection_angles_ahead}\n'
+                    # f'prev_steer {self.prev_steer}\n'
+                    # f'prev_accel {self.prev_accel}\n'
+                    # f'speed {self.speed}\n'
+                    # f'left {left_lane_distance}\n'
+                    # f'right {right_lane_distance}\n'
+                    # f'done {done_input}\n'
+                    # f'waypoint_distances {self.waypoint_distances}\n'
+                    # f'velocity {self.velocity}\n'
+                    # f'acceleration {self.acceleration}\n'
+                    # f'agents {other_agent_inputs}\n'
+                # )
+
         if self.env.return_observation_as_array:
             # TODO: Remove multi-waypoint stuff as all driving can be
             #  simplified to reaching single waypoint with desired speed and
@@ -450,13 +472,9 @@ class Agent:
                     else:
                         return np.array(ret)
             elif self.is_intersection_map:
-                if len(angles_ahead) == 1:
-                    _angles_ahead = [angles_ahead[0], angles_ahead[0]]
-                else:
-                    _angles_ahead = angles_ahead
-                done_input = 1 if self.done else 0
-                ret = [_angles_ahead[0], _angles_ahead[1],
-                       self.prev_steer, self.prev_accel, self.prev_brake,
+                ret = [intersection_angles_ahead[0], intersection_angles_ahead[1],
+                       self.prev_steer, self.prev_accel,
+                       self.prev_brake,
                        self.speed, left_lane_distance, right_lane_distance,
                        done_input,]
                 if is_blank:
@@ -464,7 +482,9 @@ class Agent:
                 ret += list(self.waypoint_distances)
                 ret += list(self.velocity)
                 ret += list(self.acceleration)
-                ret += self.get_other_agent_inputs(is_blank)
+
+                ret += other_agent_inputs
+
                 if is_blank:
                     return np.array(ret) * 0
                 else:
