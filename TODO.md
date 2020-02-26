@@ -1,5 +1,34 @@
-Code complete: Save model when new max episode return avg or max, horizon return avg or max, 
-or trip completion max achieved on epoch
+Pass prev_actual_steer AND prev_desired_steer as inputs
+
+Allow braking
+
+Dockerize
+
+Learn what to do in anomalous situations. Horn output can be something you 
+train where, honking is input to nearby actors and they learn from experience, 
+say of scenarios where you send a random car through the scene, 
+that when the honk input is active they should slow down / be more cautious of 
+other actors around them.
+
+Meta-learning/self-supervision idea:
+In order to better explore reward space and be amenable to different styles
+of driving, we should let the model explore reward weights
+that achieve a desired rate of learning (not too big lest we
+forget, and not too small lest we become sample inefficient, overfit, 
+and/or not learn enough).
+-------------------------------------------------------------------------------
+Simple first pass:
+If recent reward increase has flattened (or diverged), then (optionally reset
+weights to a better net and) shift objective weights. 
+Then if too sharp a decrease in reward, revert, else shift more. 
+Find the shift that gives the desired return increase rate (DRI). 
+
+The DRI could be dynamic by evaluating on a statically weighted objective a la 
+deepdrive’s leaderboard eval where the DRI
+is annealed as we reach theoretical maximum eval performance.
+This is similar in spirit to population based training, but explores goal 
+weightings instead of hyperparams and therefore is a bit meta-learning-ish.
+-------------------------------------------------------------------------------
 
 Add left yield road rule reward (eventually need against-traffic-turn input 
 to net i.e. turn left for right-hand-traffic and turn right for 
