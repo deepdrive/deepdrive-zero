@@ -55,12 +55,12 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
             curr_x, curr_y, curr_angle, prev_x, prev_y, prev_angle, dt,
             curr_velocity, accel, curr_max_gforce)
         (curr_gforce, curr_max_gforce, new_jerk, new_acceleration,
-         curr_angular_velocity) = gforce_outputs
+         curr_angular_velocity, new_velocity) = gforce_outputs
 
     return (new_acceleration, curr_angle, curr_angle_change,
             curr_angular_velocity, curr_gforce, new_jerk,
             curr_max_gforce, curr_speed, curr_x, curr_y, i_accel, i_brake,
-            i_steer)
+            i_steer, new_velocity)
 
 
 @njit(cache=CACHE_NUMBA, nogil=True)
@@ -76,4 +76,4 @@ def get_gforce_levels(x, y, curr_angle, prev_x, prev_y, prev_angle, dt,
     max_gforce = max(gforce, curr_max_gforce)
     # prev_gforce.append(self.gforce)
     jerk = new_accel - curr_accel
-    return gforce, max_gforce, jerk, new_accel, angular_velocity
+    return gforce, max_gforce, jerk, new_accel, angular_velocity, curr_velocity
