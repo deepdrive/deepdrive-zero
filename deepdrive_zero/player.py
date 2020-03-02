@@ -85,7 +85,6 @@ class Deepdrive2DPlayer(arcade.Window):
                 add_rotational_friction=self.add_rotational_friction,
                 add_longitudinal_friction=self.add_longitudinal_friction,
                 return_observation_as_array=False,
-                ignore_brake=False,
                 expect_normalized_actions=False,
                 expect_normalized_action_deltas=False,
                 decouple_step_time=True,

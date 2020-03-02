@@ -27,7 +27,6 @@ class Deepdrive2DEnv(gym.Env):
                  add_longitudinal_friction=True,
                  return_observation_as_array=True,
                  seed_value=0,
-                 ignore_brake=True,
                  expect_normalized_actions=True,
                  expect_normalized_action_deltas=False,
                  decouple_step_time=True,
@@ -46,7 +45,6 @@ class Deepdrive2DEnv(gym.Env):
         # All units in SI units (meters and radians) unless otherwise specified
         self.return_observation_as_array: bool = return_observation_as_array
         self.px_per_m: float = px_per_m
-        self.ignore_brake: bool = ignore_brake
         self.expect_normalized_actions: bool = expect_normalized_actions
         self.expect_normalized_action_deltas: bool = expect_normalized_action_deltas
         self.seed_value: int = seed_value
@@ -129,9 +127,7 @@ class Deepdrive2DEnv(gym.Env):
         self.agents: List[Agent] = [Agent(
             env=self,
             agent_index=i,
-            ignore_brake=ignore_brake,
-            disable_gforce_penalty=disable_gforce_penalty,
-            incent_win=incent_win)
+            disable_gforce_penalty=disable_gforce_penalty,)
             for i in range(self.num_agents)]
 
         self.agent_index: int = 0  # Current agent we are stepping

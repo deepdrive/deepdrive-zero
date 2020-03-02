@@ -59,7 +59,6 @@ class Agent:
                  agent_index,
                  vehicle_width=VEHICLE_WIDTH,
                  vehicle_height=VEHICLE_HEIGHT,
-                 ignore_brake=True,
                  disable_gforce_penalty=False,
                  incent_win=False,
                  match_angle_only=False,
@@ -98,7 +97,6 @@ class Agent:
         self.vehicle_width: float = vehicle_width
         self.vehicle_model:List[float] = get_vehicle_model(vehicle_width)
         self.vehicle_height: float = vehicle_height
-        self.ignore_brake: bool = ignore_brake
 
         if 'STRAIGHT_TEST' in os.environ:
             self.num_actions = 1  # Accel
