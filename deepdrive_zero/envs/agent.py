@@ -221,7 +221,6 @@ class Agent:
             get_env_config('WIN_COEFF', default=1)
         self.end_on_harmful_gs = \
             bool(get_env_config('END_ON_HARMFUL_GS', default=True))
-        log.info('\n')
         self.constrain_controls = \
             bool(get_env_config('CONSTRAIN_CONTROLS', default=True))
         self.ignore_brake = \
