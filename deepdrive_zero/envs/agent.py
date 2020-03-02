@@ -825,11 +825,9 @@ class Agent:
         win_reward = self.get_win_reward(won)
         ret = (
            + speed_reward
-           - gforce_penalty
            + win_reward
+           - gforce_penalty
            - collision_penalty
-           - steer_penalty
-           - accel_penalty
            - jerk_penalty
            - lane_penalty
         )
