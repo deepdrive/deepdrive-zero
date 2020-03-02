@@ -1,5 +1,7 @@
 from gym.envs.registration import register
 
+# TODO: Rename 2d here and in RunConfigurations to zero
+
 register(
     id='deepdrive-2d-v0',
     entry_point='deepdrive_zero.envs:Deepdrive2DEnv',
