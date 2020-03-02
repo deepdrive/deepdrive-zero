@@ -39,6 +39,7 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
         else:
             i_brake = 0
         # log.info(f'steer {steer} accel {accel} brake {brake} vel {self.velocity}')
+        # TODO: Add drag when simulating higher speeds
         prev_x, prev_y, prev_angle = curr_x, curr_y, curr_angle
         curr_x, curr_y, curr_angle, curr_angle_change, curr_speed = \
             bike_with_friction_step(
