@@ -263,6 +263,10 @@ class Agent:
         else:
             steer, accel, brake = action
 
+        # if accel > self.max_accel_historical:
+        #     log.info(f'new max accel {accel}')
+        #     self.max_accel_historical = accel
+
         steer, accel, brake = self.denormalize_actions(steer, accel, brake)
         self.prev_desired_steer = steer
         self.prev_desired_accel = accel
