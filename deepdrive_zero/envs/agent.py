@@ -143,7 +143,7 @@ class Agent:
 
         # TODO: Use accel_magnitude instead so we're in SI units
         self.gforce: float = 0
-
+        self.accel_magnitude: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
         self.disable_gforce_penalty = disable_gforce_penalty
