@@ -111,7 +111,9 @@ class Agent:
         self.episode_reward: float = 0
         self.speed: float = 0
         self.angle_change: float = 0
-        self.fps: int = 60
+        self.fps: int = self.env.fps
+        self.aps: int = self.env.aps
+        self.physics_steps_per_observation = env.physics_steps_per_observation
 
         # Used for old waypoint per meter map
         self.map_query_seconds_ahead: np.array = np.array(
