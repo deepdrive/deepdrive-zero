@@ -506,18 +506,35 @@ class Agent:
                 # )
 
         if self.env.return_observation_as_array:
-            # TODO: Remove multi-waypoint stuff as all driving can be
-            #  simplified to reaching single waypoint with desired speed and
-            #  heading (right?!?). Static and dynamic obstacles can interfere with
-            #  ability to reach waypoint, but skipping waypoints should not
-            #  be an immediate alternative. Training can then focus on minimizing
-            #  g-forces if we don't reach the waypoint. Then at test time
-            #  we can set a new waypoint after some timeout.
+            # TODO: These model inputs should be recorded somehow so we can
+            #   use the trained models later on without needing this code.
+
+            # TODO: Normalize these and ensure they don't exceed reasonable
+            #   physical bounds
+            common_inputs = [
+                # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl?)
+                self.prev_desired_steer,
+                self.prev_desired_accel,
+                self.prev_desired_brake,
+
+                # Previous outputs after physical constraints applied
+                self.prev_steer,
+                self.prev_accel,
+                self.prev_brake,
+
+                self.speed,
+                self.accel_magnitude,
+                self.jerk_magnitude,
+                # why? done_input,
+                # self.env.target_dt,  # TODO: Add dt noise from domain randomization as input
+                # Normalize these before adding: self.distance_to_end,
+                # Normalize these before adding: self.distance,
+            ]
             if self.is_one_waypoint_map:
                 if self.match_angle_only:
                     return np.array([angles_ahead[0], self.prev_steer])
                 elif 'STRAIGHT_TEST' in os.environ:
-                    return np.array([self.speed])
+                    return np.array(common_inputs + [self.speed])
                 else:
                     ret = [angles_ahead[0], self.prev_steer, self.prev_accel,
                            self.speed, self.distance_to_end]
@@ -528,13 +545,12 @@ class Agent:
                     else:
                         return np.array(ret)
             elif self.is_intersection_map:
-                ret = [intersection_angles_ahead[0], intersection_angles_ahead[1],
-                       self.prev_steer, self.prev_accel,
-                       self.prev_brake,
-                       self.speed, left_lane_distance, right_lane_distance,
-                       self.prev_desired_steer,
-                       self.prev_desired_accel,
-                       done_input,]
+                # TODO: Move get_intersection_observation here
+                ret = common_inputs + \
+                      [intersection_angles_ahead[0],
+                       intersection_angles_ahead[1],
+                       left_lane_distance,
+                       right_lane_distance]
                 if is_blank:
                     self.set_distance()
                 ret += list(self.waypoint_distances)
