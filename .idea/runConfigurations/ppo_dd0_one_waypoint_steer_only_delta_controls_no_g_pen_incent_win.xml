@@ -1,0 +1,30 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ppo dd0 one waypoint steer only delta controls no g pen incent win" type="PythonConfigurationType" factoryName="Python" singleton="false">
+    <module name="spinningup" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+      <env name="CUDA_VISIBLE_DEVICES" value="" />
+      <env name="EXPECT_NORMALIZED_ACTION_DELTAS" value="1" />
+      <env name="JERK_PENALTY_COEFF" value="0" />
+      <env name="GFORCE_PENALTY_COEFF" value="0" />
+      <env name="END_ON_HARMFUL_GS" value="0" />
+      <env name="INCENT_WIN" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../spinningup/spinup" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../spinningup/spinup/run.py" />
+    <option name="PARAMETERS" value="ppo --epochs 8000 --hid &quot;[64,64]&quot; --env deepdrive-2d-one-waypoint-steer-only-v0 --exp_name dd0-ppo-one-waypoint-steer-only-delta-controls-no-g-pen-incent-win" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>
