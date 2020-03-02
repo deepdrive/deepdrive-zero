@@ -40,3 +40,10 @@ CONTINUOUS_REWARD = True
 GAME_OVER_PENALTY = -1
 IS_DEBUG_MODE = getattr(sys, 'gettrace', None)
 CACHE_NUMBA = True
+
+MAX_STEER_CHANGE_PER_SECOND = 0.03 * 60  # TODO: Make this vehicle make/model based, currently based on playing in sim
+MAX_ACCEL_CHANGE_PER_SECOND = 0.04 * 60  # TODO: Make this vehicle make/model based, currently based on playing in sim
+MAX_BRAKE_CHANGE_PER_SECOND = 0.06 * 60  # TODO: Make this vehicle make/model based, currently based on playing in sim
+STEERING_RANGE = math.pi / 6  # Standard for sharp turning vehicles (about 33 deg)  # TODO: Make this vehicle make/model based
+MIN_STEER = -STEERING_RANGE/2
+MAX_STEER = STEERING_RANGE/2

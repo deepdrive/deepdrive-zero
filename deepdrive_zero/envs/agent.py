@@ -19,7 +19,9 @@ import numpy as np
 from box import Box
 
 from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
-    MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX
+    MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX, \
+    MAX_STEER_CHANGE_PER_SECOND, MAX_ACCEL_CHANGE_PER_SECOND, \
+    MAX_BRAKE_CHANGE_PER_SECOND, STEERING_RANGE, MAX_STEER, MIN_STEER
 from deepdrive_zero.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
 from deepdrive_zero.experience_buffer import ExperienceBuffer
 from deepdrive_zero.logs import log
@@ -226,6 +228,27 @@ class Agent:
         log.info('\n')
         self.constrain_controls = \
             bool(get_env_config('CONSTRAIN_CONTROLS', default=True))
+        self.ignore_brake = \
+            bool(get_env_config('IGNORE_BRAKE', default=False))
+        self.forbid_deceleration = \
+            bool(get_env_config('FORBID_DECELERATION',
+                                default=env.forbid_deceleration))
+        self.expect_normalized_action_deltas = \
+            bool(get_env_config('EXPECT_NORMALIZED_ACTION_DELTAS',
+                                default=env.expect_normalized_action_deltas))
+        self.incent_win = bool(get_env_config('INCENT_WIN',
+                                              default=env.incent_win))
+
+
+        self.max_steer_change_per_tick = MAX_STEER_CHANGE_PER_SECOND / self.fps
+        self.max_accel_change_per_tick = MAX_ACCEL_CHANGE_PER_SECOND / self.fps
+        self.max_brake_change_per_tick = MAX_BRAKE_CHANGE_PER_SECOND / self.fps
+        self.max_steer_change = self.max_steer_change_per_tick * self.physics_steps_per_observation
+        self.max_accel_change = self.max_accel_change_per_tick * self.physics_steps_per_observation
+        self.max_brake_change = self.max_brake_change_per_tick * self.physics_steps_per_observation
+
+        self.max_accel_historical = -np.inf
+
         self.reset()
 
     @log.catch

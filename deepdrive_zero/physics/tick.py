@@ -1,7 +1,8 @@
 import numpy as np
 from numba import njit
 
-from deepdrive_zero.constants import CACHE_NUMBA
+from deepdrive_zero.constants import CACHE_NUMBA, MAX_STEER_CHANGE_PER_SECOND, \
+    MAX_ACCEL_CHANGE_PER_SECOND
 from deepdrive_zero.physics.bike_model import bike_with_friction_step
 from deepdrive_zero.logs import log
 
@@ -19,8 +20,6 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
     steer_change = steer - prev_steer
     accel_change = accel - prev_accel
     if constrain_controls:
-        max_steer_change = 0.02  # TODO: Make this physically based
-        max_accel_change = 0.02  # TODO: Make this physically based
         steer_change = min(max_steer_change, steer_change)
         steer_change = max(-max_steer_change, steer_change)
         accel_change = min(max_accel_change, accel_change)
