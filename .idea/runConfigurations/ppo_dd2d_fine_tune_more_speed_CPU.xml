@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="ppo dd2d fine-tune more speed CPU" type="PythonConfigurationType" factoryName="Python" singleton="false">
+  <configuration default="false" name="ppo dd2d fine-tune more speed CPU" type="PythonConfigurationType" factoryName="Python" folderName="archive" singleton="false">
     <module name="spinningup" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

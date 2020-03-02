@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="sac MountainCarContinuous-v0 lr .001" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="sac MountainCarContinuous-v0 lr .001" type="PythonConfigurationType" factoryName="Python" folderName="sac">
     <module name="spinningup" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

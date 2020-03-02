@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="ppo dd2d static obstacle 128x128 NN front dist  ACTION_PENALTY 0.00003 CPU" type="PythonConfigurationType" factoryName="Python" singleton="false">
+  <configuration default="false" name="ppo dd2d static obstacle 128x128 NN front dist  ACTION_PENALTY 0.00003 CPU" type="PythonConfigurationType" factoryName="Python" folderName="archive" singleton="false">
     <module name="spinningup" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

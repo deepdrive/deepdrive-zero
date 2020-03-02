@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="sac dd2d cuda curriculum gforce CPU" type="PythonConfigurationType" factoryName="Python" singleton="false">
-    <module name="pytorch-soft-actor-critic" />
+  <configuration default="false" name="sac dd2d cuda curriculum gforce CPU" type="PythonConfigurationType" factoryName="Python" folderName="sac" singleton="false">
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
@@ -12,6 +11,7 @@
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
+    <module name="" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../pytorch-soft-actor-critic/main.py" />
     <option name="PARAMETERS" value="--env-name deepdrive-2d-v0 --penalize-loss --curriculum-gforce" />

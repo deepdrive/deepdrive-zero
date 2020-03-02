@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="collision_detection --test_get_pair_indexes NUMBA_DISABLE_JIT=1" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="collision_detection --test_get_pair_indexes NUMBA_DISABLE_JIT=1" type="PythonConfigurationType" factoryName="Python" folderName="archive">
     <module name="deepdrive-2d" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

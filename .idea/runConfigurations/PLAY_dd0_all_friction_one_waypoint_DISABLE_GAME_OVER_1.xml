@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="play dd0 all friction intersection DISABLE_GAME_OVER=1" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="PLAY dd0 all friction one waypoint DISABLE_GAME_OVER=1" type="PythonConfigurationType" factoryName="Python">
     <module name="deepdrive-2d" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deepdrive_zero/player.py" />
-    <option name="PARAMETERS" value="--intersection --no-timeout --rotational-friction --longitudinal-friction" />
+    <option name="PARAMETERS" value="--rotational-friction --longitudinal-friction --one-waypoint-map --no-timeout" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

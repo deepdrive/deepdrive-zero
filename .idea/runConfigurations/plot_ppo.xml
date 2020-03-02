@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="plot ppo" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="plot ppo" type="PythonConfigurationType" factoryName="Python" folderName="archive">
     <module name="spinningup" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
