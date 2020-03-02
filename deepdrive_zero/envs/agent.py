@@ -382,7 +382,7 @@ class Agent:
     def heading(self):
         return np.array([self.front_x, self.front_y]) - self.ego_pos
 
-
+    # TODO: Numba this
     def denormalize_actions(self, steer, accel, brake):
 
         if self.expect_normalized_action_deltas:
