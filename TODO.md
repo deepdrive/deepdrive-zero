@@ -1,8 +1,22 @@
-Pass prev_actual_steer AND prev_desired_steer as inputs
+Try larger batch size, lower learning rate, larger models to get past previous
+intersection performance
 
-Allow braking
+Idea: Hierarchical RL (try recurrent model first) 
+Have one model that outputs 1 second feasible destinations + velocities, trained with 
+teleportation. Teleportation model will also need to be able to deal with
+the prev destination not being reached  (due to some obstacle)
+and we are asked for a new destination in less than 1 second. Reward would
+not include g force or jerk, but would just be time, lane, yield-left, and collision.
+Then use that model's destinations as rewards for a 100ms model (including penalizing 
+collisions that end up diverting from above model's dest).
+Create different granularities as needed. (First see if LSTM-A2C or R2D1 work though)
+100ms model could be MPC as well.
+
+Allow braking - test with straight test
 
 Dockerize
+
+Try 5 or 6 seeds per run
 
 Learn what to do in anomalous situations. Horn output can be something you 
 train where, honking is input to nearby actors and they learn from experience, 
