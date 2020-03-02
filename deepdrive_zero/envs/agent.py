@@ -272,9 +272,7 @@ class Agent:
             brake = 0
             # accel = MAX_METERS_PER_SEC_SQ
 
-        if '--straight-test' in sys.argv:
-            steer = 0
-        elif '--simple-steer' in sys.argv and self.angles_ahead:
+        if '--simple-steer' in sys.argv and self.angles_ahead:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
             steer = -self.angles_ahead[0]
         elif self.match_angle_only:
