@@ -839,16 +839,18 @@ class Agent:
         # if self.agent_index == 0:
         #     log.debug(
         #         f'reward {ret} '
-        #         f'next waypoint {self.next_map_index} '
-        #         f'distance {self.distance} '
+        #         # f'next waypoint {self.next_map_index} '
+        #         # f'distance {self.distance} '
+        #         # f'rew/dist {round(ret/(self.distance - self.prev_distance),3)} '
         #         f'speed {speed_reward} '
-        #         f'gforce {gforce_penalty} '
+        #         f'gforce {accel_penalty} '
         #         f'jerk {jerk_penalty} '
         #         f'lane {lane_penalty} '
         #         f'win {win_reward} '
-        #         f'collision {collision_penalty} '
-        #         f'steer {steer_penalty} '
-        #         f'accel {accel_penalty} '
+        #         f'angle_accuracy {angle_accuracy} '
+        #         # f'collision {collision_penalty} '
+        #         # f'steer {steer_penalty} '
+        #         # f'accel {accel_penalty} '
         #     )
 
         return ret, info
