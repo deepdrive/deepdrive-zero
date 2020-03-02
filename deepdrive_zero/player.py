@@ -50,7 +50,7 @@ class Deepdrive2DPlayer(arcade.Window):
         self.env: Deepdrive2DEnv = env
         self.steer = 0
         self.accel = 0
-        self.brake = False
+        self.brake = 0
         self.map = None
         self.angle = None
         self.background = None
@@ -330,7 +330,7 @@ class Deepdrive2DPlayer(arcade.Window):
         elif key == arcade.key.DOWN or key == arcade.key.S:
             self.accel = -MAX_METERS_PER_SEC_SQ
         elif key == arcade.key.SPACE:
-            self.brake = True
+            self.brake = 1.0
         elif key == arcade.key.LEFT or key == arcade.key.A:
             self.steer = math.pi * PLAYER_TURN_RADIANS_PER_KEYSTROKE
         elif key == arcade.key.RIGHT or key == arcade.key.D:
@@ -344,7 +344,7 @@ class Deepdrive2DPlayer(arcade.Window):
         elif key == arcade.key.DOWN or key == arcade.key.S:
             self.accel = 0
         elif key == arcade.key.SPACE:
-            self.brake = False
+            self.brake = 0
         elif key == arcade.key.LEFT or key == arcade.key.A:
             self.steer = 0
         elif key == arcade.key.RIGHT or key == arcade.key.D:

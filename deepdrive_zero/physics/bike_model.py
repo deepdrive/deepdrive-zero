@@ -15,7 +15,7 @@ def bike_with_friction_step(
 
     :param steer: (float) Steering angle in radians
     :param accel: (float) m/s**2
-    :param brake: (bool) whether to brake or not
+    :param brake: (float) whether to brake or not
     :param dt: (float) time step
     :param x: (float) meters x
     :param y: (float) meters y
@@ -43,9 +43,12 @@ def bike_with_friction_step(
         angle_change = 0.95 ** friction_exponent * angle_change
     if add_longitudinal_friction:
         speed = 0.999 ** friction_exponent * speed
-    if brake:
-        speed = 0.97 ** friction_exponent * speed
-        # self.speed = 0.97 * self.speed
+
+    # TODO: We should just output the desired accel (+-) and allow higher magnitude
+    #   negative accel than positive due to brake force. Otherwise network will
+    #   be riding brakes more than reasonable (esp without disincentivizing this
+    #   in the reward)
+    speed = 0.96 ** brake * speed
 
     theta1 = angle
     theta2 = theta1 + pi / 2
