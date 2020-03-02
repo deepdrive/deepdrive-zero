@@ -72,7 +72,12 @@ We need to take many agents actions as input into the env, instead of
 just one. Especially, we need to compute physics for each agent more 
 concurrently than we do now. Ideally, it would be a parallel numba calc
 that computed all agents positions at once. Collisions could then be computed
-at the physics tic rate (currently 60fps) during every physics loop step.
+at the physics tick rate (currently 60fps) during every physics loop step.
+Also we should likely output n observations for n agents, so that modifying
+other RL algos can be done in a standard way where you take observations[0]
+for single agent mode, and store observations[1...n] for multi-agent mode.
+This will also allow taking advantage of mini-batching for computing several agents'
+actions.
 
 Make sure we can take drastic action to avoid collision even with action/gforce penalties
 
