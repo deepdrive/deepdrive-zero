@@ -207,7 +207,7 @@ class Agent:
         self.prev_desired_steer = 0
         self.prev_desired_brake = 0
 
-        log.info(f'Agent {self.agent_index} reward shape '
+        log.info(f'Agent {self.agent_index} config '
                  f'--------------------')
         self.jerk_penalty_coeff = \
             get_env_config('JERK_PENALTY_COEFF', default=0.10)
