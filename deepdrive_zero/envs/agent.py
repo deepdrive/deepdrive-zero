@@ -562,6 +562,13 @@ class Agent:
                 else:
                     return np.array(ret)
             else:
+                # TODO: Remove old ~100 waypoint map stuff as all driving can be
+                #  simplified to reaching single waypoint with desired speed and
+                #  heading (right?!?). Static and dynamic obstacles can interfere with
+                #  ability to reach waypoint, but skipping waypoints should not
+                #  be an immediate alternative. Training can then focus on minimizing
+                #  g-forces if we don't reach the waypoint. Then at test time
+                #  we can set a new waypoint after some timeout.
                 observation = np.array(observation.values())
                 observation = np.concatenate((observation, angles_ahead),
                                              axis=None)
