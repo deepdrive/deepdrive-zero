@@ -29,6 +29,14 @@ Unprotected left scenario
 player.py --intersection --no-timeout
 ```
 
+#### Train
+
+
+
+#### Test
+
+
+
 More examples from which you can use the SCRIPT_NAME and PARAMETERS to see what commands I'm running to do things. Or if you use PyCharm, you can use these directly.
 
 https://github.com/deepdrive/deepdrive-2d/blob/master/.idea/runConfigurations/play_dd2d_all_friction_one_waypoint_static_obstacle_DISABLE_GAME_OVER_1.xml
