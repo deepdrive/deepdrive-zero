@@ -331,6 +331,7 @@ class Agent:
             episode_angle_accuracy = np.array(self.angle_accuracies).mean()
             episode_gforce_avg = np.array(self.episode_gforces).mean()
             log.debug(f'Score {round(self.episode_reward, 2)}, '
+                      f'Rew/Step: {self.episode_reward/self.episode_steps}, '
                       f'Steps: {self.episode_steps}, '
                       # f'Closest map indx: {self.closest_map_index}, '
                       f'Distance {round(self.distance, 2)}, '
