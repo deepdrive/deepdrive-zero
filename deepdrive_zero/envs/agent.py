@@ -596,6 +596,9 @@ class Agent:
         self.angular_velocity = 0
         self.acceleration = np.array((0,0))
         self.gforce = 0
+        self.accel_magnitude = 0
+        self.jerk = 1
+        self.jerk_magnitude = 0
         self.gforce_levels = self.blank_gforce_levels()
         self.max_gforce = 0
         self.closest_map_index = 0
@@ -606,6 +609,9 @@ class Agent:
         self.episode_gforces = []
         self.collided_with = []
         self.done = False
+        self.prev_accel = 0
+        self.prev_steer = 0
+        self.prev_brake = 0
 
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
@@ -723,6 +729,7 @@ class Agent:
         jerk_magnitude = np.linalg.norm(self.jerk)
         info.stats.jerk = jerk_magnitude
         jerk_penalty = self.jerk_penalty_coeff * jerk_magnitude
+        self.jerk_magnitude = jerk_magnitude
 
         lane_penalty = 0
         if left_lane_distance < 0:
@@ -737,7 +744,7 @@ class Agent:
         #              f'right distance {right_lane_distance} '
         #              f'agent {self.agent_index}')
 
-        # accel_magnitude = self.gforce * G_ACCEL
+        self.accel_magnitude = self.gforce * G_ACCEL
 
         # log.debug(f'jerk {round(jerk_magnitude)} accel {round(accel_magnitude)}')
 
