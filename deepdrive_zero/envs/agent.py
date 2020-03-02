@@ -60,7 +60,6 @@ class Agent:
                  vehicle_width=VEHICLE_WIDTH,
                  vehicle_height=VEHICLE_HEIGHT,
                  disable_gforce_penalty=False,
-                 incent_win=False,
                  match_angle_only=False,
                  static_map=False,
                  add_rotational_friction=True,
@@ -162,8 +161,6 @@ class Agent:
         self.episode_gforces: List[float] = []
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
         self.is_intersection_map: bool = env.is_intersection_map
-
-        self.incent_win: bool = incent_win
 
         self.static_obst_angle_info: list = None
 
