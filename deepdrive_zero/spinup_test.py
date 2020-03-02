@@ -10,6 +10,7 @@ import gym
 TEST_STATIC_OBSTACLE = False
 
 
+# TODO: Move configs from env to python that train and test both use
 
 if TEST_STATIC_OBSTACLE:
     _, get_action = load_policy(
