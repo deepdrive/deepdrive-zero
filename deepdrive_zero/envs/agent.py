@@ -43,7 +43,7 @@ def get_env_config(name: str, default: float):
     else:
         name_col = f'Default {name.lower()}'
         ret = default
-    name_col_len = 35
+    name_col_len = 45
     padding = ' ' * (name_col_len - len(name_col))
     log.info(f'{name_col}{padding}{ret}')
     if is_number(ret):
