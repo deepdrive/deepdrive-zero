@@ -141,7 +141,7 @@ class Agent:
         self.velocity: np.array = np.array((0, 0))
         self.angular_velocity: float = 0
 
-        # TODO: Use accel_magnitude instead so we're in SI units
+        # TODO: Use accel_magnitude internally instead so we're in SI units
         self.gforce: float = 0
         self.accel_magnitude: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
