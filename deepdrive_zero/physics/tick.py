@@ -11,7 +11,7 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
                  curr_angular_velocity, curr_gforce, curr_max_gforce,
                  curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
                  prev_brake, prev_steer, steer, vehicle_model, ignore_brake,
-                 constrain_controls=True):
+                 constrain_controls, max_steer_change, max_accel_change):
     if ignore_brake:
         brake = 0
     if curr_speed > 100:

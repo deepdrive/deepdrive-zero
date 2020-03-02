@@ -87,6 +87,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 return_observation_as_array=False,
                 ignore_brake=False,
                 expect_normalized_actions=False,
+                expect_normalized_action_deltas=False,
                 decouple_step_time=True,
                 physics_steps_per_observation=1,
                 add_static_obstacle=self.static_obstacle,

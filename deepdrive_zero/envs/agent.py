@@ -361,29 +361,54 @@ class Agent:
 
 
     def denormalize_actions(self, steer, accel, brake):
-        # TODO: Numba this
-        if self.env.expect_normalized_actions:
-            if not (-1 <= accel <= 1):
-                log.trace(f'Found accel outside -1=>1 of {accel}')
-                accel = max(-1, accel)
-                accel = min(1, accel)
-            if not (-1 <= steer <= 1):
-                log.trace(f'Found steer outside -1=>1 of {steer}')
-                steer = max(-1, steer)
-                steer = min(1, steer)
-            if not (-1 <= brake <= 1):
-                log.trace(f'Found steer outside -1=>1 of {brake}')
-                brake = max(-1, brake)
-                brake = min(1, brake)
 
-            steer = steer * pi / 6  # About 33 degrees max steer
-
+        if self.expect_normalized_action_deltas:
+            steer, accel, brake = self.check_action_bounds(accel, brake, steer)
+            steer *= self.max_steer_change
+            accel *= self.max_accel_change
             if self.forbid_deceleration:
-                accel = MAX_METERS_PER_SEC_SQ * ((1 + accel) / 2)
+                accel = self.max_accel_change * ((1 + accel) / 2)  # Positive only
+            else:
+                accel = accel * self.max_accel_change
+            brake = self.max_brake_change * ((1 + brake) / 2)  # Positive only
+
+            steer += self.prev_steer
+            accel += self.prev_accel
+            brake += self.prev_brake
+
+            steer = min(steer, MAX_STEER)
+            steer = max(steer, MIN_STEER)
+
+            accel = min(accel, MAX_METERS_PER_SEC_SQ)
+            accel = max(accel, -MAX_METERS_PER_SEC_SQ)  # TODO: Lower max reverse accel and speed
+
+            brake = min(brake, MAX_METERS_PER_SEC_SQ)
+            brake = max(brake, -MAX_METERS_PER_SEC_SQ)
+
+        elif self.expect_normalized_actions:
+            steer, accel, brake = self.check_action_bounds(accel, brake, steer)
+            steer = steer * STEERING_RANGE
+            if self.forbid_deceleration:
+                accel = MAX_METERS_PER_SEC_SQ * ((1 + accel) / 2)  # Positive only
             else:
                 accel *= MAX_METERS_PER_SEC_SQ
+            brake = MAX_METERS_PER_SEC_SQ * ((1 + brake) / 2)  # Positive only
+        return steer, accel, brake
 
-            brake = MAX_METERS_PER_SEC_SQ * ((1 + brake) / 2)
+    # TODO: Numba this (return string or enum in order to log)
+    def check_action_bounds(self, accel, brake, steer):
+        if not (-1 <= accel <= 1):
+            log.trace(f'Found accel outside -1=>1 of {accel}')
+            accel = max(-1, accel)
+            accel = min(1, accel)
+        if not (-1 <= steer <= 1):
+            log.trace(f'Found steer outside -1=>1 of {steer}')
+            steer = max(-1, steer)
+            steer = min(1, steer)
+        if not (-1 <= brake <= 1):
+            log.trace(f'Found steer outside -1=>1 of {brake}')
+            brake = max(-1, brake)
+            brake = min(1, brake)
         return steer, accel, brake
 
     @staticmethod
@@ -1113,7 +1138,8 @@ class Agent:
             self.angular_velocity, self.gforce, self.max_gforce,
             self.speed, self.velocity, self.x, self.y, dt, n, self.prev_accel,
             self.prev_brake, self.prev_steer, steer, self.vehicle_model,
-            self.ignore_brake, self.constrain_controls)
+            self.ignore_brake, self.constrain_controls, self.max_steer_change_per_tick,
+            self.max_accel_change_per_tick)
         # log.debug(f'step took {time.time() - start}s')
 
         info.stats.gforce = self.gforce

@@ -29,6 +29,7 @@ class Deepdrive2DEnv(gym.Env):
                  seed_value=0,
                  ignore_brake=True,
                  expect_normalized_actions=True,
+                 expect_normalized_action_deltas=False,
                  decouple_step_time=True,
                  physics_steps_per_observation=6,
                  is_one_waypoint_map=False,
@@ -47,6 +48,7 @@ class Deepdrive2DEnv(gym.Env):
         self.px_per_m: float = px_per_m
         self.ignore_brake: bool = ignore_brake
         self.expect_normalized_actions: bool = expect_normalized_actions
+        self.expect_normalized_action_deltas: bool = expect_normalized_action_deltas
         self.seed_value: int = seed_value
         self.add_rotational_friction: bool = add_rotational_friction
         self.add_longitudinal_friction: bool = add_longitudinal_friction
