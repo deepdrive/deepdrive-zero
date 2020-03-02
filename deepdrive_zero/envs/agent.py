@@ -75,9 +75,7 @@ class Agent:
         self.add_rotational_friction = add_rotational_friction
         self.add_longitudinal_friction = add_longitudinal_friction
         self.expect_normalized_actions: bool = env.expect_normalized_actions
-        self.forbid_deceleration = env.forbid_deceleration
-
-        self.px_per_m = self.env.px_per_m
+        self.px_per_m = env.px_per_m
 
         # Map
         # These are duplicated per agent now as map is very small and most
