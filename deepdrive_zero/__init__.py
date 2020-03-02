@@ -6,13 +6,13 @@ register(
 )
 
 register(
-    id='deepdrive-2d-one-waypoint-v0',
-    entry_point='deepdrive_zero.envs:OneWaypointEnv',
+    id='deepdrive-2d-one-waypoint-steer-only-v0',
+    entry_point='deepdrive_zero.envs:OneWaypointSteerOnlyEnv',
 )
 
 register(
-    id='deepdrive-2d-one-waypoint-plus-accel-v0',
-    entry_point='deepdrive_zero.envs:OneWaypointPlusAccelEnv',
+    id='deepdrive-2d-one-waypoint-v0',
+    entry_point='deepdrive_zero.envs:OneWaypointEnv',
 )
 
 register(
