@@ -534,6 +534,9 @@ class Agent:
                 elif 'STRAIGHT_TEST' in os.environ:
                     return np.array(common_inputs + [self.speed])
                 else:
+                    # One waypoint map
+                    # ret = common_inputs + [angles_ahead[0],
+                    #                        self.distance_to_end]
                     ret = [angles_ahead[0], self.prev_steer, self.prev_accel,
                            self.speed, self.distance_to_end]
                     if self.env.add_static_obstacle:
