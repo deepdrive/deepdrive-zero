@@ -217,6 +217,8 @@ class Agent:
             get_env_config('COLLISION_PENALTY_COEFF', default=0.31)
         self.speed_reward_coeff = \
             get_env_config('SPEED_REWARD_COEFF', default=0.50)
+        self.win_coefficient = \
+            get_env_config('WIN_COEFF', default=1)
         self.end_on_harmful_gs = \
             bool(get_env_config('END_ON_HARMFUL_GS', default=True))
         log.info('\n')
@@ -859,7 +861,7 @@ class Agent:
     def get_win_reward(self, won):
         win_reward = 0
         if self.incent_win and won:
-            win_reward = self.map.length * 8 * pi
+            win_reward = self.win_coefficient
         return win_reward
 
     def get_observation(self, steer, accel, brake, dt, info):
