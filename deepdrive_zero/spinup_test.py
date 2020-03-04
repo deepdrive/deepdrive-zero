@@ -19,7 +19,7 @@ if TEST_STATIC_OBSTACLE:
 
     env = gym.make('deepdrive-2d-static-obstacle-no-g-pen-v0')
 else:
-    p = '/home/c2/src/spinningup/data/dd0-ppo-one-waypoint-steer-only-delta-controls-no-g-pen-incent-win-fine-tune-jerk.01-g.1/dd0-ppo-one-waypoint-steer-only-delta-controls-no-g-pen-incent-win-fine-tune-jerk.01-g.1_s0_2020_03-01_11-39.33/best_EpRet/2020_03-01_15-57.19'
+    p = '/home/c2/src/spinningup/data/dd0-ppo-one-waypoint-steer-only-delta-controls-no-g-pen-incent-win-cmn-inputs3/dd0-ppo-one-waypoint-steer-only-delta-controls-no-g-pen-incent-win-cmn-inputs3_s0_2020_03-03_13-30.40/best_HorizonReturn/2020_03-03_16-28.34'
     if 'no-end-g' in p or 'no-contraint-g' in p or 'no-g' in p:
         os.environ['END_ON_HARMFUL_GS'] = '0'
         os.environ['GFORCE_PENALTY_COEFF'] = '0'
