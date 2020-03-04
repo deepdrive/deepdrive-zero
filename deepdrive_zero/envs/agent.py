@@ -276,6 +276,7 @@ class Agent:
             steer = -self.angles_ahead[0]
         elif self.match_angle_only:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
+            brake = 0
 
         info.stats.steer = steer
         info.stats.accel = accel
