@@ -608,6 +608,7 @@ class Agent:
         # TODO: Perhaps we should feed this into a transformer / LSTM / or
         #  use attention as the number of agents can be variable in length and
         #  may exceed the amount of input we want to pass to the net.
+        #  Also could do max-pool like OpenAI V
         ret = []
         v = self.velocity
         ang = self.get_angle_to_point
