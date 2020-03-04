@@ -84,7 +84,7 @@ class Agent:
 
         # Static obstacle
         self.add_static_obstacle: bool = env.add_static_obstacle
-        self.static_obstacle_points: np.array = None
+        self.static_obstacle_points: np.array = np.array([[0,0], [0,0]])
         self.static_obst_angle_info: list = None
         self.static_obst_pixels: np.array = None
         self.static_obstacle_tuple: tuple = ()
