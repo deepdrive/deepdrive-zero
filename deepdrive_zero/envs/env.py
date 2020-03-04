@@ -131,6 +131,7 @@ class Deepdrive2DEnv(gym.Env):
             for i in range(self.num_agents)]
 
         self.agent_index: int = 0  # Current agent we are stepping
+        self.curr_reward = 0
 
         self.reset()
         self.setup_spaces()
@@ -164,6 +165,7 @@ class Deepdrive2DEnv(gym.Env):
         self.should_render = True
 
     def reset(self):
+        self.curr_reward = 0
         if self.agent_step_outputs:
             # Just reset the current agent
             return self.agents[self.agent_index].reset()
@@ -209,6 +211,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self.check_for_collisions()
         obs, reward, done, info = agent.step(action)
+        self.curr_reward = reward
         if done:
             self.num_episodes += 1
 
