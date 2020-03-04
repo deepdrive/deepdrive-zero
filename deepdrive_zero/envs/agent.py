@@ -459,36 +459,23 @@ class Agent:
                              jarring_gs, uncomfortable_gs,
                              left_lane_distance=0,
                              right_lane_distance=0, is_blank=False):
-        observation = \
-            Box(steer=steer,
-                accel=accel,
-                brake=brake,
-                x=self.x,
-                y=self.y,
-                angle=self.angle,
-                speed=self.speed,
-                harmful_gs=float(harmful_gs),
-                jarring_gs=float(jarring_gs),
-                uncomfortable_gs=float(uncomfortable_gs),
-                distance=self.distance,
-                angle_change=self.angle_change,
-                closest_map_point_x=closest_map_point[0],
-                closest_map_point_y=closest_map_point[1],
-                lane_deviation=lane_deviation,
-                vehicle_width=self.vehicle_width,
-                vehicle_height=self.vehicle_height,
-                cog_to_front_axle=self.vehicle_model[0],
-                cog_to_rear_axle=self.vehicle_model[1],
-                left_lane_distance=left_lane_distance,
-                right_lane_distance=right_lane_distance)
+        if is_blank:
+            self.set_distance()
 
-        done_input = 1 if self.done else 0
+        if len(angles_ahead) == 1:
+            angles_ahead = [angles_ahead[0], angles_ahead[0]]
+
         if self.is_intersection_map:
+            # TODO: Move get_intersection_observation here
             other_agent_inputs = self.get_other_agent_inputs(is_blank)
-            if len(angles_ahead) == 1:
-                intersection_angles_ahead = [angles_ahead[0], angles_ahead[0]]
-            else:
-                intersection_angles_ahead = angles_ahead
+        else:
+            other_agent_inputs = self.get_other_agent_inputs(True)
+
+        if self.env.add_static_obstacle:
+            static_obstacle_inputs = self.get_static_obstacle_inputs(is_blank)
+        else:
+            static_obstacle_inputs = self.get_static_obstacle_inputs(True)
+
             # if self.agent_index == 0:
                 # log.debug(
                 #     f'angles ahead {intersection_angles_ahead}\n'
@@ -504,105 +491,90 @@ class Agent:
                     # f'agents {other_agent_inputs}\n'
                 # )
 
-        if self.env.return_observation_as_array:
-            # TODO: These model inputs should be recorded somehow so we can
-            #   use the trained models later on without needing this code.
+        # TODO: These model inputs should be recorded somehow so we can
+        #   use the trained models later on without needing this code.
 
-            # TODO: Normalize these and ensure they don't exceed reasonable
-            #   physical bounds
-            common_inputs = [
-                # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl?)
-                self.prev_desired_steer,
-                self.prev_desired_accel,
-                self.prev_desired_brake,
+        # TODO: Normalize these and ensure they don't exceed reasonable
+        #   physical bounds
+        # common_inputs = angles_ahead + other_agent_inputs + static_obstacle_inputs + [
+        # common_inputs = angles_ahead + [
+        common_inputs = angles_ahead + [
+            # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
+            # self.prev_desired_steer,
+            # self.prev_desired_accel,
+            # self.prev_desired_brake,
 
-                # Previous outputs after physical constraints applied
-                self.prev_steer,
-                self.prev_accel,
-                self.prev_brake,
+            # Previous outputs after physical constraints applied
+            self.prev_steer,
+            self.prev_accel,
+            self.prev_brake,
 
-                self.speed,
-                self.accel_magnitude,
-                self.jerk_magnitude,
-                # why? done_input,
-                # self.env.target_dt,  # TODO: Add dt noise from domain randomization as input
-                # Normalize these before adding: self.distance_to_end,
-                # Normalize these before adding: self.distance,
-            ]
-            if self.is_one_waypoint_map:
-                if self.match_angle_only:
-                    return np.array([angles_ahead[0], self.prev_steer])
-                elif 'STRAIGHT_TEST' in os.environ:
-                    return np.array(common_inputs + [self.speed])
-                else:
-                    # One waypoint map
-                    ret = common_inputs + [angles_ahead[0],
-                                           self.distance_to_end]
-                    # ret = [angles_ahead[0], self.prev_steer, self.prev_accel,
-                    #        self.speed, self.distance_to_end]
-                    if self.env.add_static_obstacle:
-                        ret += self.get_static_obstacle_inputs(is_blank)
-                    if is_blank:
-                        return np.array(ret) * 0
-                    else:
-                        return np.array(ret)
-            elif self.is_intersection_map:
-                # TODO: Move get_intersection_observation here
-                ret = common_inputs + \
-                      [intersection_angles_ahead[0],
-                       intersection_angles_ahead[1],
-                       left_lane_distance,
-                       right_lane_distance]
-                if is_blank:
-                    self.set_distance()
-                ret += list(self.waypoint_distances)
-                ret += list(self.velocity)
-                ret += list(self.acceleration)
+            self.speed,
+            # self.accel_magnitude,
+            # self.jerk_magnitude,
+            # self.distance_to_end,
+            # self.env.target_dt,  # TODO: Add dt noise for domain randomization
+            # left_lane_distance,
+            # right_lane_distance,
+        ]
+        # common_inputs += list(self.waypoint_distances)
+        # common_inputs += list(self.velocity)
+        # common_inputs += list(self.acceleration)
 
-                ret += other_agent_inputs
+        # if is_blank:
+        #     common_inputs = np.array(common_inputs) * 0
+        # else:
+        #     common_inputs = np.array(common_inputs)
 
-                if is_blank:
-                    return np.array(ret) * 0
-                else:
-                    return np.array(ret)
-            else:
-                # TODO: Remove old ~100 waypoint map stuff as all driving can be
-                #  simplified to reaching single waypoint with desired speed and
-                #  heading (right?!?). Static and dynamic obstacles can interfere with
-                #  ability to reach waypoint, but skipping waypoints should not
-                #  be an immediate alternative. Training can then focus on minimizing
-                #  g-forces if we don't reach the waypoint. Then at test time
-                #  we can set a new waypoint after some timeout.
-                observation = np.array(observation.values())
-                observation = np.concatenate((observation, angles_ahead),
-                                             axis=None)
+        # return np.array([angles_ahead[0], self.prev_steer])
 
-                if self.should_add_previous_states:
-                    if self.experience_buffer.size() == 0:
-                        self.experience_buffer.setup(shape=(len(observation),))
-                    if is_blank:
-                        past_values = np.concatenate(np.array(
-                            self.experience_buffer.blank_buffer), axis=0)
-                    else:
-                        self.experience_buffer.maybe_add(
-                            observation, self.env.total_episode_time)
-                        past_values = np.concatenate(np.array(
-                            self.experience_buffer.buffer), axis=0)
-                    observation = np.concatenate((observation, past_values),
-                                                 axis=None)
-                if math.nan in observation:
-                    raise RuntimeError(f'Found NaN in observation')
-                if np.nan in observation:
-                    raise RuntimeError(f'Found NaN in observation')
-                if -math.inf in observation or math.inf in observation:
-                    raise RuntimeError(f'Found inf in observation')
+        return np.array(common_inputs)
 
-        else:
-            observation.angles_ahead = angles_ahead
-            if self.env.add_static_obstacle:
-                self.get_static_obstacle_inputs()
+        # if self.is_one_waypoint_map:
+        #     if self.match_angle_only:
+        #         return np.array([angles_ahead[0], self.prev_steer])
+        #     elif 'STRAIGHT_TEST' in os.environ:
+        #         return np.array(common_inputs)
+        #     else:
+        #         # One waypoint map
+        #         return np.array(common_inputs)
+        #         # ret = [angles_ahead[0], self.prev_steer, self.prev_accel,
+        #         #        self.speed, self.distance_to_end]
+        #
+        # elif self.is_intersection_map:
+        #     return np.array(common_inputs)
+        # else:
+        #     # TODO: Remove old ~100 waypoint map stuff as all driving can be
+        #     #  simplified to reaching single waypoint with desired speed and
+        #     #  heading (right?!?). Static and dynamic obstacles can interfere with
+        #     #  ability to reach waypoint, but skipping waypoints should not
+        #     #  be an immediate alternative. Training can then focus on minimizing
+        #     #  g-forces if we don't reach the waypoint. Then at test time
+        #     #  we can set a new waypoint after some timeout.
+        #     observation = np.array(observation.values())
+        #     observation = np.concatenate((observation, angles_ahead),
+        #                                  axis=None)
+        #
+        #     if self.should_add_previous_states:
+        #         if self.experience_buffer.size() == 0:
+        #             self.experience_buffer.setup(shape=(len(observation),))
+        #         if is_blank:
+        #             past_values = np.concatenate(np.array(
+        #                 self.experience_buffer.blank_buffer), axis=0)
+        #         else:
+        #             self.experience_buffer.maybe_add(
+        #                 observation, self.env.total_episode_time)
+        #             past_values = np.concatenate(np.array(
+        #                 self.experience_buffer.buffer), axis=0)
+        #         observation = np.concatenate((observation, past_values),
+        #                                      axis=None)
+        #     if math.nan in observation:
+        #         raise RuntimeError(f'Found NaN in observation')
+        #     if np.nan in observation:
+        #         raise RuntimeError(f'Found NaN in observation')
+        #     if -math.inf in observation or math.inf in observation:
+        #         raise RuntimeError(f'Found inf in observation')
 
-        return observation
 
     def get_other_agent_inputs(self, is_blank=False):
 
