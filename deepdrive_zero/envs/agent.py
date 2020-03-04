@@ -612,12 +612,19 @@ class Agent:
         return ret
 
     def get_static_obstacle_inputs(self, is_blank=False):
-        start_static_obs = self.static_obstacle_points[0]
-        end_static_obs = self.static_obstacle_points[1]
-        start_obst_angle = self.get_angle_to_point(start_static_obs)
-        end_obst_angle = self.get_angle_to_point(end_static_obs)
-        start_obst_dist = np.linalg.norm(start_static_obs - self.front_pos)
-        end_obst_dist = np.linalg.norm(end_static_obs - self.front_pos)
+        if not is_blank:
+            start_static_obs = self.static_obstacle_points[0]
+            end_static_obs = self.static_obstacle_points[1]
+            start_obst_angle = self.get_angle_to_point(start_static_obs)
+            end_obst_angle = self.get_angle_to_point(end_static_obs)
+            start_obst_dist = np.linalg.norm(start_static_obs - self.front_pos)
+            end_obst_dist = np.linalg.norm(end_static_obs - self.front_pos)
+        else:
+            start_obst_angle = 0
+            end_obst_angle = 0
+            start_obst_dist = 0
+            end_obst_dist = 0
+
         ret = [start_obst_dist, end_obst_dist, start_obst_angle,
                end_obst_angle]
         self.static_obst_angle_info = ret
