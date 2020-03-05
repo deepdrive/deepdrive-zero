@@ -893,7 +893,7 @@ class Agent:
         self.angles_ahead = angles_ahead
 
         info.stats.closest_map_index = closest_map_index
-        info.stats.trip_pct = self.trip_pct
+        info.stats.done_only.trip_pct = self.trip_pct
         info.stats.distance = self.distance
 
         observation = self.populate_observation(
