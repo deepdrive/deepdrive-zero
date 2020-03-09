@@ -12,8 +12,6 @@ collisions that end up diverting from above model's dest).
 Create different granularities as needed. (First see if LSTM-A2C or R2D1 work though)
 100ms model could be MPC as well.
 
-Allow braking - test with straight test
-
 Dockerize
 
 Try 5 or 6 seeds per run

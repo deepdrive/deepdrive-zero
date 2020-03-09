@@ -463,18 +463,25 @@ class Agent:
             self.set_distance()
 
         if len(angles_ahead) == 1:
-            angles_ahead = [angles_ahead[0], angles_ahead[0]]
+            inputs = [angles_ahead[0], angles_ahead[0]]
+        else:
+            inputs = angles_ahead
 
         if self.is_intersection_map:
             # TODO: Move get_intersection_observation here
-            other_agent_inputs = self.get_other_agent_inputs(is_blank)
-        else:
-            other_agent_inputs = self.get_other_agent_inputs(True)
+
+            # But we avoid passing multiple waypoint distances as these get zeroed out
+            # frequently, which could in theory lead to gradient at zero to be over-applied.
+            # At tanh this is the max gradient, and so Adam may over-decay the
+            # learning rate and lead to an unchangeable weight.
+            inputs.append(self.waypoint_distances[0])
+            inputs.append(np.sum(self.waypoint_distances[:2]))
+            inputs += self.get_other_agent_inputs(is_blank)
+            inputs += list(self.velocity)
+            inputs += list(self.acceleration)
 
         if self.env.add_static_obstacle:
-            static_obstacle_inputs = self.get_static_obstacle_inputs(is_blank)
-        else:
-            static_obstacle_inputs = self.get_static_obstacle_inputs(True)
+            inputs += self.get_static_obstacle_inputs(is_blank)
 
             # if self.agent_index == 0:
                 # log.debug(
@@ -496,9 +503,7 @@ class Agent:
 
         # TODO: Normalize these and ensure they don't exceed reasonable
         #   physical bounds
-        # common_inputs = angles_ahead + other_agent_inputs + static_obstacle_inputs + [
-        # common_inputs = angles_ahead + [
-        common_inputs = angles_ahead + [
+        inputs += [
             # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
             # self.prev_desired_steer,
             # self.prev_desired_accel,
@@ -513,13 +518,9 @@ class Agent:
             # self.accel_magnitude,
             # self.jerk_magnitude,
             # self.distance_to_end,
-            # self.env.target_dt,  # TODO: Add dt noise for domain randomization
-            # left_lane_distance,
-            # right_lane_distance,
+            left_lane_distance,
+            right_lane_distance,
         ]
-        # common_inputs += list(self.waypoint_distances)
-        # common_inputs += list(self.velocity)
-        # common_inputs += list(self.acceleration)
 
         # if is_blank:
         #     common_inputs = np.array(common_inputs) * 0
@@ -528,7 +529,7 @@ class Agent:
 
         # return np.array([angles_ahead[0], self.prev_steer])
 
-        return np.array(common_inputs)
+        return np.array(inputs)
 
         # if self.is_one_waypoint_map:
         #     if self.match_angle_only:
