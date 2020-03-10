@@ -397,7 +397,6 @@ class Agent:
         if self.expect_normalized_action_deltas:
             steer, accel, brake = self.check_action_bounds(accel, brake, steer)
             steer *= self.max_steer_change
-            accel *= self.max_accel_change
             if self.forbid_deceleration:
                 accel = self.max_accel_change * ((1 + accel) / 2)  # Positive only
             else:
