@@ -235,12 +235,20 @@ class Agent:
                                               default=env.incent_win))
 
 
-        self.max_steer_change_per_tick = MAX_STEER_CHANGE_PER_SECOND / self.fps
-        self.max_accel_change_per_tick = MAX_ACCEL_CHANGE_PER_SECOND / self.fps
-        self.max_brake_change_per_tick = MAX_BRAKE_CHANGE_PER_SECOND / self.fps
-        self.max_steer_change = self.max_steer_change_per_tick * self.physics_steps_per_observation
-        self.max_accel_change = self.max_accel_change_per_tick * self.physics_steps_per_observation
-        self.max_brake_change = self.max_brake_change_per_tick * self.physics_steps_per_observation
+        if self.constrain_controls:
+            self.max_steer_change_per_tick = MAX_STEER_CHANGE_PER_SECOND / self.fps
+            self.max_accel_change_per_tick = MAX_ACCEL_CHANGE_PER_SECOND / self.fps
+            self.max_brake_change_per_tick = MAX_BRAKE_CHANGE_PER_SECOND / self.fps
+            self.max_steer_change = self.max_steer_change_per_tick * self.physics_steps_per_observation
+            self.max_accel_change = self.max_accel_change_per_tick * self.physics_steps_per_observation
+            self.max_brake_change = self.max_brake_change_per_tick * self.physics_steps_per_observation
+        else:
+            self.max_steer_change_per_tick = STEERING_RANGE / 2
+            self.max_accel_change_per_tick = MAX_METERS_PER_SEC_SQ
+            self.max_brake_change_per_tick = MAX_BRAKE_G * G_ACCEL
+            self.max_steer_change = self.max_steer_change_per_tick
+            self.max_accel_change = self.max_accel_change_per_tick
+            self.max_brake_change = self.max_brake_change_per_tick
 
         self.max_accel_historical = -np.inf
 
