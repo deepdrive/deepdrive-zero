@@ -399,10 +399,10 @@ class Agent:
             steer, accel, brake = self.check_action_bounds(accel, brake, steer)
             steer *= self.max_steer_change
             if self.forbid_deceleration:
-                accel = self.max_accel_change * ((1 + accel) / 2)  # Positive only
+                accel = self.max_accel_change * ((1 + accel) / 2)  # (-1,1) to positive only
             else:
                 accel = accel * self.max_accel_change
-            brake = self.max_brake_change * ((1 + brake) / 2)  # Positive only
+            brake = self.max_brake_change * ((1 + brake) / 2)  # (-1,1) to positive only
 
             steer += self.prev_steer
             accel += self.prev_accel
