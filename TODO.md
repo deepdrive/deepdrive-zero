@@ -1,3 +1,21 @@
+TODO: To get around difficulty RL is having with constrained controls,
+allow agent to fully control steering angle BUT not instantly. i.e. if it
+gives a super large steering angle, it may have to wait a few timesteps. 
+This will mean decoupling the agents' physics.
+
+TODO: RlPyt
+- Discretize actions
+- Remove Conv layers
+- possibly tune hyperparams as they crushed Sota on atari but not dmlab
+- create a single agent intersection env where the straight agent just does random throttle
+- see if we can reduce the massive memory requirements, buffer sizes, etc... 
+
+Try squaring rewards to avoid saturation of tanh units
+
+Track stats for each agent individually
+
+Fix trip percentage
+
 Try larger batch size, lower learning rate, larger models to get past previous
 intersection performance
 
