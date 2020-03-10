@@ -470,10 +470,12 @@ class Agent:
         if is_blank:
             self.set_distance()
 
+        inputs = []
+
         if len(angles_ahead) == 1:
-            inputs = [angles_ahead[0], angles_ahead[0]]
+            inputs += [angles_ahead[0], angles_ahead[0]]
         else:
-            inputs = angles_ahead
+            inputs += angles_ahead
 
         if self.is_intersection_map:
             # TODO: Move get_intersection_observation here
