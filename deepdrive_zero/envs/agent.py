@@ -489,24 +489,26 @@ class Agent:
             inputs += self.get_other_agent_inputs(is_blank)
             inputs += list(self.velocity)
             inputs += list(self.acceleration)
+            # if self.agent_index == 0:
+            #     log.debug(inputsa)
 
         if self.env.add_static_obstacle:
             inputs += self.get_static_obstacle_inputs(is_blank)
 
-            # if self.agent_index == 0:
-                # log.debug(
-                #     f'angles ahead {intersection_angles_ahead}\n'
-                    # f'prev_steer {self.prev_steer}\n'
-                    # f'prev_accel {self.prev_accel}\n'
-                    # f'speed {self.speed}\n'
-                    # f'left {left_lane_distance}\n'
-                    # f'right {right_lane_distance}\n'
-                    # f'done {done_input}\n'
-                    # f'waypoint_distances {self.waypoint_distances}\n'
-                    # f'velocity {self.velocity}\n'
-                    # f'acceleration {self.acceleration}\n'
-                    # f'agents {other_agent_inputs}\n'
-                # )
+        # if self.agent_index == 0:
+        #     log.debug(
+        #         f'angles ahead {angles_ahead}\n'
+        #         f'prev_steer {self.prev_steer}\n'
+        #         f'prev_accel {self.prev_accel}\n'
+        #         f'speed {self.speed}\n'
+        #         f'left {left_lane_distance}\n'
+        #         f'right {right_lane_distance}\n'
+        #         # f'done {done_input}\n'
+        #         f'waypoint_distances {self.waypoint_distances}\n'
+        #         f'velocity {self.velocity}\n'
+        #         f'acceleration {self.acceleration}\n'
+        #         # f'agents {other_agent_inputs}\n'
+        #     )
 
         # TODO: These model inputs should be recorded somehow so we can
         #   use the trained models later on without needing this code.
