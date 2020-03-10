@@ -166,13 +166,13 @@ class Deepdrive2DEnv(gym.Env):
 
     def reset(self):
         self.curr_reward = 0
+        self.total_episode_time = 0
         if self.agent_step_outputs:
             # Just reset the current agent
             return self.agents[self.agent_index].reset()
         else:
             # First reset, reset entire env
             self.episode_steps = 0
-            self.total_episode_time = 0
 
             for agent in self.agents:
                 o, r, done, info = agent.reset(), 0, False, {}
