@@ -3,7 +3,10 @@ allow agent to fully control steering angle BUT not instantly. i.e. if it
 gives a super large steering angle, it may have to wait a few timesteps. 
 This will mean decoupling the agents' physics.
 
-TODO: RlPyt
+Store a snapshot of all python files and current git commit of env and spinningup
+for every experiment. (compress)
+
+RlPyt
 - Discretize actions
 - Remove Conv layers
 - possibly tune hyperparams as they crushed Sota on atari but not dmlab
