@@ -1,4 +1,4 @@
-TODO: To get around difficulty RL is having with constrained controls,
+To get around difficulty RL is having with constrained controls,
 allow agent to fully control steering angle BUT not instantly. i.e. if it
 gives a super large steering angle, it may have to wait a few timesteps. 
 This will mean decoupling the agents' physics.
