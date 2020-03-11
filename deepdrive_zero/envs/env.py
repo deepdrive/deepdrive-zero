@@ -1,10 +1,13 @@
 import os
 import sys
 import time
+from copy import deepcopy
+from inspect import signature
 from typing import Tuple, List
 import random
 import gym
 import numpy as np
+from box import Box
 from gym import spaces
 
 import pyglet
@@ -38,7 +41,9 @@ class Deepdrive2DEnv(gym.Env):
                  gamma=0.99,
                  add_static_obstacle=False,
                  disable_gforce_penalty=False,
-                 forbid_deceleration=False):
+                 forbid_deceleration=False,):
+
+        self.logger = log
 
         log.info(f'{sys.executable} {sys.argv}')
 
@@ -53,6 +58,7 @@ class Deepdrive2DEnv(gym.Env):
         self.static_map: bool = '--static-map' in sys.argv
         self.physics_steps_per_observation: int = physics_steps_per_observation
         self.forbid_deceleration = forbid_deceleration
+        self.disable_gforce_penalty = disable_gforce_penalty
 
         # The previous observation, reward, done, info for each agent
         # Useful for running / training the agents
@@ -146,9 +152,55 @@ class Deepdrive2DEnv(gym.Env):
         self.agent_index: int = 0  # Current agent we are stepping
         self.curr_reward = 0
 
+
+    def configure_env(self, env_config: dict = None):
+        env_config = env_config or {}
+        self._set_config(env_config)
+        env_config_box = Box(env_config, default_box=True)
+        if env_config_box.is_intersection_map:
+            self.is_intersection_map = env_config_box.is_intersection_map
+
+        agent_params = signature(Agent).parameters.keys()
+        agent_config = {k: v for k,v in self.env_config.items() if k in agent_params}
+        self.agents: List[Agent] = [Agent(
+                env=self,
+                agent_index=i,
+                disable_gforce_penalty=self.disable_gforce_penalty,
+                **agent_config)
+            for i in range(self.num_agents)]
+
+        dummies = self.env_config['dummy_accel_agent_indices']
+        if dummies is not None:
+            self.dummy_accel_agent_indices = dummies
+
+        self.dummy_accel_agents: List[Agent] = [Agent(
+                env=self,
+                agent_index=i,
+                disable_gforce_penalty=self.disable_gforce_penalty,
+                **agent_config)
+            for i in self.dummy_accel_agent_indices]
+
+        self.all_agents = self.agents + self.dummy_accel_agents
+        self.num_agents = len(self.agents)
+
+
         self.reset()
         self.setup_spaces()
-        self.logger = log
+
+    def _set_config(self, env_config):
+        name_col_len = 45
+        orig_config = deepcopy(self.env_config)
+        self.env_config.update(env_config)
+        for k, v in self.env_config.items():
+            if k not in orig_config or orig_config[k] != v:
+                name_col = f'{k.lower()}'
+                custom = True
+            else:
+                name_col = f'{k.lower()}'
+                custom = False
+            padding = ' ' * (name_col_len - len(name_col))
+            description = 'custom ' if custom else 'default'
+            log.info(f'{name_col}{padding}{description} {v}')
 
     def setup_spaces(self):
         # Action space: ----
@@ -202,6 +254,8 @@ class Deepdrive2DEnv(gym.Env):
 
     @log.catch
     def step(self, action):
+        if self.total_steps == 0:
+            log.info(self.env_config)
         if IS_DEBUG_MODE:
             return self._step(action)
         else:

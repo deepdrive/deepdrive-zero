@@ -20,7 +20,7 @@ if TEST_STATIC_OBSTACLE:
 
     env = gym.make('deepdrive-2d-static-obstacle-no-g-pen-v0')
 else:
-    p = '/home/c2/src/tmp/spinningup/data/deepdrive-2d-intersection-no-constrained-controls/deepdrive-2d-intersection-no-constrained-controls_s0_2020_03-09_12-38.12/best_HorizonReturn/2020_03-10_11-31.22'
+    p = '/home/c2/src/tmp/spinningup/data/deepdrive-2d-intersection-no-constrained-controls-example/deepdrive-2d-intersection-no-constrained-controls-example_s0_2020_03-10_13-14.50/best_HorizonReturn/2020_03-11_11-36.27'
     if 'no-end-g' in p or 'no-contraint-g' in p or 'no-g' in p or 'no-constrain' in p:
         os.environ['END_ON_HARMFUL_GS'] = '0'
         os.environ['GFORCE_PENALTY_COEFF'] = '0'
@@ -39,6 +39,7 @@ else:
     _, get_action = load_policy_and_env(p, deterministic=True)
     # env = gym.make('deepdrive-2d-intersection-v0')
     env = gym.make(env_name)
+    env.configure_env()
 
 # env.unwrapped.physics_steps_per_observation = 1
 run_policy(env, get_action)

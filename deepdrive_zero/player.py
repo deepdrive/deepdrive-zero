@@ -34,7 +34,7 @@ class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=True,
                  add_longitudinal_friction=True, env=None,
                  fps=60, static_obstacle=False, one_waypoint=False,
-                 is_intersection_map=False):
+                 is_intersection_map=False, env_config=None):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
@@ -56,14 +56,11 @@ class Deepdrive2DPlayer(arcade.Window):
         self.background = None
         self.max_accel = None
         self.px_per_m = None
-        self.static_obstacle = (static_obstacle or
-                                (self.env and
-                                 self.env.unwrapped.add_static_obstacle))
-        self.is_intersection_map = (is_intersection_map or
-                                    (self.env and
-                                     self.env.unwrapped.is_intersection_map))
-
+        self.static_obstacle = static_obstacle
+        self.is_intersection_map = is_intersection_map
         self.one_waypoint = one_waypoint
+
+        self.env_config = env_config
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -92,6 +89,19 @@ class Deepdrive2DPlayer(arcade.Window):
                 add_static_obstacle=self.static_obstacle,
                 is_one_waypoint_map=self.one_waypoint,
                 is_intersection_map=self.is_intersection_map,)
+
+        self.env.configure_env(self.env_config)
+
+        self.static_obstacle = (self.static_obstacle or
+                                (self.env and
+                                 self.env.unwrapped.add_static_obstacle))
+        self.is_intersection_map = (self.is_intersection_map or
+                                    (self.env and
+                                     self.env.unwrapped.is_intersection_map))
+        self.one_waypoint = (self.one_waypoint or
+                             (self.env and
+                              self.env.unwrapped.is_one_waypoint_map))
+
         self.env.reset()
 
         for i, agent in enumerate(self.env.all_agents):
@@ -390,13 +400,14 @@ class Deepdrive2DPlayer(arcade.Window):
             # log.trace(f'angle:{self.sprite.angle}')
 
 
-def start(env=None, fps=60):
+def start(env=None, fps=60, env_config=None):
     player = Deepdrive2DPlayer(
         static_obstacle='--static-obstacle' in sys.argv,
         one_waypoint='--one-waypoint-map' in sys.argv,
         is_intersection_map='--intersection' in sys.argv,
         env=env,
         fps=fps,
+        env_config=env_config
     )
     player.setup()
     if 'DISABLE_GC' in os.environ:
@@ -405,6 +416,7 @@ def start(env=None, fps=60):
         gc.disable()
 
     if env is None:
+        # Otherwise, env is calling the renders/blits/etc...
         arcade.run()
 
     return player
