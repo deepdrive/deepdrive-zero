@@ -611,7 +611,7 @@ class Agent:
             if is_blank:
                 agent = self
             else:
-                agent = self.env.agents[i]
+                agent = self.env.all_agents[i]
             ret += list(agent.velocity - v)  # ego relative velocity
             ret += list(agent.velocity)
             ret += list(agent.acceleration)

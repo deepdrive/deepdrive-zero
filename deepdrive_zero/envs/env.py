@@ -122,13 +122,26 @@ class Deepdrive2DEnv(gym.Env):
             self.num_agents = 2
         else:
             self.num_agents = 1
+        self.dummy_accel_agent_indices: List[int] = []
+
+        self.env_config = dict(
+            jerk_penalty_coeff=0.10,
+            gforce_penalty_coeff=0.031,
+            lane_penalty_coeff=0.02,
+            collision_penalty_coeff=0.31,
+            speed_reward_coeff=0.50,
+            win_coefficient=1,
+            end_on_harmful_gs=True,
+            constrain_controls=True,
+            ignore_brake=False,
+            forbid_deceleration=forbid_deceleration,
+            expect_normalized_action_deltas=expect_normalized_action_deltas,
+            incent_win=incent_win,
+            dummy_accel_agent_indices=None,)
 
         self.agents = None
-        self.agents: List[Agent] = [Agent(
-            env=self,
-            agent_index=i,
-            disable_gforce_penalty=disable_gforce_penalty,)
-            for i in range(self.num_agents)]
+        self.dummy_accel_agents = None
+        self.all_agents = None  # agents + dummy_agents
 
         self.agent_index: int = 0  # Current agent we are stepping
         self.curr_reward = 0
@@ -178,6 +191,9 @@ class Deepdrive2DEnv(gym.Env):
                 o, r, done, info = agent.reset(), 0, False, {}
                 self.agent_step_outputs.append((o, r, done, info))
 
+            for agent in self.dummy_accel_agents:
+                agent.reset()
+
         return self.get_blank_observation()
 
     def seed(self, seed=None):
@@ -222,6 +238,10 @@ class Deepdrive2DEnv(gym.Env):
 
         if self.should_render:
             self.regulate_fps()
+
+        for dummy_accel_agent in self.dummy_accel_agents:
+            # Random forward accel
+            dummy_accel_agent.step([0, random.random(), 0])
 
         return ret
 
@@ -313,7 +333,7 @@ class Deepdrive2DEnv(gym.Env):
                     agent.ego_rect_tuple,
                     obj2=(agent.static_obstacle_tuple,))
         elif self.is_intersection_map:
-            return check_collision_agents(self.agents)
+            return check_collision_agents(self.all_agents)
 
 
 

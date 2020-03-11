@@ -94,7 +94,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 is_intersection_map=self.is_intersection_map,)
         self.env.reset()
 
-        for i, agent in enumerate(self.env.agents):
+        for i, agent in enumerate(self.env.all_agents):
             sprite = arcade.Sprite(VEHICLE_PNG, CHARACTER_SCALING)
             sprite.center_x = agent.map.x_pixels[0]
             sprite.center_y = agent.map.y_pixels[0]
@@ -104,7 +104,7 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
-        for agent in self.env.agents:
+        for agent in self.env.all_agents:
             self.draw_agent_objects(agent)
 
         if self.is_intersection_map:
@@ -352,7 +352,7 @@ class Deepdrive2DPlayer(arcade.Window):
     def update(self, _delta_time):
         """ Movement and game logic """
         env = self.env
-        for i, agent in enumerate(env.agents):
+        for i, agent in enumerate(env.all_agents):
             sprite = self.player_list[i]
 
             # log.trace(f'v:{a.speed}')
