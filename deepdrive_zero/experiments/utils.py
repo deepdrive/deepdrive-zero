@@ -13,7 +13,10 @@ def run(train_fn, env_config):
     elif mode == '--play':
         player.start(env_config=env_config)
     elif mode == '--test':
-        model_path = sys.argv[2]
+        if not sys.argv[2:]:
+            model_path = get_latest_model_path()
+        else:
+            model_path = sys.argv[2]
         _, get_action = load_policy_and_env(model_path, deterministic=True)
         env = gym.make(env_config['env_name'])
         env.configure_env(env_config)
