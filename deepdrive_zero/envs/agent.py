@@ -31,7 +31,7 @@ from deepdrive_zero.physics.bike_model import bike_with_friction_step, \
     get_vehicle_model
 from deepdrive_zero.physics.collision_detection import get_rect, \
     get_lines_from_rect_points
-from deepdrive_zero.physics.tick import physics_tick
+from deepdrive_zero.physics.step import physics_step
 from deepdrive_zero.utils import get_angles_ahead, get_angle, flatten_points, \
     np_rand, is_number
 
@@ -62,9 +62,11 @@ class Agent:
                  expect_normalized_action_deltas=None,
                  incent_win=None,
                  dummy_accel_agent_indices=None,
+                 wait_for_action=None,
                  ):
 
         self.env = env
+        self.dt = env.target_dt
         self.agent_index = agent_index
         self.match_angle_only = match_angle_only
         self.static_map = static_map
@@ -87,6 +89,7 @@ class Agent:
         self.expect_normalized_action_deltas = expect_normalized_action_deltas
         self.incent_win = incent_win
         self.dummy_accel_agent_indices = dummy_accel_agent_indices
+        self.wait_for_action = wait_for_action
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -231,7 +234,6 @@ class Agent:
 
     @log.catch
     def step(self, action):
-        dt = self.env.get_dt()
         info = Box(default_box=True)
         if 'STRAIGHT_TEST' in os.environ:
             accel = action[0]
@@ -277,7 +279,7 @@ class Agent:
         else:
             collided = bool(self.collided_with)
 
-            obs_data = self.get_observation(steer, accel, brake, dt, info)
+            obs_data = self.get_observation(steer, accel, brake, info)
             (lane_deviation, observation, closest_map_point,
              left_lane_distance, right_lane_distance) = obs_data
 
@@ -839,14 +841,14 @@ class Agent:
             win_reward = self.win_coefficient
         return win_reward
 
-    def get_observation(self, steer, accel, brake, dt, info):
+    def get_observation(self, steer, accel, brake, info):
         if self.ignore_brake:
             brake = False
         if self.speed > 100:
             log.warning('Cutting off throttle at speed > 100m/s')
             accel = 0
 
-        self.step_physics(dt, steer, accel, brake, info)
+        self.step_physics(steer, accel, brake, info)
 
         closest_map_point, closest_map_index, closest_waypoint_distance = \
             get_closest_point((self.front_x, self.front_y), self.map_kd_tree)
@@ -1143,13 +1145,14 @@ class Agent:
 
         return x, y, lane_width, lines
 
-    def step_physics(self, dt, steer, accel, brake, info):
+    def step_physics(self, steer, accel, brake, info):
+        dt = self.dt
         n = self.env.physics_steps_per_observation
         start = time.time()
         (self.acceleration, self.angle, self.angle_change,
          self.angular_velocity, self.gforce, self.jerk, self.max_gforce,
          self.speed, self.x, self.y, self.prev_accel, self.prev_brake,
-         self.prev_steer, self.velocity) = physics_tick(
+         self.prev_steer, self.velocity) = physics_step(
             accel=accel,
             add_longitudinal_friction=self.add_longitudinal_friction,
             add_rotational_friction=self.add_rotational_friction,
@@ -1163,8 +1166,11 @@ class Agent:
             steer=steer, vehicle_model=self.vehicle_model,
             ignore_brake=self.ignore_brake,
             constrain_controls=self.constrain_controls,
-            max_steer_change=self.max_steer_change_per_tick,
-            max_accel_change=self.max_accel_change_per_tick)
+            max_steer_change=self.max_steer_change,
+            max_accel_change=self.max_accel_change,
+            max_brake_change=self.max_brake_change,
+            wait_for_action=self.wait_for_action,
+        )
         # log.debug(f'step took {time.time() - start}s')
 
         info.stats.gforce = self.gforce

@@ -143,7 +143,8 @@ class Deepdrive2DEnv(gym.Env):
             forbid_deceleration=forbid_deceleration,
             expect_normalized_action_deltas=expect_normalized_action_deltas,
             incent_win=incent_win,
-            dummy_accel_agent_indices=None,)
+            dummy_accel_agent_indices=None,
+            wait_for_action=False,)
 
         self.agents = None
         self.dummy_accel_agents = None

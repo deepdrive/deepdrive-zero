@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from numba import njit
 
@@ -7,12 +9,37 @@ from deepdrive_zero.physics.bike_model import bike_with_friction_step
 from deepdrive_zero.logs import log
 
 @njit(cache=CACHE_NUMBA, nogil=True)
-def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
+def physics_step(accel, add_longitudinal_friction, add_rotational_friction,
                  brake, curr_acceleration, curr_angle, curr_angle_change,
                  curr_angular_velocity, curr_gforce, curr_max_gforce,
                  curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
                  prev_brake, prev_steer, steer, vehicle_model, ignore_brake,
-                 constrain_controls, max_steer_change, max_accel_change):
+                 constrain_controls, max_steer_change, max_accel_change,
+                 max_brake_change,
+                 wait_for_action):
+    if wait_for_action:
+        pass
+        # Set new_action min(whats_left, max_action)
+        # Do the step
+        # Subtract new_action from whats_left
+        # Repeat until whats_left == 0 for all actions
+    else:
+        return _step(accel, add_longitudinal_friction, add_rotational_friction,
+                     brake, constrain_controls, curr_angle, curr_angle_change,
+                     curr_angular_velocity, curr_gforce, curr_max_gforce,
+                     curr_speed, curr_velocity, curr_x, curr_y, dt,
+                     ignore_brake,
+                     max_accel_change, max_steer_change, n, prev_accel,
+                     prev_brake,
+                     prev_steer, steer, vehicle_model)
+
+@njit(cache=CACHE_NUMBA, nogil=True)
+def _step(accel, add_longitudinal_friction, add_rotational_friction, brake,
+          constrain_controls, curr_angle, curr_angle_change,
+          curr_angular_velocity, curr_gforce, curr_max_gforce, curr_speed,
+          curr_velocity, curr_x, curr_y, dt, ignore_brake, max_accel_change,
+          max_steer_change, n, prev_accel, prev_brake, prev_steer, steer,
+          vehicle_model):
     if ignore_brake:
         brake = 0
     if curr_speed > 100:
@@ -24,6 +51,7 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
         steer_change = max(-max_steer_change, steer_change)
         accel_change = min(max_accel_change, accel_change)
         accel_change = max(-max_accel_change, accel_change)
+
         i_steer, i_accel, i_brake = 0, 0, 0
     for i in range(n):
         """
@@ -56,7 +84,6 @@ def physics_tick(accel, add_longitudinal_friction, add_rotational_friction,
             curr_velocity, accel, curr_max_gforce)
         (curr_gforce, curr_max_gforce, new_jerk, new_acceleration,
          curr_angular_velocity, new_velocity) = gforce_outputs
-
     return (new_acceleration, curr_angle, curr_angle_change,
             curr_angular_velocity, curr_gforce, new_jerk,
             curr_max_gforce, curr_speed, curr_x, curr_y, i_accel, i_brake,
