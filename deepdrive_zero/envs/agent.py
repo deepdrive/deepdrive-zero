@@ -641,7 +641,7 @@ class Agent:
         self.acceleration = np.array((0,0))
         self.gforce = 0
         self.accel_magnitude = 0
-        self.jerk = 1
+        self.jerk = 0
         self.jerk_magnitude = 0
         self.gforce_levels = self.blank_gforce_levels()
         self.max_gforce = 0
