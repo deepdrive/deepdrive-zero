@@ -284,7 +284,7 @@ class Agent:
              left_lane_distance, right_lane_distance) = obs_data
 
             done, won, lost = self.get_done(closest_map_point, lane_deviation,
-                                            collided)
+                                            collided, info)
             reward, info = self.get_reward(
                 lane_deviation, won, lost, collided, info, steer, accel,
                 left_lane_distance, right_lane_distance
@@ -677,26 +677,38 @@ class Agent:
         self.ego_lines = get_lines_from_rect_points(self.ego_rect_tuple)
 
     def get_done(self, closest_map_point, lane_deviation,
-                 collided: bool) -> Tuple[bool, bool, bool]:
+                 collided: bool, info: Box) -> Tuple[bool, bool, bool]:
         done = False
         won = False
         lost = False
+        info.stats.done_only.collided = 0
+        info.done_only.harmful_gs = 0
+        info.stats.done_only.timeup = 0
+        info.stats.done_only.circles = 0
+        info.stats.done_only.skipped = 0
+        info.stats.done_only.backwards = 0
+        info.stats.done_only.won = 0
+
         if 'DISABLE_GAME_OVER' in os.environ:
             return done, won, lost
         elif collided:
             log.warning(f'Collision, game over agent {self.agent_index}')
+            info.stats.done_only.collided = 1
             done = True
             lost = True
         elif self.gforce > 1.0 and self.end_on_harmful_gs:
             # Only end on g-force once we've learned to complete part of the trip.
             log.warning(f'Harmful g-forces, game over agent {self.agent_index}')
+            info.done_only.harmful_gs = 1
             done = True
             lost = True
         elif (self.episode_steps + 1) % self.env._max_episode_steps == 0:
+            info.stats.done_only.timeup = 1
             log.warning(f"Time's up agent {self.agent_index}")
             done = True
         elif 'DISABLE_CIRCLE_CHECK' not in os.environ and \
                 abs(math.degrees(self.angle)) > 400:
+            info.stats.done_only.circles = 1
             done = True
             lost = True
             log.warning(f'Going in circles - angle {math.degrees(self.angle)} too high')
@@ -705,15 +717,18 @@ class Agent:
                     self.closest_map_index > self.next_map_index:
                 # Negative progress catches this first depending on distance
                 # thresholds
+                info.stats.done_only.skipped = 1
                 done = True
                 lost = True
                 log.warning(f'Skipped waypoint {self.next_map_index} '
                             f'agent {self.agent_index}')
             elif (self.furthest_distance - self.distance) > 2:
+                info.stats.done_only.backwards = 1
                 done = True
                 lost = True
                 log.warning(f'Negative progress agent {self.agent_index}')
             elif abs(self.map.length - self.distance) < 1:
+                info.stats.done_only.won = 1
                 done = True
                 won = True
                 # You win!
@@ -722,6 +737,7 @@ class Agent:
                             f'Agent: {self.agent_index}')
         elif list(self.map.waypoints[-1]) == list(closest_map_point):
             # You win!
+            info.stats.done_only.won = 1
             done = True
             won = True
             log.success(f'Reached destination! '
