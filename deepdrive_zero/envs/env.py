@@ -23,6 +23,7 @@ from deepdrive_zero.logs import log
 
 class Deepdrive2DEnv(gym.Env):
     metadata = {'render.modes': ['human']}
+    is_deepdrive = True
 
     def __init__(self,
                  px_per_m=PX_PER_M,
