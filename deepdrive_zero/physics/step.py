@@ -102,5 +102,5 @@ def get_gforce_levels(x, y, curr_angle, prev_x, prev_y, prev_angle, dt,
     gforce = accel_magnitude / 9.807
     max_gforce = max(gforce, curr_max_gforce)
     # prev_gforce.append(self.gforce)
-    jerk = new_accel - curr_accel
+    jerk = (new_accel - curr_accel) / dt
     return gforce, max_gforce, jerk, new_accel, angular_velocity, curr_velocity
