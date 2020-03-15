@@ -173,3 +173,18 @@ def test_bike_with_friction_step():
     assert angle == 0
     assert speed == 0.9417362622231682
     assert angle_change == 0
+
+
+def test_get_vehicle_dimensions():
+    vehicle_dimensions = get_vehicle_dimensions(VEHICLE_WIDTH)
+
+    return vehicle_dimensions
+
+
+def main():
+    test_bike_with_friction_step()
+    test_get_vehicle_dimensions()
+
+
+if __name__ == "__main__":
+    main()

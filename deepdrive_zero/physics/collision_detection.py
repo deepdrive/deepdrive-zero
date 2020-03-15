@@ -266,10 +266,10 @@ def main():
         test_check_collision()
     elif '--test_get_pair_indexes' in sys.argv:
         test_get_pairs_indexes()
+    elif '--test_get_rect' in sys.argv:
+        test_get_rect()
     else:
         print(timeit.timeit(test_lines_intersect_x2, number=1000))
-
-
 
 
 if __name__ == "__main__":
