@@ -8,6 +8,7 @@ import numpy as np
 from numba import njit
 
 from deepdrive_zero.constants import CACHE_NUMBA
+from deepdrive_zero.physics.bike_model import get_vehicle_dimensions
 
 pi = np.pi
 
@@ -109,7 +110,6 @@ def check_collision(obj1: tuple, ob2: tuple):
     return False
 
 
-
 def get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
@@ -133,11 +133,16 @@ def _get_rect(center_x, center_y, angle, width, height):
             Starts at top left and goes clockwise
             top left, top right, bottom right, bottom left
     """
+
     w = width
     h = height
+    L_a, L_b, rear_axle, front_axle = get_vehicle_dimensions(width)
+
     rot = np.array([[np.cos(angle), -np.sin(angle)],
                     [np.sin(angle),  np.cos(angle)]])
-    p = np.array([[-w/2, h/2], [w/2, h/2], [w/2, -h/2], [-w/2, -h/2]])
+
+    p = np.array([[-w/2, h-rear_axle], [w/2, h-rear_axle],
+                  [w/2, -rear_axle], [-w/2, -rear_axle]])
 
     # Rotate
     ret = rot @ p.T
@@ -145,8 +150,12 @@ def _get_rect(center_x, center_y, angle, width, height):
     # Zip up to proper shape
     ret = np.dstack((ret[0], ret[1]))[0]
 
+    # Shift the center
+    rear_x = center_x - L_b
+    rear_y = center_y
+
     # Shift
-    ret += np.array([center_x, center_y])
+    ret += np.array([rear_x, rear_y])
 
     return ret
 
