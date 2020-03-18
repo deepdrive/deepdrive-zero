@@ -1,3 +1,10 @@
+[DONE] Try bumping up std params when resuming to get some more exploration juice.
+
+Investigate if the gradient of the gaussian likliehood wrt the prob:
+https://www.wolframalpha.com/input/?i=d%2Fds+1%2F%28s*%282*pi%29**0.5%29+*+exp%28-0.5%28%28x-u%29%2F%28s%29%29%29+
+Is causing large std gradient for low probs and thus dominating the clipping range every step.
+https://www.google.com/search?sxsrf=ALeKk00H0iDI57_JildOxjswi-9G03TPxQ%3A1584296060686&ei=fHBuXoK6KYz7-gT7k6sY&q=exp%281%2Fx%29*x%2Fx**3&oq=exp%281%2Fx%29*x%2Fx**3&gs_l=psy-ab.3...190972.208594..209234...2.1..0.79.1173.17......0....1..gws-wiz.......0i71j35i39j0i131i273j0i273j0j0i131j0i67j0i30j0i8i30j0i5i30.o4HAS4RVVxA&ved=0ahUKEwiC6Knfip3oAhWMvZ4KHfvJCgMQ4dUDCAs&uact=5
+
 To get around difficulty RL is having with constrained controls,
 allow agent to fully control steering angle BUT not instantly. i.e. if it
 gives a super large steering angle, it may have to wait a few timesteps. 
