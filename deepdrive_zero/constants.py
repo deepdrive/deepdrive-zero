@@ -24,15 +24,17 @@ if USE_VOYAGE:
     MAX_METERS_PER_SEC_SQ = 3.625  # 9.807 / 10 - 0.1
     VEHICLE_WIDTH = 2.300675555555556
     VEHICLE_HEIGHT = 5.17652
+    VEHICLE_LENGTH = 5.17652
     VEHICLE_PNG = join(DIR, 'images/voyage-van-up.png')
 else:
     MAX_METERS_PER_SEC_SQ = 4.79
+    VEHICLE_LENGTH = 4.694
     VEHICLE_PNG = join(DIR, 'images/tesla-up.png')
     # TODO: Run player to determine width and height
 
 MAX_PIXELS_PER_SEC_SQ = MAX_METERS_PER_SEC_SQ * PX_PER_M
-TESLA_LENGTH = 4.694
-VOYAGE_VAN_LENGTH = 5.17652
+# TESLA_LENGTH = 4.694
+# VOYAGE_VAN_LENGTH = 5.17652
 MAP_IMAGE = join(DIR, 'images/map.png')
 
 MAX_BRAKE_G = 1
