@@ -145,7 +145,8 @@ class Deepdrive2DEnv(gym.Env):
             expect_normalized_action_deltas=expect_normalized_action_deltas,
             incent_win=incent_win,
             dummy_accel_agent_indices=None,
-            wait_for_action=False,)
+            wait_for_action=False,
+            incent_yield_to_oncoming_traffic=False,)
 
         self.agents = None
         self.dummy_accel_agents = None
@@ -206,7 +207,7 @@ class Deepdrive2DEnv(gym.Env):
 
     def setup_spaces(self):
         # Action space: ----
-        # Accel, Brake, Steer
+        # Steer, Accel, Brake
         agent = self.agents[0]
         if self.expect_normalized_actions:
             self.action_space = spaces.Box(low=-1, high=1, shape=(agent.num_actions,))

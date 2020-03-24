@@ -22,7 +22,7 @@ from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
     MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX, \
     MAX_STEER_CHANGE_PER_SECOND, MAX_ACCEL_CHANGE_PER_SECOND, \
     MAX_BRAKE_CHANGE_PER_SECOND, STEERING_RANGE, MAX_STEER, MIN_STEER, \
-    MAX_BRAKE_G
+    MAX_BRAKE_G, RIGHT_HAND_TRAFFIC
 from deepdrive_zero.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
 from deepdrive_zero.experience_buffer import ExperienceBuffer
 from deepdrive_zero.logs import log
@@ -63,6 +63,7 @@ class Agent:
                  incent_win=None,
                  dummy_accel_agent_indices=None,
                  wait_for_action=None,
+                 incent_yield_to_oncoming_traffic=None
                  ):
 
         self.env = env
@@ -90,6 +91,7 @@ class Agent:
         self.incent_win = incent_win
         self.dummy_accel_agent_indices = dummy_accel_agent_indices
         self.wait_for_action = wait_for_action
+        self.incent_yield_to_oncoming_traffic = incent_yield_to_oncoming_traffic
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -115,6 +117,7 @@ class Agent:
         self.map = None
         self.map_kd_tree = None
         self.map_flat = None
+        self.intersection = None
 
         # Static obstacle
         self.add_static_obstacle: bool = env.add_static_obstacle
@@ -204,6 +207,7 @@ class Agent:
         self.prev_desired_accel = 0
         self.prev_desired_steer = 0
         self.prev_desired_brake = 0
+        self.approaching_intersection = False
 
 
         # Take last n (10 from 0.5 seconds) state, action, reward values and append them
@@ -229,6 +233,14 @@ class Agent:
             self.max_brake_change = self.max_brake_change_per_tick
 
         self.max_accel_historical = -np.inf
+
+        # Important: this should only be true after the agent has reached
+        # the intersection. Otherwise, we can not incent agent to actually reach
+        # the intersection! We may need to create another input that
+        # signals the agent is approaching a left turn (in right-hand-traffic) but
+        # in theory the agent should learn to detect a left is coming
+        # without an extra input explicitly stating that with RL.
+        self.will_turn_across_opposing_lanes = False
 
         self.reset()
 
@@ -456,10 +468,10 @@ class Agent:
         if self.is_intersection_map:
             # TODO: Move get_intersection_observation here
 
-            # But we avoid passing multiple waypoint distances as these get zeroed out
-            # frequently, which could in theory lead to gradient at zero to be over-applied.
-            # At tanh this is the max gradient, and so Adam may over-decay the
-            # learning rate and lead to an unchangeable weight.
+            # We avoided passing multiple waypoint distances as these get zeroed out
+            # frequently, but this just leads to zero gradients on those weights and zero
+            # learning rates via Adam - see play/mlp.py - so we should be able
+            # to pass zero for inputs a all or a lot of the time with no problems.
             inputs.append(self.waypoint_distances[0])
             inputs.append(np.sum(self.waypoint_distances[:2]))
             inputs += self.get_other_agent_inputs(is_blank)
@@ -509,6 +521,10 @@ class Agent:
             left_lane_distance,
             right_lane_distance,
         ]
+
+        if self.incent_yield_to_oncoming_traffic:
+            inputs.append(float(self.will_turn_across_opposing_lanes))
+
 
         # if is_blank:
         #     common_inputs = np.array(common_inputs) * 0
@@ -762,11 +778,19 @@ class Agent:
 
         angle_accuracy = 1 - angle_diff / (2 * pi)
 
-        # TODO: Fix incentive to drive towards waypoint instead of edge of
-        #   static obstacle. Perhaps just remove this reward altogether
-        #   in favor of end of episode reward.
-        frame_distance = self.distance - self.prev_distance
-        speed_reward = frame_distance * self.speed_reward_coeff
+        speed_reward = self.get_progress_reward()
+        if (self.incent_yield_to_oncoming_traffic and
+                self.will_turn_across_opposing_lanes and
+                self.upcoming_opposing_lane_agents()):
+            # Even if other agent is turning across as well, and so won't
+            # intersect (i.e. both agents turning left in right hand traffic)
+            # we should be cautious while making the left. The negative
+            # reward will have to be high enough so that we're cautious but
+            # eventually go so long as we can avoid colliding, which will
+            # be learned. Once the other agent has passed, we get distance
+            # reward for the turn which should incent being less cautious
+            # when no other agent is approaching.
+            speed_reward *= -1
 
         # TODO: Idea penalize residuals of a quadratic regression fit to history
         #  of actions. Currently penalizing jerk instead which may or may not
@@ -851,6 +875,11 @@ class Agent:
 
         return ret, info
 
+    def get_progress_reward(self):
+        frame_distance = self.distance - self.prev_distance
+        speed_reward = frame_distance * self.speed_reward_coeff
+        return speed_reward
+
     def get_win_reward(self, won):
         win_reward = 0
         if self.incent_win and won:
@@ -918,7 +947,6 @@ class Agent:
         return (closest_waypoint_distance, observation, closest_map_point,
                 left_lane_distance, right_lane_distance)
 
-
     # TOOD: Numba this
     def get_intersection_observation(self, half_lane_width, left_distance,
                                      right_distance):
@@ -927,32 +955,88 @@ class Agent:
         wi = self.next_map_index
         mp = self.map
         angles_ahead = [a2w(p) for p in mp.waypoints[wi:wi+2]]
+        self.will_turn_across_opposing_lanes = False
+        self.approaching_intersection = False
+
+        (back_left, back_right, front_left, front_right, max_ego_x, max_ego_y,
+         min_ego_x, min_ego_y) = self.get_rect_coords_info()
+
         if self.agent_index == 0:
-            # left turn agent
-            if self.front_y < mp.waypoints[1][1]:
+            # Left turn agent
+            intersection_start_y = mp.waypoints[1][1]
+            intersection_end_x = mp.waypoints[2][0]
+            if self.front_y < intersection_start_y:
                 # Before entering intersection
-                x = mp.waypoints[0][0]
-                left_x = x - half_lane_width
-                right_x = x + half_lane_width
-                left_distance = min(self.ego_rect.T[0]) - left_x
-                right_distance = right_x - max(self.ego_rect.T[0])
+                wp_x = mp.waypoints[0][0]
+                left_lane_x = wp_x - half_lane_width
+                right_lane_x = wp_x + half_lane_width
+                left_distance = min_ego_x - left_lane_x
+                right_distance = right_lane_x - max_ego_x
+            elif self.front_x < intersection_end_x:
+                # Exiting intersection
+                wp_y = mp.waypoints[2][1]
+                bottom_lane_y = wp_y - half_lane_width
+                top_lane_y = wp_y + half_lane_width
+                if self.back_x < intersection_end_x:  # intersection end, x coord
+                    # Completely exited intersection
+                    left_distance = min_ego_y - bottom_lane_y
+                    right_distance = top_lane_y - max_ego_y
+                else:
+                    # Partially exited, front has exited but back has not
+                    if RIGHT_HAND_TRAFFIC:
+                        front_y = front_left[1], front_right[1]
+                        left_distance = min(front_y) - bottom_lane_y
+                        right_distance = top_lane_y - max(front_y)
             else:
-                if self.back_x < mp.waypoints[2][0]:
-                    # After exiting intersection
-                    y = mp.waypoints[2][1]
-                    bottom_y = y - half_lane_width
-                    top_y = y + half_lane_width
-                    left_distance = min(self.ego_rect.T[1]) - bottom_y
-                    right_distance = top_y - max(self.ego_rect.T[1])
+                # Inside the intersection
+                self.will_turn_across_opposing_lanes = True
+                # Default lane reward as there are no lanes in intersection.
+                # TODO: Discourage cutting into lanes when partially in the
+                #   intersection.
         else:
             # Straight agent
-            x = mp.waypoints[0][0]
-            left_x = x - half_lane_width
-            right_x = x + half_lane_width
-            right_distance = min(self.ego_rect.T[0]) - left_x
-            left_distance = right_x - max(self.ego_rect.T[0])
+            wp_x = mp.waypoints[0][0]
+            left_lane_x = wp_x - half_lane_width
+            right_lane_x = wp_x + half_lane_width
+            right_distance = min_ego_x - left_lane_x
+            left_distance = right_lane_x - max_ego_x
+            lane_lines, _lane_width = self.intersection
+            (left_vert, mid_vert, right_vert, top_horiz, mid_horiz,
+             bottom_horiz) = lane_lines
+            if min_ego_y > top_horiz[0][1]:  # any y coordinate will do
+                self.approaching_intersection = True
+
+        # if self.agent_index == 0:
+        #     log.trace(f'across: {self.will_turn_across_opposing_lanes}\t'
+        #               f'l {round(left_distance, 2)}\t'
+        #               f'r {round(right_distance, 2)}')
+        # else:
+        #     log.trace(f'approach: {self.approaching_intersection}\t'
+        #              f'l {round(left_distance, 2)}\t'
+        #              f'r {round(right_distance, 2)}')
 
         return angles_ahead, left_distance, right_distance
+
+    def get_rect_coords_info(self):
+        x_coords = self.ego_rect.T[0]
+        min_ego_x = min(x_coords)
+        max_ego_x = max(x_coords)
+
+        y_coords = self.ego_rect.T[1]
+        min_ego_y = min(y_coords)
+        max_ego_y = max(y_coords)
+
+        front_coords = self.ego_rect[:2]
+        back_coords = self.ego_rect[2:]
+
+        # Clockwise
+        front_left = front_coords[0]
+        front_right = front_coords[1]
+        back_right = back_coords[0]
+        back_left = back_coords[1]
+
+        return (back_left, back_right, front_left, front_right, max_ego_x,
+                max_ego_y, min_ego_x, min_ego_y)
 
     def get_angles_ahead(self, closest_map_index):
         """
@@ -1140,6 +1224,7 @@ class Agent:
 
     def gen_intersection_map(self):
         lines, lane_width = get_intersection()
+        self.intersection = (lines, lane_width)
         left_vert, mid_vert, right_vert, top_horiz, mid_horiz, bottom_horiz = \
             lines
 
@@ -1197,6 +1282,16 @@ class Agent:
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         self.episode_gforces.append(self.gforce)
+
+    def upcoming_opposing_lane_agents(self) -> bool:
+        if (self.agent_index == 0 and
+                self.env.agents[1].approaching_intersection):
+            # TODO: Make this more general when adding more agents,
+            #  larger maps, etc... i.e. approaching intersection will have to
+            #  identify some intersection id instead of just being a bool.
+            return True
+        else:
+            return False
 
 
 def get_closest_point(point, kd_tree):

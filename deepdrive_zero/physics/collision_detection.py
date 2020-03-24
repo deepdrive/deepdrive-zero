@@ -114,8 +114,8 @@ def get_rect(center_x, center_y, angle, width, height):
     """
     :param angle: angle in radians
     :return: 4 points of the rectangle:
-            Starts at top left and goes clockwise
-            top left, top right, bottom right, bottom left
+            Starts at front left and goes clockwise:
+            front left, front right, back right, back left
     """
     ego_rect = _get_rect(center_x, center_y, angle, width, height)
 

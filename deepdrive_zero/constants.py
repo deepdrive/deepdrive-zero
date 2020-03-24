@@ -48,3 +48,4 @@ MAX_BRAKE_CHANGE_PER_SECOND = 0.06 * 60  # TODO: Make this vehicle make/model ba
 STEERING_RANGE = math.pi / 6  # Standard for sharp turning vehicles (about 33 deg)  # TODO: Make this vehicle make/model based
 MIN_STEER = -STEERING_RANGE/2
 MAX_STEER = STEERING_RANGE/2
+RIGHT_HAND_TRAFFIC = True
