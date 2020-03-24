@@ -41,6 +41,26 @@ More examples from which you can use the SCRIPT_NAME and PARAMETERS to see what 
 
 https://github.com/deepdrive/deepdrive-2d/blob/master/.idea/runConfigurations/play_dd2d_all_friction_one_waypoint_static_obstacle_DISABLE_GAME_OVER_1.xml
 
+### Action Space
+
+The current action space is continuous from -1 to 1 for each policy network output. The order is 
+```
+steer, accel, brake
+```
+
+Negative accel can be used to put the car into reverse. Network outputs are scaled to represent physically realistic values:
+
+**steer**
+> Heading angle of the ego
+
+**accel**
+> m/s/s of the ego, positive for forward, negative for reverse
+
+**brake**
+> From 0g at -1 to 1g at 1 of brake force
+
+ 
+
 ### Bike Model
 
 Most industrial self-driving control has been done in 2D. The model humans use to drive seems _mostly_ to omit the possibility
@@ -134,3 +154,5 @@ Pytorch SAC does best when auto entropy tuning is on (which spinning up does not
 * Tried ReLU on intersection with config that otherwise is able to train agents to reach their waypoints ~80% of the time, but with tanh. With Relu, we got a low angle accuracy of around 0.9, but with good speed. Badly performing agents typically get either steering or accel wrong, but rarely both. So a retrain where angle accuracy was good but speed was to low wouldn't surprise me.
 * With delta controls, we are maxing out brake and accel and going very slow. Angle accuracy is good, but we collide a lot.
 * What does work is letting the agent steer and accelerate through the full range of the vehicle in a single time step, which is basically letting it perform infeasible actions if the time step is fixed. So next, I'm going to try gamma tuning with constrained controls so that the future estimated value does not interfere as much with learning short term consequences of actions which with our mostly per frame reward should be fine. We can always tune it back up. c.f. OpenAI Dota paper. Another thing that's a little more crazy to try is to not fix the time step, but let actions play out, i.e. a high steering angle change just takes more time. This seems like a good idea in theory in that we can explore with larger actions and timesteps, and then refine our actions over time to smaller ones after exploration sufficient to reach the longer term goals like reaching waypoints and not colliding. Perhaps a higher gamma would help also, but at 0.99, ~100 steps, we should be planning 10 seconds into the future so in theory higher gamma should not do anything in the intersection environment which takes 6 to 7 seconds to complete successfully.
+* Lowering gamma (0.95, 0.8) and lam (0.835, 0.8) led to quicker learning during the first 50 epochs or so, but eventually converged to worse performance than higher lam - see experiments/intersection_2_agents_lower_gamma
+* What does work super well multiplying a `boost_explore` coefficient to action standard deviations when resuming a model! This allowed agents that had a tendency to collide to "unlearn" this by increasing the collision penalty while not needing to retrain from scratch. Without `boost_explore`, increasing the collision penalty or changing any reward for that matter has little to no effect as the action entropy is too low. Tried `boost_explore` of 1.1 which was not enough then 10 which worked well. See deepdrive_zero/experiments/intersection_2_agents_fine_tune_collision_resume_add_comfort5.py

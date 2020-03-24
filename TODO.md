@@ -1,4 +1,20 @@
-[DONE] Try bumping up std params when resuming to get some more exploration juice.
+Change the step rate to 5 steps per second (200ms), as human reaction time is 
+about this much and this should help learning efficiency, plus it will make constrained
+controls less of an issue. 
+
+Filter fixed size of other actors to feed into network using distance and worst
+case TTC (i.e. if they changed position). Could also do max-pool, but don't understand
+well how that works in OpenAI V and if that can apply to many more agents. Also transformer
+or LSTM could work that scans all actors where a higher number of actors results
+in effectively higher latency encodings of actors fed to MLP.
+
+Add braking+accel negative reward that penalizes pressing brake and accel at the 
+same time.
+
+Add left yield road rule reward (eventually need against-traffic-turn input 
+to net i.e. turn left for right-hand-traffic and turn right for 
+left-hand-traffic - right now can be gleaned from other inputs like waypoint 
+angle)
 
 Investigate if the gradient of the gaussian likliehood wrt the prob:
 https://www.wolframalpha.com/input/?i=d%2Fds+1%2F%28s*%282*pi%29**0.5%29+*+exp%28-0.5%28%28x-u%29%2F%28s%29%29%29+
@@ -69,17 +85,6 @@ is annealed as we reach theoretical maximum eval performance.
 This is similar in spirit to population based training, but explores goal 
 weightings instead of hyperparams and therefore is a bit meta-learning-ish.
 -------------------------------------------------------------------------------
-
-Add left yield road rule reward (eventually need against-traffic-turn input 
-to net i.e. turn left for right-hand-traffic and turn right for 
-left-hand-traffic - right now can be gleaned from other inputs like waypoint 
-angle)
-
-Do curriculum again
-    First no g penalty - no jerk penalty - just destination and collision.
-    Then add high g penalty + jerk penalty and perhaps reduce gamma to 0.9 (1 second lookahead) or 0.95 (2 second lookahead) 
-
-Also try lower lr and gamma
 
 Try LSTM / GTrXL
 
