@@ -11,11 +11,11 @@ from loguru import logger as log
 
 import arcade
 import arcade.color as color
-from deepdrive_zero.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN, \
-    MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
-    SCREEN_TITLE, \
-    CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
-    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
+from deepdrive_zero.constants import SCREEN_WIDTH, SCREEN_HEIGHT, \
+    SCREEN_MARGIN, MAP_WIDTH_PX, MAP_HEIGHT_PX, SCREEN_TITLE, \
+    PLAYER_TURN_RADIANS_PER_KEYSTROKE, CHARACTER_SCALING, VEHICLE_PNG, \
+    MAX_PIXELS_PER_SEC_SQ, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
+from deepdrive_zero.constants import VEHICLE_LENGTH as vehicle_length_meters
 # Constants
 from deepdrive_zero.envs.env import Deepdrive2DEnv
 from deepdrive_zero.map_gen import get_intersection
@@ -69,10 +69,7 @@ class Deepdrive2DPlayer(arcade.Window):
 
         vehicle_length_pixels = arcade.Sprite(
             VEHICLE_PNG, CHARACTER_SCALING).height
-        if USE_VOYAGE:
-            vehicle_length_meters = VOYAGE_VAN_LENGTH
-        else:
-            vehicle_length_meters = TESLA_LENGTH
+
         self.px_per_m = vehicle_length_pixels / vehicle_length_meters
         self.max_accel = MAX_PIXELS_PER_SEC_SQ / self.px_per_m
 
