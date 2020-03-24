@@ -59,7 +59,13 @@ Negative accel can be used to put the car into reverse. Network outputs are scal
 **brake**
 > From 0g at -1 to 1g at 1 of brake force
 
- 
+### Docker
+
+Build container with
+
+```
+SPINNINGUP_DIR=/your/spinninupdir make
+```
 
 ### Bike Model
 

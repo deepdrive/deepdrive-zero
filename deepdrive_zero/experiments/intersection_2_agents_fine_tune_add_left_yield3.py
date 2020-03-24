@@ -1,14 +1,16 @@
 import os
 import sys
 
-from deepdrive_zero import player
 from deepdrive_zero.experiments import utils
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Adding yield to left input and reward"""
+notes = """Resuming intersection_2_agents_fine_tune_add_left_yield2.py. Entropy is 
+still high at 1.5460215, need to get to -2 or so to get a better feel for how
+the yield behavior works out. Already though we see a nice preference to yield,
+but comfort and lane keeping degraded after boosting exploration."""
 
 env_config = dict(
     env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
@@ -31,12 +33,12 @@ net_config = dict(
 eg = ExperimentGrid(name=experiment_name)
 eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('seed', 0)
-eg.add('resume', '/home/c2/src/tmp/spinningup/data/intersection_2_agents_fine_tune_add_left_yield/intersection_2_agents_fine_tune_add_left_yield_s0_2020_03-23_13-16.15')
-eg.add('reinitialize_optimizer_on_resume', False)  # Old optimizer had only 28 inputs despite NN having 29!
+eg.add('resume', '/home/c2/src/tmp/spinningup/data/intersection_2_agents_fine_tune_add_left_yield2/intersection_2_agents_fine_tune_add_left_yield2_s0_2020_03-23_22-40.11')
+eg.add('reinitialize_optimizer_on_resume', True)
 eg.add('num_inputs_to_add', 0)
 eg.add('pi_lr', 3e-6)
 eg.add('vf_lr', 1e-5)
-eg.add('boost_explore', 5)
+# eg.add('boost_explore', 5)
 eg.add('epochs', 8000)
 eg.add('steps_per_epoch', 32000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
