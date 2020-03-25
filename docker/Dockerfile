@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install libopenmpi-dev -y
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
+# Install ssh for openmpi
+RUN apt-get install ssh -y
+
 COPY repos/deepdrive-zero deepdrive-zero
 COPY repos/spinningup spinningup
 
