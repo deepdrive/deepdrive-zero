@@ -5,11 +5,12 @@ TAG=deepdriveio/deepdrive_zero
 #SERVER_CONTAINER_NAME=klt-deepdrive-problem-coordinator-lnaf
 
 BUILD_ARGS=--network=host -t $(TAG) -f Dockerfile .
+PWD=$(shell pwd)
 
 build:
 	rm -rf ./docker/repos || echo
-	git clone --depth 1 $(SPINNINGUP_DIR) ./docker/repos/spinningup
-	git clone --depth 1 . ./docker/repos/deepdrive-zero
+	git clone --depth 1 file:///$(SPINNINGUP_DIR) ./docker/repos/spinningup
+	git clone --depth 1 file:///$(PWD) docker/repos/deepdrive-zero
 	cd docker && docker build $(BUILD_ARGS)
 	rm -rf ./docker/repos
 
