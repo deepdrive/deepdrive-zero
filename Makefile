@@ -17,5 +17,5 @@ build:
 bash:
 	docker run -it $(TAG) bash
 
-pwd:
-	echo $(DEEPDRIVE_ZERO_DIR)
+push:
+	docker push $(TAG)
