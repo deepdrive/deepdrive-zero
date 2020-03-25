@@ -2,7 +2,6 @@ import sys
 
 import gym
 
-from deepdrive_zero import player
 from spinup.utils.test_policy import load_policy_and_env, run_policy
 
 

@@ -1,7 +1,6 @@
 import os
 import sys
 
-from deepdrive_zero import player
 from deepdrive_zero.experiments import utils
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch
