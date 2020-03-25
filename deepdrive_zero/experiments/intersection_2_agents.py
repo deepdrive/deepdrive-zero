@@ -20,6 +20,11 @@ env_config = dict(
     constrain_controls=False,
 )
 
+net_config = dict(
+    hidden_units=(256, 256),
+    activation=torch.nn.Tanh
+)
+
 def train():
     eg = ExperimentGrid(name=experiment_name)
     eg.add('env_name', env_config['env_name'], '', False)
@@ -35,4 +40,4 @@ def train():
 
 
 if __name__ == '__main__':
-    utils.run(train_fn=train, env_config=env_config)
+    utils.run(train_fn=train, env_config=env_config, net_config=net_config)
