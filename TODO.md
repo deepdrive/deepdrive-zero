@@ -1,3 +1,13 @@
+Docker training / test
+- Run training in docker somewhere
+- Commit and push container so all code + data is documented
+- Pull container and `docker cp` i.e. `docker cp bold_kepler:/workspace/spinningup/data ~/dd0-data`
+- Run test on experiment data
+
+Try boost_explore 0.6 to get back to normal start entropy of 0.9
+
+Try training from scratch with yield, collision, and speed => fine tune comfort
+
 Change the step rate to 5 steps per second (200ms), as human reaction time is 
 about this much and this should help learning efficiency, plus it will make constrained
 controls less of an issue. 
