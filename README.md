@@ -64,7 +64,8 @@ Negative accel can be used to put the car into reverse. Network outputs are scal
 Build container with
 
 ```
-SPINNINGUP_DIR=/your/spinninupdir make
+export SPINNINGUP_DIR=/your/spinninupdir
+make
 ```
 
 ### Bike Model
