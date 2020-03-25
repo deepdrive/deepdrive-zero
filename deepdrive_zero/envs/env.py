@@ -48,17 +48,32 @@ class Deepdrive2DEnv(gym.Env):
 
         log.info(f'{sys.executable} {sys.argv}')
 
+        self.env_config = dict(
+            jerk_penalty_coeff=0.10,
+            gforce_penalty_coeff=0.031,
+            lane_penalty_coeff=0.02,
+            collision_penalty_coeff=0.31,
+            speed_reward_coeff=0.50,
+            win_coefficient=1,
+            end_on_harmful_gs=True,
+            constrain_controls=True,
+            ignore_brake=False,
+            forbid_deceleration=forbid_deceleration,
+            expect_normalized_action_deltas=expect_normalized_action_deltas,
+            incent_win=incent_win,
+            dummy_accel_agent_indices=None,
+            wait_for_action=False,
+            incent_yield_to_oncoming_traffic=False,
+            physics_steps_per_observation=physics_steps_per_observation,)
+
         # All units in SI units (meters and radians) unless otherwise specified
         self.return_observation_as_array: bool = return_observation_as_array
         self.px_per_m: float = px_per_m
         self.expect_normalized_actions: bool = expect_normalized_actions
-        self.expect_normalized_action_deltas: bool = expect_normalized_action_deltas
         self.seed_value: int = seed_value
         self.add_rotational_friction: bool = add_rotational_friction
         self.add_longitudinal_friction: bool = add_longitudinal_friction
         self.static_map: bool = '--static-map' in sys.argv
-        self.physics_steps_per_observation: int = physics_steps_per_observation
-        self.forbid_deceleration = forbid_deceleration
         self.disable_gforce_penalty = disable_gforce_penalty
 
         # The previous observation, reward, done, info for each agent
@@ -80,10 +95,6 @@ class Deepdrive2DEnv(gym.Env):
 
         self.fps: int = 60
 
-        # Actions per second
-        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
-        self.aps = self.fps / self.physics_steps_per_observation
-
         self.target_dt: float = 1 / self.fps
         self.total_episode_time: float = 0
 
@@ -91,7 +102,6 @@ class Deepdrive2DEnv(gym.Env):
         self.is_one_waypoint_map: bool = is_one_waypoint_map
         self.is_intersection_map: bool = is_intersection_map
 
-        self.incent_win: bool = incent_win
         self.gamma: float = gamma
         self.add_static_obstacle: bool = add_static_obstacle
 
@@ -101,18 +111,6 @@ class Deepdrive2DEnv(gym.Env):
         # 0.22 m/s on 0.1
         # Less than 2.5 m/s on 0.1?
         self.max_one_waypoint_mult = 0.5
-
-        if '--no-timeout' in sys.argv:
-            max_seconds = 100000
-        elif '--one_waypoint_map' in sys.argv:
-            self.is_one_waypoint_map = True
-            max_seconds = self.max_one_waypoint_mult * 200
-        elif self.is_intersection_map:
-            max_seconds = 60
-        else:
-            max_seconds = 60
-        self._max_episode_steps = \
-            max_seconds * 1/self.target_dt * 1/self.physics_steps_per_observation
 
         np.random.seed(self.seed_value)
 
@@ -130,23 +128,6 @@ class Deepdrive2DEnv(gym.Env):
         else:
             self.num_agents = 1
         self.dummy_accel_agent_indices: List[int] = []
-
-        self.env_config = dict(
-            jerk_penalty_coeff=0.10,
-            gforce_penalty_coeff=0.031,
-            lane_penalty_coeff=0.02,
-            collision_penalty_coeff=0.31,
-            speed_reward_coeff=0.50,
-            win_coefficient=1,
-            end_on_harmful_gs=True,
-            constrain_controls=True,
-            ignore_brake=False,
-            forbid_deceleration=forbid_deceleration,
-            expect_normalized_action_deltas=expect_normalized_action_deltas,
-            incent_win=incent_win,
-            dummy_accel_agent_indices=None,
-            wait_for_action=False,
-            incent_yield_to_oncoming_traffic=False,)
 
         self.agents = None
         self.dummy_accel_agents = None
@@ -186,6 +167,20 @@ class Deepdrive2DEnv(gym.Env):
         self.all_agents = self.agents + self.dummy_accel_agents
         self.num_agents = len(self.agents)
 
+
+        if '--no-timeout' in sys.argv:
+            max_seconds = 100000
+        elif '--one_waypoint_map' in sys.argv:
+            self.is_one_waypoint_map = True
+            max_seconds = self.max_one_waypoint_mult * 200
+        elif self.is_intersection_map:
+            max_seconds = 60
+        else:
+            max_seconds = 60
+
+        self._max_episode_steps = (max_seconds *
+                                   1/self.target_dt *
+                                   1/env_config['physics_steps_per_observation'])
 
         self.reset()
         self.setup_spaces()

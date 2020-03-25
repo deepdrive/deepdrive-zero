@@ -63,8 +63,8 @@ class Agent:
                  incent_win=None,
                  dummy_accel_agent_indices=None,
                  wait_for_action=None,
-                 incent_yield_to_oncoming_traffic=None
-                 ):
+                 incent_yield_to_oncoming_traffic=None,
+                 physics_steps_per_observation=None,):
 
         self.env = env
         self.dt = env.target_dt
@@ -92,6 +92,7 @@ class Agent:
         self.dummy_accel_agent_indices = dummy_accel_agent_indices
         self.wait_for_action = wait_for_action
         self.incent_yield_to_oncoming_traffic = incent_yield_to_oncoming_traffic
+        self.physics_steps_per_observation = physics_steps_per_observation
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -146,8 +147,10 @@ class Agent:
         self.speed: float = 0
         self.angle_change: float = 0
         self.fps: int = self.env.fps
-        self.aps: int = self.env.aps
-        self.physics_steps_per_observation = env.physics_steps_per_observation
+
+        # Actions per second
+        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
+        self.aps = self.fps / self.physics_steps_per_observation
 
         # Step properties
         self.episode_steps: int = 0
@@ -173,7 +176,7 @@ class Agent:
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
         self.disable_gforce_penalty = disable_gforce_penalty
-        self.prev_gforce: deque = deque(maxlen=math.ceil(env.aps))
+        self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
         self.jerk: np.array = np.array((0, 0))  # m/s^3 instantaneous, i.e. frame to frame
         self.jerk_magnitude: float = 0
         self.closest_map_index: int = 0
@@ -1248,7 +1251,7 @@ class Agent:
 
     def step_physics(self, steer, accel, brake, info):
         dt = self.dt
-        n = self.env.physics_steps_per_observation
+        n = self.physics_steps_per_observation
         start = time.time()
         (self.acceleration, self.angle, self.angle_change,
          self.angular_velocity, self.gforce, self.jerk, self.max_gforce,
