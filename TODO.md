@@ -1,10 +1,8 @@
-Docker training / test
-- Run training in docker somewhere
-- Commit and push container so all code + data is documented
-- Pull container and `docker cp` i.e. `docker cp bold_kepler:/workspace/spinningup/data ~/dd0-data`
-- Run test on experiment data
+Try game over on exiting lane from scratch + fine-tune.
 
-Try boost_explore 0.6 to get back to normal start entropy of 0.9
+Try higher lane penalties and move penalties from scratch + fine-tune.
+
+Try end on harmful g from scratch + fine-tune.
 
 Try training from scratch with yield, collision, and speed => fine tune comfort
 

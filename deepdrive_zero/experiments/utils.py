@@ -10,6 +10,7 @@ def run(train_fn, env_config, net_config=None):
     if mode == '--train':
         train_fn()
     elif mode == '--play':
+        from deepdrive_zero import player
         player.start(env_config=env_config)
     elif mode == '--test':
         if not sys.argv[2:]:

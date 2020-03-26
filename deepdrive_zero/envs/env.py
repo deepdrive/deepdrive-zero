@@ -64,7 +64,9 @@ class Deepdrive2DEnv(gym.Env):
             dummy_accel_agent_indices=None,
             wait_for_action=False,
             incent_yield_to_oncoming_traffic=False,
-            physics_steps_per_observation=physics_steps_per_observation,)
+            physics_steps_per_observation=physics_steps_per_observation,
+            end_on_lane_violation=False,
+        )
 
         # All units in SI units (meters and radians) unless otherwise specified
         self.return_observation_as_array: bool = return_observation_as_array
@@ -138,8 +140,7 @@ class Deepdrive2DEnv(gym.Env):
 
 
     def configure_env(self, env_config: dict = None):
-        env_config = env_config or {}
-        self._set_config(env_config)
+        env_config = self._set_config(env_config or {})
         env_config_box = Box(env_config, default_box=True)
         if env_config_box.is_intersection_map:
             self.is_intersection_map = env_config_box.is_intersection_map
@@ -199,6 +200,7 @@ class Deepdrive2DEnv(gym.Env):
             padding = ' ' * (name_col_len - len(name_col))
             description = 'custom ' if custom else 'default'
             log.info(f'{name_col}{padding}{description} {v}')
+        return self.env_config
 
     def setup_spaces(self):
         # Action space: ----

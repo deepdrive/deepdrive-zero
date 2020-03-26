@@ -5,4 +5,4 @@ import os
 ROOT_DIR = dirname(realpath(__file__))
 LOG_DIR = join(ROOT_DIR, 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
-log.add(join(LOG_DIR, 'deepdrive-2d-log-{time}.log'))
+log.add(join(LOG_DIR, 'deepdrive-zero-{time}.log'))

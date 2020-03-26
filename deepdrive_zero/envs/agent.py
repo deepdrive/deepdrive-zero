@@ -64,7 +64,8 @@ class Agent:
                  dummy_accel_agent_indices=None,
                  wait_for_action=None,
                  incent_yield_to_oncoming_traffic=None,
-                 physics_steps_per_observation=None,):
+                 physics_steps_per_observation=None,
+                 end_on_lane_violation=None,):
 
         self.env = env
         self.dt = env.target_dt
@@ -93,6 +94,7 @@ class Agent:
         self.wait_for_action = wait_for_action
         self.incent_yield_to_oncoming_traffic = incent_yield_to_oncoming_traffic
         self.physics_steps_per_observation = physics_steps_per_observation
+        self.end_on_lane_violation = end_on_lane_violation
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -299,7 +301,8 @@ class Agent:
              left_lane_distance, right_lane_distance) = obs_data
 
             done, won, lost = self.get_done(closest_map_point, lane_deviation,
-                                            collided, info)
+                                            collided, info, left_lane_distance,
+                                            right_lane_distance)
             reward, info = self.get_reward(
                 lane_deviation, won, lost, collided, info, steer, accel,
                 left_lane_distance, right_lane_distance
@@ -696,13 +699,16 @@ class Agent:
         self.ego_lines = get_lines_from_rect_points(self.ego_rect_tuple)
 
     def get_done(self, closest_map_point, lane_deviation,
-                 collided: bool, info: Box) -> Tuple[bool, bool, bool]:
+                 collided: bool, info: Box,
+                 left_lane_distance: float,
+                 right_lane_distance: float) -> Tuple[bool, bool, bool]:
         done = False
         won = False
         lost = False
         info.stats.done_only.collided = 0
         info.done_only.harmful_gs = 0
         info.stats.done_only.timeup = 0
+        info.stats.done_only.exited_lane = 0
         info.stats.done_only.circles = 0
         info.stats.done_only.skipped = 0
         info.stats.done_only.backwards = 0
@@ -719,6 +725,12 @@ class Agent:
             # Only end on g-force once we've learned to complete part of the trip.
             log.warning(f'Harmful g-forces, game over agent {self.agent_index}')
             info.done_only.harmful_gs = 1
+            done = True
+            lost = True
+        elif (self.end_on_lane_violation and (left_lane_distance < 0 or
+                                              right_lane_distance < 0)):
+            log.warning(f'Exited lane, game over agent {self.agent_index}')
+            info.done_only.exited_lane = 1
             done = True
             lost = True
         elif (self.episode_steps + 1) % self.env._max_episode_steps == 0:

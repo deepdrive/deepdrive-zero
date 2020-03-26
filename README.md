@@ -68,6 +68,31 @@ export SPINNINGUP_DIR=/your/spinninupdir
 make
 ```
 
+Run an experiment example
+
+```
+docker run -d --name intersection_2_agents_fine_tune_add_left_yield_from_scratch deepdriveio/deepdrive_zero python /workspace/deepdrive-zero/deepdrive_zero/experiments/intersection_2_agents_fine_tune_add_left_yield_from_scratch.py
+```
+
+View progress example
+
+```
+docker logs intersection_2_agents_fine_tune_add_left_yield_from_scratch  2>&1 | grep AverageEpRet
+```
+
+Copy data out of docker example
+```
+docker cp intersection_2_agents_fine_tune_add_left_yield_from_scratch:/workspace/spinningup/data /tmp/dd0-data4
+```
+
+Copy data from gcp example
+```
+gcloud compute scp --recurse deepdrive-zero2:/tmp/dd0-data4 ~/dd0-data/snaphot1
+```
+Where `deepdrive-zero2` is the name of the instance.
+
+
+
 ### Bike Model
 
 Most industrial self-driving control has been done in 2D. The model humans use to drive seems _mostly_ to omit the possibility
