@@ -1300,6 +1300,7 @@ class Agent:
 
     def upcoming_opposing_lane_agents(self) -> bool:
         if (self.agent_index == 0 and
+                len(self.env.agents) > 1 and
                 self.env.agents[1].approaching_intersection):
             # TODO: Make this more general when adding more agents,
             #  larger maps, etc... i.e. approaching intersection will have to
