@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deepdrive_zero/experiments/intersection_2_agents_fine_tune_add_left_yield_from_scratch.py" />
-    <option name="PARAMETERS" value="--test $USER_HOME$/dd0-data/snaphot1/intersection_2_agents_fine_tune_add_left_yield_from_scratch/intersection_2_agents_fine_tune_add_left_yield_from_scratch_s0_2020_03-25_21-16.12/best_won/2020_03-26_16-13.30" />
+    <option name="PARAMETERS" value="--test $USER_HOME$/dd0-data/snaphot3/intersection_2_agents_fine_tune_add_left_yield_from_scratch/intersection_2_agents_fine_tune_add_left_yield_from_scratch_s0_2020_03-25_21-16.12/best_EpRet/2020_03-27_11-01.22" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
