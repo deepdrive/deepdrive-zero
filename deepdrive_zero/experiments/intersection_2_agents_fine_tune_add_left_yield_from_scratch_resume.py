@@ -35,7 +35,7 @@ net_config = dict(
 eg = ExperimentGrid(name=experiment_name)
 eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('seed', 0)
-eg.add('resume', '/workspace/dd0-data-resume1/intersection_2_agents_fine_tune_add_left_yield_from_scratch/intersection_2_agents_fine_tune_add_left_yield_from_scratch_s0_2020_03-25_21-16.12')
+eg.add('resume', '/workspace/dd0-data-resume1/intersection_2_agents_fine_tune_add_left_yield_from_scratch/intersection_2_agents_fine_tune_add_left_yield_from_scratch_s0_2020_03-25_21-16.12/best_EpRet/2020_03-27_11-01.22')
 # eg.add('reinitialize_optimizer_on_resume', True)
 # eg.add('num_inputs_to_add', 0)
 eg.add('pi_lr', 3e-6)
