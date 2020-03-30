@@ -12,7 +12,7 @@ The purpose of this environment is to create a useful, extremely fast simulation
 
 #### Install
 
-Install our fork of [spinning up](https://github.com/crizCraig/spinningup)
+Install our fork of [spinning up](https://github.com/deepdrive/spinningup)
 
 ```
 git clone https://github.com/deepdrive/deepdrive-2d
