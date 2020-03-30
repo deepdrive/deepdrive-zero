@@ -19,6 +19,27 @@ git clone https://github.com/deepdrive/deepdrive-2d
 pip install -e .
 ```
 
+### Docker
+
+Pull
+```
+docker pull deepdriveio/deepdrive_zero
+```
+
+Build container with your *committed* changes
+
+```
+export SPINNINGUP_DIR=/your/spinninupdir
+make
+```
+
+Run an experiment example
+
+```
+docker run -d --name intersection_2_agents_fine_tune_add_left_yield_from_scratch deepdriveio/deepdrive_zero python /workspace/deepdrive-zero/deepdrive_zero/experiments/intersection_2_agents_fine_tune_add_left_yield_from_scratch.py
+```
+
+
 #### Play
 
 You can play this sim like any other game. 
@@ -59,20 +80,6 @@ Negative accel can be used to put the car into reverse. Network outputs are scal
 **brake**
 > From 0g at -1 to 1g at 1 of brake force
 
-### Docker
-
-Build container with
-
-```
-export SPINNINGUP_DIR=/your/spinninupdir
-make
-```
-
-Run an experiment example
-
-```
-docker run -d --name intersection_2_agents_fine_tune_add_left_yield_from_scratch deepdriveio/deepdrive_zero python /workspace/deepdrive-zero/deepdrive_zero/experiments/intersection_2_agents_fine_tune_add_left_yield_from_scratch.py
-```
 
 View progress example
 
