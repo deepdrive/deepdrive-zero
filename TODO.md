@@ -1,4 +1,12 @@
-Try game over on exiting lane from scratch + fine-tune.
+Try mixed training. Sometimes speed only, sometimes speed + comfort.
+
+Try penalizing only g-force > 1, keep jerk same.
+
+Try adding another MLP which connects to the same outputs with weights preferring
+the old MLP such that some knowledge gets distilled in the new net, but with
+more plasticity to learn new techniques.
+
+[Did not work] Try game over on exiting lane from scratch + fine-tune.
 
 Try higher lane penalties and move penalties from scratch + fine-tune.
 
