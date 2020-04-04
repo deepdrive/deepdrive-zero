@@ -16,7 +16,7 @@ from deepdrive_zero.envs.agent import Agent
 from deepdrive_zero.physics.collision_detection import check_collision_ego_obj,\
     check_collision_agents
 from deepdrive_zero.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
-    SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
+    SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, VEHICLE_LENGTH, PX_PER_M, \
     MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY
 from deepdrive_zero.logs import log
 

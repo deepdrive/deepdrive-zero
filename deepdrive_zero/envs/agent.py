@@ -18,7 +18,7 @@ from scipy import spatial
 import numpy as np
 from box import Box
 
-from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, \
+from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_HEIGHT, VEHICLE_LENGTH, \
     MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX, \
     MAX_STEER_CHANGE_PER_SECOND, MAX_ACCEL_CHANGE_PER_SECOND, \
     MAX_BRAKE_CHANGE_PER_SECOND, STEERING_RANGE, MAX_STEER, MIN_STEER, \
@@ -42,6 +42,7 @@ class Agent:
                  agent_index,
                  vehicle_width=VEHICLE_WIDTH,
                  vehicle_height=VEHICLE_HEIGHT,
+                 vehicle_length=VEHICLE_LENGTH,
                  disable_gforce_penalty=False,
                  match_angle_only=False,
                  static_map=False,
@@ -134,8 +135,9 @@ class Agent:
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
-        self.vehicle_model:List[float] = get_vehicle_model(vehicle_width)
+        self.vehicle_length: float = vehicle_length
         self.vehicle_height: float = vehicle_height
+        self.vehicle_model: List[float] = get_vehicle_model(vehicle_width)
 
         if 'STRAIGHT_TEST' in os.environ:
             self.num_actions = 1  # Accel
@@ -354,25 +356,25 @@ class Agent:
     def front_x(self):
         """Front middle x position of ego"""
         theta = pi / 2 + self.angle
-        return self.x + cos(theta) * self.vehicle_height / 2
+        return self.x + cos(theta) * self.vehicle_length / 2
 
     @property
     def front_y(self):
         """Front middle y position of ego"""
         theta = pi / 2 + self.angle
-        return self.y + sin(theta) * self.vehicle_height / 2
+        return self.y + sin(theta) * self.vehicle_length / 2
 
     @property
     def back_x(self):
         """Front middle x position of ego"""
         theta = pi / 2 + self.angle
-        return self.x - cos(theta) * self.vehicle_height / 2
+        return self.x - cos(theta) * self.vehicle_length / 2
 
     @property
     def back_y(self):
         """Front middle y position of ego"""
         theta = pi / 2 + self.angle
-        return self.y - sin(theta) * self.vehicle_height / 2
+        return self.y - sin(theta) * self.vehicle_length / 2
 
     @property
     def front_pos(self):
@@ -694,7 +696,7 @@ class Agent:
 
     def set_calculated_props(self):
         self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_length)
 
         self.ego_lines = get_lines_from_rect_points(self.ego_rect_tuple)
 
@@ -1294,7 +1296,7 @@ class Agent:
         self.env.total_episode_time += dt * n
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_length)
 
         self.episode_gforces.append(self.gforce)
 
