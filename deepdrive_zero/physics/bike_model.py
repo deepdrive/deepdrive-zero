@@ -103,6 +103,18 @@ def get_vehicle_model(length):
     :return: Distance from center of gravity to front and rear axles, and
             distance from the front and rear axles to the edge of the car
     """
+    front_axle, rear_axle, _, _ = get_vehicle_dimensions(length)
+
+    return front_axle, rear_axle
+
+
+@njit(cache=CACHE_NUMBA, nogil=True)
+def get_vehicle_dimensions(length):
+    """
+    :param length: Length of vehicle in meters
+    :return: Distance from center of gravity to front and rear axles, and
+            distance from the front and rear axles to the edge of the car
+    """
     # Bias towards the front a bit
     # https://www.fcausfleet.com/content/dam/fca-fleet/na/fleet/en_us/chrysler/2017/pacifica/vlp/docs/Pacifica_Specifications.pdf
     if USE_VOYAGE:
@@ -111,13 +123,15 @@ def get_vehicle_model(length):
         bias_towards_front = 0
 
     # Center of gravity
-    center_of_gravity = (length / 2) + bias_towards_front
+    center_of_gravity = (length / 2.0) + bias_towards_front
+
     # Approximate axles to be 1/8 (1/4 - 1/8) from ends of car
-    rear_axle = length * 1 / 8
-    front_axle = length - rear_axle
-    L_b = center_of_gravity - rear_axle
-    L_a = front_axle - center_of_gravity
-    return L_a, L_b
+    overhang_rear = length * 1.0 / 4.5
+    overhang_front = length * 1.0 / 5.4
+    rear_axle = center_of_gravity - overhang_rear - bias_towards_front
+    front_axle = length - center_of_gravity - overhang_front
+
+    return front_axle, rear_axle, overhang_front, overhang_rear
 
 
 def test_bike_with_friction_step():

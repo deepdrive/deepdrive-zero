@@ -7,6 +7,7 @@ from typing import Type, Union, List, Tuple
 import numpy as np
 from numba import njit
 
+from deepdrive_zero.physics.bike_model import get_vehicle_dimensions
 from deepdrive_zero.constants import CACHE_NUMBA
 
 pi = np.pi
@@ -109,15 +110,18 @@ def check_collision(obj1: tuple, ob2: tuple):
     return False
 
 
-
-def get_rect(center_x, center_y, angle, width, height):
+def get_rect(center_x, center_y, angle, width, length):
     """
+    :param center_x: x-coordinate of the center of vehicle in meters
+    :param center_y: y-coordinate of the center of vehicle in meters
     :param angle: angle in radians
+    :param width: width of vehicle in meters
+    :param length: length of vehicle in meters
     :return: 4 points of the rectangle:
             Starts at front left and goes clockwise:
             front left, front right, back right, back left
     """
-    ego_rect = _get_rect(center_x, center_y, angle, width, height)
+    ego_rect = _get_rect(center_x, center_y, angle, width, length)
 
     # Numba likes tuples
     ego_rect_tuple = tuple(map(tuple, ego_rect.tolist()))
@@ -126,29 +130,64 @@ def get_rect(center_x, center_y, angle, width, height):
 
 
 @njit(cache=CACHE_NUMBA, nogil=True)
-def _get_rect(center_x, center_y, angle, width, height):
+def _get_rect(center_x, center_y, angle, width, length):
     """
+    :param center_x: x-coordinate of the center of vehicle in meters
+    :param center_y: y-coordinate of the center of vehicle in meters
     :param angle: angle in radians
+    :param width: width of vehicle in meters
+    :param length: length of vehicle in meters
     :return: 4 points of the rectangle:
             Starts at top left and goes clockwise
             top left, top right, bottom right, bottom left
     """
-    w = width
-    h = height
-    rot = np.array([[np.cos(angle), -np.sin(angle)],
-                    [np.sin(angle),  np.cos(angle)]])
-    p = np.array([[-w/2, h/2], [w/2, h/2], [w/2, -h/2], [-w/2, -h/2]])
+    front_axle, rear_axle, overhang_front, overhang_rear = get_vehicle_dimensions(length)
 
-    # Rotate
-    ret = rot @ p.T
+    # Find vector of rear axle center wrt inertial frame
+    # Vector of rear axle center wrt center of car
+    c_p = np.array([0, -rear_axle, 1.0])
+    # Pose of center of car wrt inertial frame
+    t1 = _pose(center_x, center_y, angle)
+    # Vector of rear axle center wrt inertial frame
+    i_p = _transform(t1, c_p.T)
 
-    # Zip up to proper shape
-    ret = np.dstack((ret[0], ret[1]))[0]
-
-    # Shift
-    ret += np.array([center_x, center_y])
+    # Find rectangle vertices wrt inertial frame
+    # Vector of rectangle vertices wrt rear axle
+    p = np.array([[-width / 2.0, length - overhang_rear, 1.0],
+                  [width / 2.0, length - overhang_rear, 1.0],
+                  [width / 2.0, -overhang_rear, 1.0],
+                  [-width / 2.0, -overhang_rear, 1.0]])
+    # Pose of rear axle wrt inertial frame
+    t2 = _pose(i_p[0][0], i_p[1][0], angle)
+    # Vector of rectangle vertices wrt inertial frame
+    ret = _transform(t2, p.T).T
 
     return ret
+
+
+@njit(cache=CACHE_NUMBA, nogil=True)
+def _transform(pose, point):
+    """
+    :param pose: 3x3 pose matrix which defines the pose of a coordinate frame wrt to some second coordinate frame
+    :param point: 2x1 vector defined wrt the first coordinate frame
+    :return: 2x1 vector wrt the second coordinate frame
+    """
+
+    return (pose @ point).reshape((3, -1))[0:2]
+
+
+@njit(cache=CACHE_NUMBA, nogil=True)
+def _pose(x, y, angle):
+    """
+    :param x: x-coordinate of the origin of a coordinate frame in meters
+    :param y: y-coordinate of the origin of a coordinate frame in meters
+    :param angle: orientation of the coordinate frame in radians
+    :return: 3x3 homogeneous transformation matrix
+    """
+
+    return np.array([[np.cos(angle), -np.sin(angle), x],
+                     [np.sin(angle),  np.cos(angle), y],
+                     [0, 0, 1.0]])
 
 
 @njit(cache=CACHE_NUMBA, nogil=True)
@@ -205,6 +244,22 @@ def test_check_collision():
     assert not check_collision_ego_obj(ert, (((1e20, mid_y), (mid_x, 1e20 - 1)),))
 
 
+def test_transform():
+    point = np.array([1.0, 2.0, 1.0])
+    pose = _pose(2.0, 3.0, 0.0)
+    transformed_point = _transform(pose, point)
+
+    assert (all(np.isclose(transformed_point.T,
+                           np.array([3.0, 5.0])).flatten()))
+
+    point = np.array([1.0, 2.0, 1.0])
+    pose = _pose(2.0, 3.0, pi/2)
+    transformed_point = _transform(pose, point)
+
+    assert (all(np.isclose(transformed_point.T,
+                           np.array([0.0, 4.0])).flatten()))
+
+
 def test_get_rect():
     r, _ = get_rect(0, 0, pi / 2, 2, 1)
     assert all(np.isclose(r[0], [-0.5, -1]))
@@ -257,6 +312,10 @@ def main():
         test_check_collision()
     elif '--test_get_pair_indexes' in sys.argv:
         test_get_pairs_indexes()
+    elif '--test_transform' in sys.argv:
+        test_transform()
+    elif '--test_get_rect' in sys.argv:
+        test_get_rect()
     else:
         print(timeit.timeit(test_lines_intersect_x2, number=1000))
 
