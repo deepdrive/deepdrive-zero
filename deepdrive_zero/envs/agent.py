@@ -65,7 +65,9 @@ class Agent:
                  wait_for_action=None,
                  incent_yield_to_oncoming_traffic=None,
                  physics_steps_per_observation=None,
-                 end_on_lane_violation=None,):
+                 end_on_lane_violation=None,
+                 contain_prev_actions_in_obs=True,
+                 ):
 
         self.env = env
         self.dt = env.target_dt
@@ -214,11 +216,11 @@ class Agent:
         self.prev_desired_brake = 0
         self.approaching_intersection = False
 
-
         # Take last n (10 from 0.5 seconds) state, action, reward values and append them
         # to the observation. Should change frame rate?
         self.experience_buffer = None
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
+        self.contain_prev_actions_in_obs = contain_prev_actions_in_obs
 
         self.observation_space = env.observation_space
 
@@ -518,8 +520,8 @@ class Agent:
             right_lane_distance,
         ]
 
-        if self.env.contain_prev_actions_in_obs:
-            input += [
+        if self.contain_prev_actions_in_obs:
+            inputs += [
                 # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
                 # self.prev_desired_steer,
                 # self.prev_desired_accel,

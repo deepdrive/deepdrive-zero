@@ -44,6 +44,7 @@ class Deepdrive2DEnv(gym.Env):
                  disable_gforce_penalty=False,
                  forbid_deceleration=False,
                  contain_prev_actions_in_obs=True, #add prev actions into obs vector or not. False for r2d1
+                 opponent_is_model_based=False, #if the opponent agent in intersection moves straight. Set it to True in intersection mode only
                  ):
 
         self.logger = log
@@ -68,7 +69,8 @@ class Deepdrive2DEnv(gym.Env):
             incent_yield_to_oncoming_traffic=False,
             physics_steps_per_observation=physics_steps_per_observation,
             end_on_lane_violation=False,
-            contain_prev_actions_in_obs=True,
+            contain_prev_actions_in_obs=contain_prev_actions_in_obs,
+            opponent_is_model_based=opponent_is_model_based,
         )
 
         # All units in SI units (meters and radians) unless otherwise specified
@@ -80,6 +82,8 @@ class Deepdrive2DEnv(gym.Env):
         self.add_longitudinal_friction: bool = add_longitudinal_friction
         self.static_map: bool = '--static-map' in sys.argv
         self.disable_gforce_penalty = disable_gforce_penalty
+        self.contain_prev_actions_in_obs = contain_prev_actions_in_obs
+        self.opponent_is_model_based = opponent_is_model_based
 
         # The previous observation, reward, done, info for each agent
         # Useful for running / training the agents
@@ -282,6 +286,9 @@ class Deepdrive2DEnv(gym.Env):
         agent = self.agents[self.agent_index]
 
         self.check_for_collisions()
+        if self.agent_index == 1: #opponent agent
+            if self.opponent_is_model_based: #if we wnt it to move based on a pattern (straight)
+                action = [0, random.random(), 0]
         obs, reward, done, info = agent.step(action)
         self.curr_reward = reward
         if done:
