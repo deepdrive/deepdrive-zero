@@ -1,56 +1,30 @@
 import os
 import sys
 
+from deepdrive_zero.constants import FPS
 from deepdrive_zero.experiments import utils
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Attempting to speed up reduction in g-force, jerk, and lane 
-violations"""
-
-# jerk_penalty_coeff:
-# acceptable 6g / 10s trampoline
-# current - 600 m/s^3 to 1k,2k
-#  It is reported[8] that most passengers rate a vertical jerk of 2.0 m/s3 as
-#  acceptable and 6.0 m/s3 as intolerable.
-#  For hospitals, 0.7 m/s3 is the recommended limit.
-# https://en.wikipedia.org/wiki/Jerk_(physics)#In_motion_control
-# So if in three seconds at 1aps
-# t: 0       1      2
-# v: 10  ->  20  -> 10
-# a:    10   -> -10  = 1g
-# j:         20
-
-# Or if at 2aps
-# t: 0       .5     1
-# v: 10  ->  20  -> 10
-# a:    20   -> -20  = 1g
-# j:         80
-
-# And 5aps - 12 physics frames per second
-# t: 0       .2     .4
-# v: 10  ->  20  -> 10
-# a:    50   -> -50  = 1g
-# j:         500
+notes = """Trying to train from scratch with some g-force and jerk penalties."""
 
 
 env_config = dict(
     env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
     is_intersection_map=True,
     expect_normalized_action_deltas=False,
-    jerk_penalty_coeff=6.7e-5,  # 2 * 0.20 / (60*100)
-    gforce_penalty_coeff=0.12,  # 2 * 0.06
+    jerk_penalty_coeff=3.3e-5,
+    gforce_penalty_coeff=0.006 * 5,
     collision_penalty_coeff=4,
-    lane_penalty_coeff=0.04,  # 2 * 0.04
+    lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
     end_on_harmful_gs=False,
-    end_on_lane_violation=False,
     incent_win=True,
     constrain_controls=False,
     incent_yield_to_oncoming_traffic=True,
-    physics_steps_per_observation=12,  # 48 for 1 second
+    physics_steps_per_observation=12,
 )
 
 net_config = dict(
@@ -58,16 +32,20 @@ net_config = dict(
     activation=torch.nn.Tanh
 )
 
+
 eg = ExperimentGrid(name=experiment_name)
 eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('seed', 0)
-eg.add('resume', '/home/c2/dd0-data/snaphot11/intersection_2_agents_fine_tune_add_left_yield_from_scratch_resume/intersection_2_agents_fine_tune_add_left_yield_from_scratch_resume_s0_2020_03-29_00-28.47')
+# eg.add('resume', '/home/c2/src/tmp/spinningup/data/intersection_2_agents_fine_tune_add_left_yield2/intersection_2_agents_fine_tune_add_left_yield2_s0_2020_03-23_22-40.11')
 # eg.add('reinitialize_optimizer_on_resume', True)
 # eg.add('num_inputs_to_add', 0)
-eg.add('pi_lr', 3e-6)
-eg.add('vf_lr', 1e-5)
+# eg.add('pi_lr', 3e-6)
+# eg.add('vf_lr', 1e-5)
 # eg.add('boost_explore', 5)
-eg.add('epochs', 8000)
+pso = env_config['physics_steps_per_observation']
+effective_horizon_seconds = 10
+eg.add('gamma', 1 - pso / (effective_horizon_seconds * FPS))  # Lower gamma so seconds of effective horizon remains at 10s with current physics steps = 12 * 1/60s * 1 / (1-gamma)
+eg.add('epochs', 20000)
 eg.add('steps_per_epoch', 32000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')

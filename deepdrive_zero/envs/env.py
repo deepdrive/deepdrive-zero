@@ -17,7 +17,7 @@ from deepdrive_zero.physics.collision_detection import check_collision_ego_obj,\
     check_collision_agents
 from deepdrive_zero.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
     SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
-    MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY
+    MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY, FPS
 from deepdrive_zero.logs import log
 
 
@@ -95,7 +95,7 @@ class Deepdrive2DEnv(gym.Env):
         self.last_sleep_time: float = None
         self.start_step_time: float = None
 
-        self.fps: int = 60
+        self.fps: int = FPS
 
         self.target_dt: float = 1 / self.fps
         self.total_episode_time: float = 0

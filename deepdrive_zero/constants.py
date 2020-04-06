@@ -49,3 +49,4 @@ STEERING_RANGE = math.pi / 6  # Standard for sharp turning vehicles (about 33 de
 MIN_STEER = -STEERING_RANGE/2
 MAX_STEER = STEERING_RANGE/2
 RIGHT_HAND_TRAFFIC = True
+FPS = 60

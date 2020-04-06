@@ -125,12 +125,7 @@ class Agent:
         # Static obstacle
         self.add_static_obstacle: bool = env.add_static_obstacle
         self.static_obstacle_points: np.array = np.array([[0,0], [0,0]])
-        self.static_obst_angle_info: list = None
-        self.static_obst_pixels: np.array = None
         self.static_obstacle_tuple: tuple = ()
-
-        # Other agents
-        self.other_agent_inputs: list = None
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
@@ -141,43 +136,44 @@ class Agent:
             self.num_actions = 1  # Accel
         else:
             self.num_actions: int = 3  # Steer, accel, brake
+
+        self.fps: int = self.env.fps
+
+        # Actions per second
+        self.aps = self.fps / self.physics_steps_per_observation
+
+        self.disable_gforce_penalty = disable_gforce_penalty
+
+
+
+        # Agent state
+        self.other_agent_inputs: list = None
+        self.static_obst_angle_info: list = None
+        self.static_obst_pixels: np.array = None
+        self.angle_change: float = 0
         self.prev_action: List[float] = [0] * self.num_actions
         self.prev_steer: float = 0
         self.prev_accel: float = 0
         self.prev_brake: float = 0
         self.episode_reward: float = 0
         self.speed: float = 0
-        self.angle_change: float = 0
-        self.fps: int = self.env.fps
-
-        # Actions per second
-        # TODO: Try fine-tuning at higher FPS, or cyclic FPS
-        self.aps = self.fps / self.physics_steps_per_observation
-
-        # Step properties
         self.episode_steps: int = 0
         self.num_episodes: int = 0
         self.total_steps: int = 0
         self.last_step_time: float = None
         self.wall_dt: float = None
         self.last_sleep_time: float = None
-
         self.total_episode_time: float = 0
-
         self.distance: float = None
         self.distance_to_end: float = 0
         self.prev_distance: float = None
         self.furthest_distance: float = 0
         self.velocity: np.array = np.array((0, 0))
         self.angular_velocity: float = 0
-
-
-        # State info
         self.gforce: float = 0  # TODO: Use accel_magnitude internally instead so we're in SI units
         self.accel_magnitude: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
-        self.disable_gforce_penalty = disable_gforce_penalty
         self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
         self.jerk: np.array = np.array((0, 0))  # m/s^3 instantaneous, i.e. frame to frame
         self.jerk_magnitude: float = 0
@@ -213,12 +209,22 @@ class Agent:
         self.prev_desired_steer = 0
         self.prev_desired_brake = 0
         self.approaching_intersection = False
+        self.max_accel_historical = -np.inf
+        # Important: this should only be true after the agent has reached
+        # the intersection. Otherwise, we can not incent agent to actually reach
+        # the intersection! We may need to create another input that
+        # signals the agent is approaching a left turn (in right-hand-traffic) but
+        # in theory the agent should learn to detect a left is coming
+        # without an extra input explicitly stating that with RL.
+        self.will_turn_across_opposing_lanes = False
+
+        ### End of agent state
 
 
         # Take last n (10 from 0.5 seconds) state, action, reward values and append them
         # to the observation. Should change frame rate?
-        self.experience_buffer = None
-        self.should_add_previous_states = '--disable-prev-states' not in sys.argv
+        self.experience_buffer = None  # TODO: Haven't used this in a while, needs to be updated
+        self.should_add_previous_states = '--disable-prev-states' not in sys.argv  # TODO: Haven't used this in a while, needs to be updated
 
         self.observation_space = env.observation_space
 
@@ -236,16 +242,6 @@ class Agent:
             self.max_steer_change = self.max_steer_change_per_tick
             self.max_accel_change = self.max_accel_change_per_tick
             self.max_brake_change = self.max_brake_change_per_tick
-
-        self.max_accel_historical = -np.inf
-
-        # Important: this should only be true after the agent has reached
-        # the intersection. Otherwise, we can not incent agent to actually reach
-        # the intersection! We may need to create another input that
-        # signals the agent is approaching a left turn (in right-hand-traffic) but
-        # in theory the agent should learn to detect a left is coming
-        # without an extra input explicitly stating that with RL.
-        self.will_turn_across_opposing_lanes = False
 
         self.reset()
 

@@ -1,6 +1,10 @@
-Try mixed training. Sometimes speed only, sometimes speed + comfort.
+Try lowering learning rate on unimproving models.
 
+Try resuming without restoring Adam rates
+ 
 Try penalizing only g-force > 1, keep jerk same.
+
+Try mixed training. Sometimes speed only, sometimes speed + comfort.
 
 Try adding another MLP which connects to the same outputs with weights preferring
 the old MLP such that some knowledge gets distilled in the new net, but with
