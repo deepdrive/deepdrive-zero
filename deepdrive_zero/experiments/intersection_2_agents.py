@@ -36,6 +36,7 @@ def train():
     eg.add('notes', notes, '')
     eg.add('run_filename', os.path.realpath(__file__), '')
     eg.add('env_config', env_config, '')
+    eg.add('render', False)
     eg.run(ppo_pytorch)
 
 

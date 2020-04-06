@@ -42,7 +42,9 @@ class Deepdrive2DEnv(gym.Env):
                  gamma=0.99,
                  add_static_obstacle=False,
                  disable_gforce_penalty=False,
-                 forbid_deceleration=False,):
+                 forbid_deceleration=False,
+                 contain_prev_actions_in_obs=True, #add prev actions into obs vector or not. False for r2d1
+                 ):
 
         self.logger = log
 
@@ -66,6 +68,7 @@ class Deepdrive2DEnv(gym.Env):
             incent_yield_to_oncoming_traffic=False,
             physics_steps_per_observation=physics_steps_per_observation,
             end_on_lane_violation=False,
+            contain_prev_actions_in_obs=True,
         )
 
         # All units in SI units (meters and radians) unless otherwise specified
@@ -166,8 +169,7 @@ class Deepdrive2DEnv(gym.Env):
             for i in self.dummy_accel_agent_indices]
 
         self.all_agents = self.agents + self.dummy_accel_agents
-        self.num_agents = len(self.agents)
-
+        self.num_agents = len(self.agents) #QUESTION: should be len(self.all_agents)?
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000

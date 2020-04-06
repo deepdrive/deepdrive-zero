@@ -108,7 +108,7 @@ class Agent:
             [0.5, 1, 1.5, 2, 2.5, 3])
 
         if env.is_intersection_map:
-            self.num_angles_ahead = 2
+            self.num_angles_ahead = 2  # QUESTION: what is this?
         elif env.is_one_waypoint_map:
             self.num_angles_ahead = 1
         else:
@@ -480,7 +480,7 @@ class Agent:
             # to pass zero for inputs a all or a lot of the time with no problems.
             inputs.append(self.waypoint_distances[0])
             inputs.append(np.sum(self.waypoint_distances[:2]))
-            inputs += self.get_other_agent_inputs(is_blank)
+            inputs += self.get_other_agent_inputs(is_blank) # QUESTION: why here? in the middle of infos from ego car. It is different from obs of the other agent form its point of view
             inputs += list(self.velocity)
             inputs += list(self.acceleration)
             # if self.agent_index == 0:
@@ -510,16 +510,6 @@ class Agent:
         # TODO: Normalize these and ensure they don't exceed reasonable
         #   physical bounds
         inputs += [
-            # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
-            # self.prev_desired_steer,
-            # self.prev_desired_accel,
-            # self.prev_desired_brake,
-
-            # Previous outputs after physical constraints applied
-            self.prev_steer,
-            self.prev_accel,
-            self.prev_brake,
-
             self.speed,
             # self.accel_magnitude,
             # self.jerk_magnitude,
@@ -528,6 +518,19 @@ class Agent:
             right_lane_distance,
         ]
 
+        if self.env.contain_prev_actions_in_obs:
+            input += [
+                # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
+                # self.prev_desired_steer,
+                # self.prev_desired_accel,
+                # self.prev_desired_brake,
+
+                # Previous outputs after physical constraints applied
+
+                self.prev_steer,
+                self.prev_accel,
+                self.prev_brake,
+            ]
         if self.incent_yield_to_oncoming_traffic:
             inputs.append(float(self.will_turn_across_opposing_lanes))
 

@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="test intersection_2_agents" type="PythonConfigurationType" factoryName="Python">
-    <module name="deepdrive-2d" />
+    <module name="deepdrive-zero" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deepdrive_zero/experiments/intersection_2_agents.py" />
-    <option name="PARAMETERS" value="--test /tmp/dd0-data3/deepdrive-2d-intersection-no-constrained-controls-example/deepdrive-2d-intersection-no-constrained-controls-example_s0_2020_03-25_17-30.57" />
+    <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
