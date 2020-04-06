@@ -283,13 +283,23 @@ class Deepdrive2DEnv(gym.Env):
 
     def _step(self, action):
         self.start_step_time = time.time()
-        agent = self.agents[self.agent_index]
 
-        self.check_for_collisions()
-        if self.agent_index == 1: #opponent agent
-            if self.opponent_is_model_based: #if we wnt it to move based on a pattern (straight)
-                action = [0, random.random(), 0]
-        obs, reward, done, info = agent.step(action)
+        if self.opponent_is_model_based:  # if we want the opponent to move based on a pattern (straight)
+            # one step for opponent agent
+            opponent_action = [0, random.random(), 0]
+            agent = self.agents[1] # the opponent
+            self.check_for_collisions()
+            _, _, _, _ = agent.step(opponent_action)
+
+            # one step for ego car
+            agent = self.agents[0]
+            self.check_for_collisions()
+            obs, reward, done, info = agent.step(action)
+        else: # if we want both agents to act based on NN
+            agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
+            self.check_for_collisions()
+            obs, reward, done, info = agent.step(action)
+
         self.curr_reward = reward
         if done:
             self.num_episodes += 1
