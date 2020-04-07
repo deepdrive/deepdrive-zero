@@ -623,7 +623,6 @@ class Agent:
                 ret.append(dst(p - f))
 
 
-
         if is_blank:
             ret = list(np.array(ret) * 0)
         self.other_agent_inputs = ret

@@ -148,7 +148,7 @@ class Deepdrive2DEnv(gym.Env):
         if env_config_box.is_intersection_map:
             self.is_intersection_map = env_config_box.is_intersection_map
 
-        self.num_dummy_agents = len(env_config['dummy_accel_agent_indices'])
+        self.num_dummy_agents = len(env_config['dummy_accel_agent_indices']) if env_config['dummy_accel_agent_indices'] is not None else 0
 
         agent_params = signature(Agent).parameters.keys()
         agent_config = {k: v for k,v in self.env_config.items() if k in agent_params}
