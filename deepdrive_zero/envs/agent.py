@@ -511,15 +511,6 @@ class Agent:
 
         # TODO: Normalize these and ensure they don't exceed reasonable
         #   physical bounds
-        inputs += [
-            self.speed,
-            # self.accel_magnitude,
-            # self.jerk_magnitude,
-            # self.distance_to_end,
-            left_lane_distance,
-            right_lane_distance,
-        ]
-
         if self.contain_prev_actions_in_obs:
             inputs += [
                 # Previous outputs (TODO: Remove for recurrent models like r2d1 / lstm / gtrxl? Deepmind R2D2 does input prev action to LSTM.)
@@ -533,6 +524,16 @@ class Agent:
                 self.prev_accel,
                 self.prev_brake,
             ]
+
+        inputs += [
+            self.speed,
+            # self.accel_magnitude,
+            # self.jerk_magnitude,
+            # self.distance_to_end,
+            left_lane_distance,
+            right_lane_distance,
+        ]
+
         if self.incent_yield_to_oncoming_traffic:
             inputs.append(float(self.will_turn_across_opposing_lanes))
 
