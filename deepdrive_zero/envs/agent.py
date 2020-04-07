@@ -608,7 +608,7 @@ class Agent:
         #   TTC is approximated by assuming vehicles immediately change
         #   direction towards each other at current velocity.
 
-        for i in range(self.env.num_agents):
+        for i in range(self.env.num_agents + self.env.num_dummy_agents):
             if i == self.agent_index:
                 continue
             if is_blank:
@@ -621,6 +621,8 @@ class Agent:
             for p in agent.ego_rect:
                 ret.append(ang(p))
                 ret.append(dst(p - f))
+
+
 
         if is_blank:
             ret = list(np.array(ret) * 0)

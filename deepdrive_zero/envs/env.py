@@ -44,7 +44,6 @@ class Deepdrive2DEnv(gym.Env):
                  disable_gforce_penalty=False,
                  forbid_deceleration=False,
                  contain_prev_actions_in_obs=True, #add prev actions into obs vector or not. False for r2d1
-                 opponent_is_model_based=False, #if the opponent agent in intersection moves straight. Set it to True in intersection mode only
                  ):
 
         self.logger = log
@@ -70,7 +69,6 @@ class Deepdrive2DEnv(gym.Env):
             physics_steps_per_observation=physics_steps_per_observation,
             end_on_lane_violation=False,
             contain_prev_actions_in_obs=contain_prev_actions_in_obs,
-            opponent_is_model_based=opponent_is_model_based,
         )
 
         # All units in SI units (meters and radians) unless otherwise specified
@@ -83,7 +81,6 @@ class Deepdrive2DEnv(gym.Env):
         self.static_map: bool = '--static-map' in sys.argv
         self.disable_gforce_penalty = disable_gforce_penalty
         self.contain_prev_actions_in_obs = contain_prev_actions_in_obs
-        self.opponent_is_model_based = opponent_is_model_based
 
         # The previous observation, reward, done, info for each agent
         # Useful for running / training the agents
@@ -113,7 +110,6 @@ class Deepdrive2DEnv(gym.Env):
 
         self.gamma: float = gamma
         self.add_static_obstacle: bool = add_static_obstacle
-
 
         # max_one_waypoint_mult
         # Specifies distance to waypoint as ratio: distance / map_size
@@ -151,6 +147,8 @@ class Deepdrive2DEnv(gym.Env):
         env_config_box = Box(env_config, default_box=True)
         if env_config_box.is_intersection_map:
             self.is_intersection_map = env_config_box.is_intersection_map
+
+        self.num_dummy_agents = len(env_config['dummy_accel_agent_indices'])
 
         agent_params = signature(Agent).parameters.keys()
         agent_config = {k: v for k,v in self.env_config.items() if k in agent_params}
@@ -239,7 +237,10 @@ class Deepdrive2DEnv(gym.Env):
         self.curr_reward = 0
         self.total_episode_time = 0
         if self.agent_step_outputs:
-            # Just reset the current agent
+            # Just reset the current agent and dummy agents
+            for agent in self.dummy_accel_agents:
+                agent.reset()
+
             return self.agents[self.agent_index].reset()
         else:
             # First reset, reset entire env
@@ -284,22 +285,26 @@ class Deepdrive2DEnv(gym.Env):
     def _step(self, action):
         self.start_step_time = time.time()
 
-        if self.opponent_is_model_based:  # if we want the opponent to move based on a pattern (straight)
-            # one step for opponent agent
-            opponent_action = [0, random.random(), 0]
-            agent = self.agents[1] # the opponent
-            self.check_for_collisions()
-            _, _, _, _ = agent.step(opponent_action)
-
-            # one step for ego car
-            agent = self.agents[0]
-            self.check_for_collisions()
-            obs, reward, done, info = agent.step(action)
-        else: # if we want both agents to act based on NN
-            agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
-            self.check_for_collisions()
-            obs, reward, done, info = agent.step(action)
-
+        # if we want the opponent to move based on a pattern (straight).
+        # reset is dependent only on the ego car and both agents will reset together
+        # if self.opponent_is_model_based:
+        #     # one step for opponent agent
+        #     opponent_action = [0, random.random(), 0]
+        #     agent = self.agents[1] # the opponent
+        #     self.check_for_collisions()
+        #     _, _, _, _ = agent.step(opponent_action)
+        #
+        #     # one step for ego car
+        #     agent = self.agents[0]
+        #     self.check_for_collisions()
+        #     obs, reward, done, info = agent.step(action)
+        #
+        #     # TODO: for done, consider the done flag of two agent.step()s -> done = done1 or done2
+        #
+        # else: # if we want both agents to act based on NN. each agent resets separately
+        agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
+        self.check_for_collisions()
+        obs, reward, done, info = agent.step(action)
         self.curr_reward = reward
         if done:
             self.num_episodes += 1
