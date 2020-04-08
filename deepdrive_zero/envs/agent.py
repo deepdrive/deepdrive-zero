@@ -67,6 +67,7 @@ class Agent:
                  physics_steps_per_observation=None,
                  end_on_lane_violation=None,
                  contain_prev_actions_in_obs=True,
+                 dummy_random_scenario=False,
                  ):
 
         self.env = env
@@ -97,20 +98,25 @@ class Agent:
         self.incent_yield_to_oncoming_traffic = incent_yield_to_oncoming_traffic
         self.physics_steps_per_observation = physics_steps_per_observation
         self.end_on_lane_violation = end_on_lane_violation
+        self.dummy_random_scenario = dummy_random_scenario
+        if self.dummy_random_scenario:
+            self.dummy_scenario = np.random.choice([1, 2])
+        else:
+            self.dummy_scenario = 1
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
         self.is_intersection_map: bool = env.is_intersection_map
 
         # 0.22 m/s on 0.1
-        self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?
+        self.max_one_waypoint_mult = 0.5  # Less than 2.5 m/s on 0.1?  question
 
-        # Used for old waypoint per meter map
+        # Used for old waypoint per meter map # question
         self.map_query_seconds_ahead: np.array = np.array(
             [0.5, 1, 1.5, 2, 2.5, 3])
 
         if env.is_intersection_map:
-            self.num_angles_ahead = 2  # QUESTION: what is this?
+            self.num_angles_ahead = 2  # question
         elif env.is_one_waypoint_map:
             self.num_angles_ahead = 1
         else:
@@ -166,10 +172,10 @@ class Agent:
 
         self.total_episode_time: float = 0
 
-        self.distance: float = None
-        self.distance_to_end: float = 0
-        self.prev_distance: float = None
-        self.furthest_distance: float = 0
+        self.distance: float = None #question
+        self.distance_to_end: float = 0 #question
+        self.prev_distance: float = None #question
+        self.furthest_distance: float = 0 #question
         self.velocity: np.array = np.array((0, 0))
         self.angular_velocity: float = 0
 
@@ -183,14 +189,14 @@ class Agent:
         self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
         self.jerk: np.array = np.array((0, 0))  # m/s^3 instantaneous, i.e. frame to frame
         self.jerk_magnitude: float = 0
-        self.closest_map_index: int = 0
+        self.closest_map_index: int = 0 #question: waypoint?
         self.next_map_index: int = 1
         self.closest_waypoint_distance: float = 0
         self.waypoint_distances: np.array = np.array((0,0))
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
-        self.angles_ahead: List[float] = []
+        self.angles_ahead: List[float] = []  #question
         self.angle_accuracies: List[float] = []
         self.episode_gforces: List[float] = []
         self.static_obst_angle_info: list = None
@@ -201,7 +207,7 @@ class Agent:
         # Angle in radians, 0 is straight up, -pi/2 is right
         self.angle = None
         self.angle_to_waypoint = None
-        self.front_to_waypoint: np.array = None
+        self.front_to_waypoint: np.array = None # question: distance? front means where?
         # Start position
         self.start_x = None
         self.start_y = None
@@ -685,6 +691,13 @@ class Agent:
         self.prev_accel = 0
         self.prev_steer = 0
         self.prev_brake = 0
+
+        # select scenario for dummy agent
+        if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
+            if self.dummy_random_scenario:
+                self.dummy_scenario = np.random.choice([1, 2])
+            else:
+                self.dummy_scenario = 1
 
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
@@ -1209,7 +1222,13 @@ class Agent:
             if self.agent_index == 0:
                 self.angle = 0
             elif self.agent_index == 1:
-                self.angle = pi
+                if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
+                    if self.dummy_scenario == 1:
+                        self.angle = pi
+                    elif self.dummy_scenario == 2:
+                        self.angle = -pi/2
+                else:
+                    self.angle = pi
             else:
                 raise NotImplementedError('More than 2 agents not supported')
 
@@ -1258,9 +1277,20 @@ class Agent:
             wps.append((left_vert[0][0], mid_horiz[0][1] + lane_width / 2))
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
-            wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
-            # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
-            wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
+            if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
+                if self.dummy_scenario == 1:
+                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                    # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
+                    wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
+                elif self.dummy_scenario == 2:
+                    wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
+                    wps.append((50, bottom_horiz[0][1] + lane_width / 2))
+            else:
+                wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
+                wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
+
+
         else:
             raise NotImplementedError('More than 2 agents not yet supported')
 

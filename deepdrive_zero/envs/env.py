@@ -69,6 +69,7 @@ class Deepdrive2DEnv(gym.Env):
             physics_steps_per_observation=physics_steps_per_observation,
             end_on_lane_violation=False,
             contain_prev_actions_in_obs=contain_prev_actions_in_obs,
+            dummy_random_scenario=False,
         )
 
         # All units in SI units (meters and radians) unless otherwise specified
@@ -148,7 +149,7 @@ class Deepdrive2DEnv(gym.Env):
         if env_config_box.is_intersection_map:
             self.is_intersection_map = env_config_box.is_intersection_map
 
-        self.num_dummy_agents = len(env_config['dummy_accel_agent_indices']) if env_config['dummy_accel_agent_indices'] is not None else 0
+        self.num_dummy_agents = len(self.env_config['dummy_accel_agent_indices']) if self.env_config['dummy_accel_agent_indices'] is not None else 0
 
         agent_params = signature(Agent).parameters.keys()
         agent_config = {k: v for k,v in self.env_config.items() if k in agent_params}
@@ -319,7 +320,7 @@ class Deepdrive2DEnv(gym.Env):
 
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
-            dummy_accel_agent.step([0, random.random(), 0])
+            dummy_accel_agent.step([0, random.random(), -0.8])
 
         return ret
 
