@@ -99,10 +99,7 @@ class Agent:
         self.physics_steps_per_observation = physics_steps_per_observation
         self.end_on_lane_violation = end_on_lane_violation
         self.dummy_random_scenario = dummy_random_scenario
-        if self.dummy_random_scenario:
-            self.dummy_scenario = np.random.choice([1, 2])
-        else:
-            self.dummy_scenario = 1
+        self.dummy_scenario = 1
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -693,11 +690,25 @@ class Agent:
         self.prev_brake = 0
 
         # select scenario for dummy agent
-        if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
-            if self.dummy_random_scenario:
-                self.dummy_scenario = np.random.choice([1, 2])
-            else:
-                self.dummy_scenario = 1
+        # scenarios:
+        # 1: up -> down
+        # 2:left -> right
+        # 3:up -> right
+        # 4:up -> left
+        # 5:left -> up
+        # 6: left -> down
+        # 7: right -> left
+        # 8: right -> up
+        # 9: right -> down
+        if self.env.env_config['dummy_accel_agent_indices'] is not None:
+            if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
+                if self.dummy_random_scenario:
+                    self.dummy_scenario = np.random.choice([1, 2, 3])
+                else:
+                    self.dummy_scenario = 1
+
+            # for debug
+            # self.dummy_scenario = 3
 
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
@@ -1227,6 +1238,8 @@ class Agent:
                         self.angle = pi
                     elif self.dummy_scenario == 2:
                         self.angle = -pi/2
+                    elif self.dummy_scenario == 3:
+                        self.angle = pi
                 else:
                     self.angle = pi
             else:
@@ -1285,11 +1298,16 @@ class Agent:
                 elif self.dummy_scenario == 2:
                     wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
                     wps.append((50, bottom_horiz[0][1] + lane_width / 2))
+                elif self.dummy_scenario == 3:
+                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                    wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
+                    wps.append((right_vert[0][0], bottom_horiz[0][1] + lane_width / 2))
+                    wps.append((50, bottom_horiz[0][1] + lane_width / 2))
+
             else:
                 wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                 # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
                 wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
-
 
         else:
             raise NotImplementedError('More than 2 agents not yet supported')

@@ -286,23 +286,6 @@ class Deepdrive2DEnv(gym.Env):
     def _step(self, action):
         self.start_step_time = time.time()
 
-        # if we want the opponent to move based on a pattern (straight).
-        # reset is dependent only on the ego car and both agents will reset together
-        # if self.opponent_is_model_based:
-        #     # one step for opponent agent
-        #     opponent_action = [0, random.random(), 0]
-        #     agent = self.agents[1] # the opponent
-        #     self.check_for_collisions()
-        #     _, _, _, _ = agent.step(opponent_action)
-        #
-        #     # one step for ego car
-        #     agent = self.agents[0]
-        #     self.check_for_collisions()
-        #     obs, reward, done, info = agent.step(action)
-        #
-        #     # TODO: for done, consider the done flag of two agent.step()s -> done = done1 or done2
-        #
-        # else: # if we want both agents to act based on NN. each agent resets separately
         agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
         self.check_for_collisions()
         obs, reward, done, info = agent.step(action)
