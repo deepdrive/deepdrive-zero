@@ -142,6 +142,7 @@ class Deepdrive2DEnv(gym.Env):
         self.agent_index: int = 0  # Current agent we are stepping
         self.curr_reward = 0
 
+        self.dummy_action = None
 
     def configure_env(self, env_config: dict = None):
         env_config = self._set_config(env_config or {})
@@ -237,11 +238,12 @@ class Deepdrive2DEnv(gym.Env):
     def reset(self):
         self.curr_reward = 0
         self.total_episode_time = 0
+        self.dummy_action = [0, 1, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
         if self.agent_step_outputs:
-            # Just reset the current agent and dummy agents
             for agent in self.dummy_accel_agents:
-                agent.reset()
-
+                if agent.done:
+                    agent.reset()
+            # Just reset the current agent and dummy agents
             return self.agents[self.agent_index].reset()
         else:
             # First reset, reset entire env
@@ -303,8 +305,7 @@ class Deepdrive2DEnv(gym.Env):
 
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
-            dummy_accel_agent.step([0, random.random(), -0.8])
-
+            dummy_accel_agent.step(self.dummy_action)
         return ret
 
     def get_step_output(self, done, info, obs, reward):
