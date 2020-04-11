@@ -305,7 +305,9 @@ class Deepdrive2DEnv(gym.Env):
 
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
-            dummy_accel_agent.step(self.dummy_action)
+            _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+            if d: #if done -> reset dummy agent
+                dummy_accel_agent.reset()
         return ret
 
     def get_step_output(self, done, info, obs, reward):
