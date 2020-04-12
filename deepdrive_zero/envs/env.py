@@ -9,6 +9,7 @@ import gym
 import numpy as np
 from box import Box
 from gym import spaces
+from .agent import get_closest_point
 
 import pyglet
 
@@ -306,6 +307,15 @@ class Deepdrive2DEnv(gym.Env):
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
             _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+
+            # p-controller for steering
+            # nxt_wp = dummy_accel_agent.map.waypoints[dummy_accel_agent.next_map_index]
+            # steer_diff = dummy_accel_agent.get_angle_to_waypoint(nxt_wp)
+            # steer = -.07 * steer_diff[0]
+            # # act = [steer, 1, 0]
+            # self.dummy_action[0] = steer
+            # _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+
             if d: #if done -> reset dummy agent
                 dummy_accel_agent.reset()
         return ret
