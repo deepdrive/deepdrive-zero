@@ -1,5 +1,4 @@
 import os
-import sys
 
 from deepdrive_zero.constants import FPS
 from deepdrive_zero.experiments import utils
@@ -8,8 +7,16 @@ from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Testing garbage-in-garbage-out (some things are worth forgetting) 
- idea with single waypoint"""
+notes = """
+Simplest environment. Should reach 98% average angle accuracy in about 5 minutes
+
+Angle accuracy graph:
+https://photos.app.goo.gl/GvGfa2ibgAC6V1f49
+https://i.imgur.com/blv5WdY.jpg
+
+Full results:
+https://docs.google.com/spreadsheets/d/1nQb33naseYJ7-gFW1YyzHb6Mffx-H63gquryD_WibTk/edit?usp=sharing
+"""
 
 
 env_config = dict(
@@ -35,19 +42,11 @@ net_config = dict(
 
 eg = ExperimentGrid(name=experiment_name)
 eg.add('env_name', env_config['env_name'], '', False)
-# eg.add('seed', 0)
-# eg.add('resume', '/home/c2/src/tmp/spinningup/data/intersection_2_agents_fine_tune_add_left_yield2/intersection_2_agents_fine_tune_add_left_yield2_s0_2020_03-23_22-40.11')
-# eg.add('reinitialize_optimizer_on_resume', True)
-# eg.add('num_inputs_to_add', 0)
-# eg.add('pi_lr', 3e-6)
-# eg.add('vf_lr', 1e-5)
-# eg.add('boost_explore', 5)
 pso = env_config['physics_steps_per_observation']
 effective_horizon_seconds = 10
 eg.add('gamma', 1 - pso / (effective_horizon_seconds * FPS))  # Lower gamma so seconds of effective horizon remains at 10s with current physics steps = 12 * 1/60s * 1 / (1-gamma)
-eg.add('episode_cull_ratio', 0.5)
-eg.add('epochs', 20000)
-eg.add('steps_per_epoch', 500)
+eg.add('epochs', 417)
+eg.add('steps_per_epoch', 20000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')
@@ -59,4 +58,12 @@ def train():
 
 
 if __name__ == '__main__':
-    utils.run(train_fn=train, env_config=env_config, net_config=net_config)
+    utils.run(train_fn=train, env_config=env_config, net_config=net_config,
+              try_rollouts=20, steps_per_try_rollout=10, num_eval_episodes=10)
+
+#                     | VALUE |  REWARD
+#  2 rollouts 10 steps | 7.71  |  7.78
+#  2 rollouts 20 steps | 7.72  |  7.65
+#  2 rollouts 30 steps | 7.52  |
+#  4 rollouts 10 steps | 7.75  |
+# 20 rollouts 10 steps |       | 7.55!

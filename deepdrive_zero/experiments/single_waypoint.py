@@ -11,6 +11,7 @@ notes = """
 Simplest environment. Should reach 98% average angle accuracy in about 5 minutes
 
 Angle accuracy graph:
+https://photos.app.goo.gl/GvGfa2ibgAC6V1f49
 https://i.imgur.com/blv5WdY.jpg
 
 Full results:
@@ -27,7 +28,7 @@ env_config = dict(
     collision_penalty_coeff=4,
     lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
-    end_on_harmful_gs=False,
+    gforce_threshold=None,
     incent_win=True,
     constrain_controls=False,
     incent_yield_to_oncoming_traffic=True,
@@ -57,4 +58,5 @@ def train():
 
 
 if __name__ == '__main__':
-    utils.run(train_fn=train, env_config=env_config, net_config=net_config)
+    utils.run(train_fn=train, env_config=env_config, net_config=net_config,
+              num_eval_episodes=10)

@@ -8,7 +8,7 @@ import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
 notes = """Resuming early on in training before policy is based too much on
-fractic actions"""
+frantic actions"""
 
 env_config = dict(
     env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
@@ -19,7 +19,7 @@ env_config = dict(
     collision_penalty_coeff=4,
     lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
-    end_on_harmful_gs=False,
+    gforce_threshold=None,
     end_on_lane_violation=False,
     incent_win=True,
     constrain_controls=False,
@@ -54,4 +54,5 @@ def train():
 
 
 if __name__ == '__main__':
-    utils.run(train_fn=train, env_config=env_config, net_config=net_config)
+    utils.run(train_fn=train, env_config=env_config, net_config=net_config,
+              num_eval_episodes=10)

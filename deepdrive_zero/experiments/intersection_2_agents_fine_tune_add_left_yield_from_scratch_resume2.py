@@ -26,14 +26,14 @@ violations"""
 # Or if at 2aps
 # t: 0       .5     1
 # v: 10  ->  20  -> 10
-# a:    20   -> -20  = 1g
-# j:         80
+# a:    20   -> -20  = 2g = 20m/s^2
+# j:         40
 
 # And 5aps - 12 physics frames per second
 # t: 0       .2     .4
 # v: 10  ->  20  -> 10
-# a:    50   -> -50  = 1g
-# j:         500
+# a:    50   -> -50  = 5g
+# j:         100
 
 
 env_config = dict(
@@ -45,7 +45,7 @@ env_config = dict(
     collision_penalty_coeff=4,
     lane_penalty_coeff=0.04,  # 2 * 0.04
     speed_reward_coeff=0.50,
-    end_on_harmful_gs=False,
+    gforce_threshold=None,
     end_on_lane_violation=False,
     incent_win=True,
     constrain_controls=False,

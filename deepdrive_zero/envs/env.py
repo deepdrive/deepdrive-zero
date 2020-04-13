@@ -48,6 +48,8 @@ class Deepdrive2DEnv(gym.Env):
 
         log.info(f'{sys.executable} {sys.argv}')
 
+
+        # Env config -----------------------------------------------------------
         self.env_config = dict(
             jerk_penalty_coeff=0.10,
             gforce_penalty_coeff=0.031,
@@ -55,11 +57,13 @@ class Deepdrive2DEnv(gym.Env):
             collision_penalty_coeff=0.31,
             speed_reward_coeff=0.50,
             win_coefficient=1,
-            end_on_harmful_gs=True,
-            constrain_controls=True,
+            gforce_threshold=1,
+            jerk_threshold=6,
+            constrain_controls=False,
             ignore_brake=False,
             forbid_deceleration=forbid_deceleration,
             expect_normalized_action_deltas=expect_normalized_action_deltas,
+            discrete_actions=None,
             incent_win=incent_win,
             dummy_accel_agent_indices=None,
             wait_for_action=False,
@@ -82,31 +86,17 @@ class Deepdrive2DEnv(gym.Env):
         # Useful for running / training the agents
         self.agent_step_outputs = []  # TODO: Use pre-allocated numpy array here
 
-
         # For faster / slower than real-time stepping
         self.decouple_step_time = decouple_step_time
 
-        # Step properties
-        self.episode_steps: int = 0
-        self.num_episodes: int = 0
-        self.total_steps: int = 0
-        self.last_step_time: float = None
-        self.wall_dt: float = None
-        self.last_sleep_time: float = None
-        self.start_step_time: float = None
-
         self.fps: int = FPS
-
         self.target_dt: float = 1 / self.fps
-        self.total_episode_time: float = 0
 
         self.match_angle_only: bool = match_angle_only
         self.is_one_waypoint_map: bool = is_one_waypoint_map
         self.is_intersection_map: bool = is_intersection_map
-
         self.gamma: float = gamma
         self.add_static_obstacle: bool = add_static_obstacle
-
 
         # max_one_waypoint_mult
         # Specifies distance to waypoint as ratio: distance / map_size
@@ -115,10 +105,6 @@ class Deepdrive2DEnv(gym.Env):
         self.max_one_waypoint_mult = 0.5
 
         np.random.seed(self.seed_value)
-
-        # TODO (research): Think about tree of neural nets for RL options
-
-        # TODO: Change random seed on fine-tune to prevent overfitting
 
         self.player = None
 
@@ -131,13 +117,52 @@ class Deepdrive2DEnv(gym.Env):
             self.num_agents = 1
         self.dummy_accel_agent_indices: List[int] = []
 
+        self.agent_index: int = 0  # Current agent we are stepping
+        self.discrete_actions = None
+        # End env config -------------------------------------------------------
+
+        # Env state ------------------------------------------------------------
+        # Step properties
+        self.episode_steps: int = 0
+        self.num_episodes: int = 0
+        self.total_steps: int = 0
+        self.last_step_time: float = None
+        self.wall_dt: float = None
+        self.last_sleep_time: float = None
+        self.start_step_time: float = None
+        self.total_episode_time: float = 0
+        self.curr_reward = 0
         self.agents = None
         self.dummy_accel_agents = None
         self.all_agents = None  # agents + dummy_agents
+        # End env state --------------------------------------------------------
 
-        self.agent_index: int = 0  # Current agent we are stepping
-        self.curr_reward = 0
+    def get_state(self):
+        return (self.episode_steps,
+                self.num_episodes,
+                self.total_steps,
+                self.last_step_time,
+                self.wall_dt,
+                self.last_sleep_time,
+                self.start_step_time,
+                self.total_episode_time,
+                self.curr_reward,
+                [a.get_state() for a in self.all_agents],)
 
+    def set_state(self, s):
+        (self.episode_steps,
+         self.num_episodes,
+         self.total_steps,
+         self.last_step_time,
+         self.wall_dt,
+         self.last_sleep_time,
+         self.start_step_time,
+         self.total_episode_time,
+         self.curr_reward) = s[:-1]
+
+        agent_states = s[-1]
+        for i, agent in enumerate(self.all_agents):
+            agent.set_state(agent_states[i])
 
     def configure_env(self, env_config: dict = None):
         env_config = self._set_config(env_config or {})
@@ -145,6 +170,8 @@ class Deepdrive2DEnv(gym.Env):
         if env_config_box.is_intersection_map:
             self.is_intersection_map = env_config_box.is_intersection_map
 
+        # Pass env config params to agent if they are arguments to agent
+        # constructor. # TODO: Move to an agent section of the config.
         agent_params = signature(Agent).parameters.keys()
         agent_config = {k: v for k,v in self.env_config.items() if k in agent_params}
         self.agents: List[Agent] = [Agent(
@@ -167,7 +194,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self.all_agents = self.agents + self.dummy_accel_agents
         self.num_agents = len(self.agents)
-
+        self.discrete_actions = self.env_config['discrete_actions']
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -206,7 +233,9 @@ class Deepdrive2DEnv(gym.Env):
         # Action space: ----
         # Steer, Accel, Brake
         agent = self.agents[0]
-        if self.expect_normalized_actions:
+        if self.discrete_actions:
+            self.action_space = spaces.Discrete(len(self.discrete_actions))
+        elif self.expect_normalized_actions:
             self.action_space = spaces.Box(low=-1, high=1, shape=(agent.num_actions,))
         else:
             # https://www.convert-me.com/en/convert/acceleration/ssixtymph_1.html?u=ssixtymph_1&v=7.4

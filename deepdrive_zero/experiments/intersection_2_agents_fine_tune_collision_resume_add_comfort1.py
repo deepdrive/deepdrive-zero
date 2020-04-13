@@ -25,7 +25,7 @@ env_config = dict(
     jerk_penalty_coeff=0.10 / (60*10),   # dropped from 0.10, see notes
     gforce_penalty_coeff=0.031,
     collision_penalty_coeff=1,
-    end_on_harmful_gs=False,
+    gforce_threshold=None,
     incent_win=True,
     constrain_controls=False,
 )

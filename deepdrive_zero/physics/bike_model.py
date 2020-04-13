@@ -40,6 +40,7 @@ def bike_with_friction_step(
     tuned_fps = 1 / 60  # The FPS we tuned friction ratios at
     friction_exponent = (dt / tuned_fps)
     if add_rotational_friction:
+        # Causes steering to drift back to zero
         angle_change = 0.95 ** friction_exponent * angle_change
     if add_longitudinal_friction:
         speed = 0.999 ** friction_exponent * speed
