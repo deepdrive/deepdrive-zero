@@ -239,7 +239,7 @@ class Deepdrive2DEnv(gym.Env):
     def reset(self):
         self.curr_reward = 0
         self.total_episode_time = 0
-        self.dummy_action = [0, 1, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
+        self.dummy_action = [0, 0.8, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
         if self.agent_step_outputs:
             for agent in self.dummy_accel_agents:
                 if agent.done:
@@ -291,7 +291,7 @@ class Deepdrive2DEnv(gym.Env):
 
         agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
         self.check_for_collisions()
-        obs, reward, done, info = agent.step(action)
+        obs, reward, done, info = agent.step(action) #
         self.curr_reward = reward
         if done:
             self.num_episodes += 1
@@ -299,25 +299,24 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_steps += 1
         self.total_steps += 1
 
-        ret = self.get_step_output(done, info, obs, reward)
+        ret = self.get_step_output(done, info, obs, reward) # if len(self.agents)>1 -> one agent.step -> get the obs for other agent
 
         if self.should_render:
             self.regulate_fps()
 
+        # one step for dummy agents
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
-            _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+            # _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
 
             # p-controller for steering
-            # nxt_wp = dummy_accel_agent.map.waypoints[dummy_accel_agent.next_map_index]
-            # steer_diff = dummy_accel_agent.get_angle_to_waypoint(nxt_wp)
-            # steer = -.07 * steer_diff[0]
-            # # act = [steer, 1, 0]
-            # self.dummy_action[0] = steer
-            # _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+            steer = dummy_accel_agent._lateral_control()
+            self.dummy_action[0] = steer
+            _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
 
             if d: #if done -> reset dummy agent
                 dummy_accel_agent.reset()
+
         return ret
 
     def get_step_output(self, done, info, obs, reward):
@@ -347,8 +346,8 @@ class Deepdrive2DEnv(gym.Env):
         """
         agent_index = self.agent_index
         self.agent_step_outputs[agent_index] = (obs, reward, done, info)
-        agent_index = self.total_steps % len(self.agents)
-        ret = self.agent_step_outputs[agent_index]
+        agent_index = self.total_steps % len(self.agents) # switch to other agent
+        ret = self.agent_step_outputs[agent_index] # after one agent.step, get ret (obs, r, d, info) for the other agent.
         self.agent_index = agent_index
         return ret
 

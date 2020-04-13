@@ -113,7 +113,7 @@ class Agent:
             [0.5, 1, 1.5, 2, 2.5, 3])
 
         if env.is_intersection_map:
-            self.num_angles_ahead = 2  # question
+            self.num_angles_ahead = 2
         elif env.is_one_waypoint_map:
             self.num_angles_ahead = 1
         else:
@@ -193,7 +193,7 @@ class Agent:
         self.trip_pct: float = 0
         self.avg_trip_pct: float = 0
         self._trip_pct_total: float = 0
-        self.angles_ahead: List[float] = []  #question
+        self.angles_ahead: List[float] = []  #angle to next two waypoints.
         self.angle_accuracies: List[float] = []
         self.episode_gforces: List[float] = []
         self.static_obst_angle_info: list = None
@@ -308,16 +308,21 @@ class Agent:
             collided = bool(self.collided_with)
 
             obs_data = self.get_observation(steer, accel, brake, info)
+
             (lane_deviation, observation, closest_map_point,
              left_lane_distance, right_lane_distance) = obs_data
 
-            done, won, lost = self.get_done(closest_map_point, lane_deviation,
-                                            collided, info, left_lane_distance,
-                                            right_lane_distance)
+            done, won, lost = self.get_done(
+                closest_map_point, lane_deviation,
+                collided, info, left_lane_distance,
+                right_lane_distance
+            )
+
             reward, info = self.get_reward(
                 lane_deviation, won, lost, collided, info, steer, accel,
                 left_lane_distance, right_lane_distance
             )
+
             info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
@@ -698,9 +703,9 @@ class Agent:
         # select scenario for dummy agent
         # scenarios:
         # 1: up -> down
-        # 2:left -> right
+        # 2:up -> left
         # 3:up -> right
-        # 4:up -> left
+        # 4: left -> right
         # 5:left -> up
         # 6: left -> down
         # 7: right -> left
@@ -709,12 +714,12 @@ class Agent:
         if self.env.env_config['dummy_accel_agent_indices'] is not None:
             if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
                 if self.dummy_random_scenario:
-                    self.dummy_scenario = np.random.choice([1, 2])
+                    self.dummy_scenario = np.random.choice([1, 2, 3])
                 else:
                     self.dummy_scenario = 1
 
             # for debug
-            # self.dummy_scenario = 3
+            # self.dummy_scenario = 2
 
         # TODO: Regen map every so often
         if self.map is None or not self.static_map:
@@ -939,6 +944,7 @@ class Agent:
         return win_reward
 
     def get_observation(self, steer, accel, brake, info):
+
         if self.ignore_brake:
             brake = False
         if self.speed > 100:
@@ -1243,9 +1249,11 @@ class Agent:
                     if self.dummy_scenario == 1:
                         self.angle = pi
                     elif self.dummy_scenario == 2:
-                        self.angle = -pi/2
+                        self.angle = pi
                     elif self.dummy_scenario == 3:
                         self.angle = pi
+                    elif self.dummy_scenario == 4:
+                        self.angle = -pi/2
                 else:
                     self.angle = pi
             else:
@@ -1297,17 +1305,22 @@ class Agent:
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
             if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
-                if self.dummy_scenario == 1:
+                if self.dummy_scenario == 1: #up -> down
                     wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                     # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
                     wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
-                elif self.dummy_scenario == 2:
-                    wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
-                    wps.append((50, bottom_horiz[0][1] + lane_width / 2))
-                elif self.dummy_scenario == 3:
+                elif self.dummy_scenario == 2: # up -> left
+                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                    wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
+                    wps.append((left_vert[0][0], top_horiz[0][1] - lane_width / 2))
+                    wps.append((6, mid_horiz[0][1] + lane_width / 2))
+                elif self.dummy_scenario == 3: # up -> right
                     wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                     wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
                     wps.append((right_vert[0][0], bottom_horiz[0][1] + lane_width / 2))
+                    wps.append((50, bottom_horiz[0][1] + lane_width / 2))
+                elif self.dummy_scenario == 4: # left -> right
+                    wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
                     wps.append((50, bottom_horiz[0][1] + lane_width / 2))
 
             else:
@@ -1432,48 +1445,50 @@ class Agent:
         return np.clip((_k_p * error) + (_k_d * _de) + (_k_i * _ie), -1.0, 1.0)
 
 
-    def _lateral_control(self, waypoint):
+    def _lateral_control(self, waypoint=None):
         """
         Estimate the steering angle of the vehicle based on the PID equations
             :param waypoint: target waypoint
             :param vehicle_transform: current transform of the vehicle
             :return: steering control in the range [-1, 1]
         """
-        _k_p = .1
+        _k_p = .07
         _k_d = 0.00
         _k_i = 0.0
 
-        v_begin = np.array([self.x, self.y]) #vehicle_transform.location
-        v_end = v_begin + np.array([math.cos(self.angle),
-                                    math.sin(self.angle)])
+        # v_begin = np.array([self.x, self.y]) #vehicle_transform.location
+        # v_end = v_begin + np.array([math.cos(self.angle),
+        #                             math.sin(self.angle)])
+        #
+        # v_vec = np.array([v_end[0] - v_begin[0],
+        #                   v_end[1] - v_begin[1],
+        #                   0.0])
+        # w_vec = np.array([waypoint[0] - v_begin[0],
+        #                   waypoint[1] - v_begin[1],
+        #                   0.0])
+        # # _dot = math.acos(np.clip(np.dot(w_vec, v_vec) /
+        # #                          (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)), -1.0, 1.0))
+        # _dot = math.acos(np.dot(w_vec, v_vec) /
+        #                          (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)))
+        #
+        # _cross = np.cross(v_vec, w_vec)
+        #
+        # if _cross[2] < 0:
+        #     _dot *= -1.0
+        #
+        # self._lateral_controller_error_buffer.append(_dot)
+        # if len(self._lateral_controller_error_buffer) >= 2:
+        #     _de = (self._lateral_controller_error_buffer[-1] - self._lateral_controller_error_buffer[-2]) / self.dt
+        #     _ie = sum(self._lateral_controller_error_buffer) * self.dt
+        # else:
+        #     _de = 0.0
+        #     _ie = 0.0
+        # return np.clip((_k_p * _dot) + (_k_d * _de) + (_k_i * _ie), -1.0, 1.0)
 
-        v_vec = np.array([v_end[0] - v_begin[0],
-                          v_end[1] - v_begin[1],
-                          0.0])
-        w_vec = np.array([waypoint[0] - v_begin[0],
-                          waypoint[1] - v_begin[1],
-                          0.0])
-        # _dot = math.acos(np.clip(np.dot(w_vec, v_vec) /
-        #                          (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)), -1.0, 1.0))
-        _dot = math.acos(np.dot(w_vec, v_vec) /
-                                 (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)))
-
-        _cross = np.cross(v_vec, w_vec)
-
-        if _cross[2] < 0:
-            _dot *= -1.0
-
-        self._lateral_controller_error_buffer.append(_dot)
-        if len(self._lateral_controller_error_buffer) >= 2:
-            _de = (self._lateral_controller_error_buffer[-1] - self._lateral_controller_error_buffer[-2]) / self.dt
-            _ie = sum(self._lateral_controller_error_buffer) * self.dt
-        else:
-            _de = 0.0
-            _ie = 0.0
-
-        return np.clip((_k_p * _dot) + (_k_d * _de) + (_k_i * _ie), -1.0, 1.0)
-
-
+        nxt_wp = self.map.waypoints[self.next_map_index]
+        steer_diff = self.get_angle_to_waypoint(nxt_wp)
+        steer = -_k_p * steer_diff[0]
+        return steer
 
 
 def get_closest_point(point, kd_tree):
