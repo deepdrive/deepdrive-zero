@@ -296,6 +296,7 @@ class Agent:
         info.stats.brake = brake
         info.stats.speed = self.speed
         info.stats.episode_time = self.env.total_episode_time
+        info.stats.dummy_agent_scenario= self.movement_pattern
 
         now = time.time()
         if self.last_step_time is None:
