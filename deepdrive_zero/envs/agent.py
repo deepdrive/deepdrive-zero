@@ -1440,8 +1440,8 @@ class Agent:
 
     def upcoming_opposing_lane_agents(self) -> bool:
         if (self.agent_index == 0 and
-                len(self.env.all_agents) > 1 and
-                self.env.all_agents[1].approaching_intersection):
+                len(self.env.agents) > 1 and
+                self.env.agents[1].approaching_intersection):
             # TODO: Make this more general when adding more agents,
             #  larger maps, etc... i.e. approaching intersection will have to
             #  identify some intersection id instead of just being a bool.
@@ -1449,69 +1449,7 @@ class Agent:
         else:
             return False
 
-    def pid_controller_step(self, target_speed, waypoint):
-        """
-        Execute one step of control invoking both lateral and longitudinal
-        PID controllers to reach a target waypoint
-        at a given target_speed.
-            :param target_speed: desired vehicle speed
-            :param waypoint: target location encoded as a waypoint
-            :return: distance (in meters) to the waypoint
-        """
-
-        acceleration = self._longitudinal_control(target_speed)
-        current_steering = self._lateral_control(waypoint)
-        if acceleration >= 0.0:
-            throttle = acceleration  #min(acceleration, self.max_throt)
-            brake = 0.0
-        else:
-            throttle = 0.0
-            brake = acceleration  # min(abs(acceleration), self.max_brake)
-
-        # Steering regulation: changes cannot happen abruptly, can't steer too much.
-        if current_steering > self.prev_action[0] + 0.1:
-            current_steering = self.prev_action[0] + 0.1
-        elif current_steering < self.prev_action[0] - 0.1:
-            current_steering = self.prev_action[0] - 0.1
-
-        # if current_steering >= 0:
-        #     steering = min(self.max_steer, current_steering)
-        # else:
-        #     steering = max(-self.max_steer, current_steering)
-
-        # control.steer = steering
-        # control.hand_brake = False
-        # control.manual_gear_shift = False
-        # self.past_steering = steering
-
-        # return np.array([current_steering, throttle, brake])
-        return np.array([current_steering, 1, 0])
-
-    def _longitudinal_control(self, target_speed):
-        """
-        Estimate the throttle/brake of the vehicle based on the PID equations
-            :param target_speed:  target speed in Km/h
-            :return: throttle/brake control
-        """
-        _k_p = 5
-        _k_d = 0.0
-        _k_i = 1.0
-
-        current_speed = self.speed  # current speed of the vehicle in Km/h
-        error = target_speed - current_speed
-        self._longitudinal_controller_error_buffer.append(error)
-
-        if len(self._longitudinal_controller_error_buffer) >= 2:
-            _de = (self._longitudinal_controller_error_buffer[-1] - self._longitudinal_controller_error_buffer[-2]) / self.dt
-            _ie = sum(self._longitudinal_controller_error_buffer) * self.dt
-        else:
-            _de = 0.0
-            _ie = 0.0
-
-        return np.clip((_k_p * error) + (_k_d * _de) + (_k_i * _ie), -1.0, 1.0)
-
-
-    def _lateral_control(self, waypoint=None):
+    def lateral_control(self):
         """
         Estimate the steering angle of the vehicle based on the PID equations
             :param waypoint: target waypoint
@@ -1521,35 +1459,6 @@ class Agent:
         _k_p = .07
         _k_d = 0.00
         _k_i = 0.0
-
-        # v_begin = np.array([self.x, self.y]) #vehicle_transform.location
-        # v_end = v_begin + np.array([math.cos(self.angle),
-        #                             math.sin(self.angle)])
-        #
-        # v_vec = np.array([v_end[0] - v_begin[0],
-        #                   v_end[1] - v_begin[1],
-        #                   0.0])
-        # w_vec = np.array([waypoint[0] - v_begin[0],
-        #                   waypoint[1] - v_begin[1],
-        #                   0.0])
-        # # _dot = math.acos(np.clip(np.dot(w_vec, v_vec) /
-        # #                          (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)), -1.0, 1.0))
-        # _dot = math.acos(np.dot(w_vec, v_vec) /
-        #                          (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)))
-        #
-        # _cross = np.cross(v_vec, w_vec)
-        #
-        # if _cross[2] < 0:
-        #     _dot *= -1.0
-        #
-        # self._lateral_controller_error_buffer.append(_dot)
-        # if len(self._lateral_controller_error_buffer) >= 2:
-        #     _de = (self._lateral_controller_error_buffer[-1] - self._lateral_controller_error_buffer[-2]) / self.dt
-        #     _ie = sum(self._lateral_controller_error_buffer) * self.dt
-        # else:
-        #     _de = 0.0
-        #     _ie = 0.0
-        # return np.clip((_k_p * _dot) + (_k_d * _de) + (_k_i * _ie), -1.0, 1.0)
 
         nxt_wp = self.map.waypoints[self.next_map_index]
         steer_diff = self.get_angle_to_waypoint(nxt_wp)

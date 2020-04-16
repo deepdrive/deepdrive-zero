@@ -239,7 +239,7 @@ class Deepdrive2DEnv(gym.Env):
     def reset(self):
         self.curr_reward = 0
         self.total_episode_time = 0
-        self.dummy_action = [0, 0.8, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
+        self.dummy_action = [0, 1, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
         if self.agent_step_outputs:
             for agent in self.dummy_accel_agents:
                 if agent.done:
@@ -310,7 +310,7 @@ class Deepdrive2DEnv(gym.Env):
             # _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
 
             # p-controller for steering
-            steer = dummy_accel_agent._lateral_control()
+            steer = dummy_accel_agent.lateral_control()
             self.dummy_action[0] = steer
             _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
 
