@@ -58,7 +58,7 @@ class Deepdrive2DEnv(gym.Env):
             speed_reward_coeff=0.50,
             win_coefficient=1,
             gforce_threshold=1,
-            jerk_threshold=6,
+            jerk_threshold=None,
             constrain_controls=False,
             ignore_brake=False,
             forbid_deceleration=forbid_deceleration,
@@ -195,6 +195,7 @@ class Deepdrive2DEnv(gym.Env):
         self.all_agents = self.agents + self.dummy_accel_agents
         self.num_agents = len(self.agents)
         self.discrete_actions = self.env_config['discrete_actions']
+        self.physics_steps_per_observation = env_config['physics_steps_per_observation']
 
         if '--no-timeout' in sys.argv:
             max_seconds = 100000
@@ -208,7 +209,7 @@ class Deepdrive2DEnv(gym.Env):
 
         self._max_episode_steps = (max_seconds *
                                    1/self.target_dt *
-                                   1/env_config['physics_steps_per_observation'])
+                                   1/self.physics_steps_per_observation)
 
         self.reset()
         self.setup_spaces()

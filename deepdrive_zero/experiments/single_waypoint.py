@@ -45,8 +45,8 @@ eg.add('env_name', env_config['env_name'], '', False)
 pso = env_config['physics_steps_per_observation']
 effective_horizon_seconds = 10
 eg.add('gamma', 1 - pso / (effective_horizon_seconds * FPS))  # Lower gamma so seconds of effective horizon remains at 10s with current physics steps = 12 * 1/60s * 1 / (1-gamma)
-eg.add('epochs', 417)
-eg.add('steps_per_epoch', 500)
+eg.add('epochs', 10000)
+eg.add('steps_per_epoch', 32000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')

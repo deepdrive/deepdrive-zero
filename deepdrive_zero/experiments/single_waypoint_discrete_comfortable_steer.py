@@ -33,7 +33,7 @@ env_config = dict(
     constrain_controls=False,
     incent_yield_to_oncoming_traffic=True,
     physics_steps_per_observation=12,
-    discrete_actions=COMFORTABLE_STEERING_ACTIONS
+    discrete_actions=COMFORTABLE_STEERING_ACTIONS,
 )
 
 net_config = dict(

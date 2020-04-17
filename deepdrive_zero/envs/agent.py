@@ -1,9 +1,3 @@
-# TODO: Multi-agent self-play
-#   Combine several agents experience into the batch that PPO uses.
-#   Env step will take n actions and output n observations for n agents.
-#   The agents will share hyperparams,
-#   Optionally height, width, and reward will be different
-#   Figure out how to deal with end of episode for one actor, could just end for everybody!
 import math
 import os
 import random
@@ -28,7 +22,7 @@ from deepdrive_zero.experience_buffer import ExperienceBuffer
 from deepdrive_zero.logs import log
 from deepdrive_zero.map_gen import get_intersection
 from deepdrive_zero.physics.bike_model import bike_with_friction_step, \
-    get_vehicle_model
+    get_vehicle_model, get_angle_for_accel
 from deepdrive_zero.physics.collision_detection import get_rect, \
     get_lines_from_rect_points
 from deepdrive_zero.physics.step import physics_step
@@ -214,7 +208,7 @@ class Agent:
         self.accel_magnitude: float = 0
         self.gforce_levels: Box = self.blank_gforce_levels()
         self.max_gforce: float = 0
-        self.prev_gforce: deque = deque(maxlen=math.ceil(self.aps))
+        self.state_buffer: deque = deque(maxlen=math.ceil(2*self.aps))
         self.jerk: np.array = np.array((0, 0))  # m/s^3 instantaneous, i.e. frame to frame
         self.jerk_magnitude: float = 0
         self.closest_map_index: int = 0
@@ -243,6 +237,12 @@ class Agent:
         # to the observation. Should change frame rate?
         self.experience_buffer = None
         self.should_add_previous_states = '--disable-prev-states' not in sys.argv
+        self.rolling_velocity = np.array((0, 0))
+        self.rolling_accel = np.array((0, 0))
+        self.rolling_jerk = np.array((0, 0))
+        self.rolling_velocity_magnitude = 0
+        self.rolling_accel_magnitude = 0
+        self.rolling_jerk_magnitude = 0
         # End of agent state -------------------------------------------------
 
         self.reset()
@@ -298,7 +298,7 @@ class Agent:
                 self.accel_magnitude,
                 self.gforce_levels,
                 self.max_gforce,
-                self.prev_gforce,
+                self.state_buffer,
                 self.jerk,
                 self.jerk_magnitude,
                 self.closest_map_index,
@@ -317,7 +317,13 @@ class Agent:
                 self.max_accel_historical,
                 self.will_turn_across_opposing_lanes,
                 self.experience_buffer,
-                self.should_add_previous_states)
+                self.should_add_previous_states,
+                self.rolling_velocity,
+                self.rolling_accel,
+                self.rolling_jerk,
+                self.rolling_velocity_magnitude,
+                self.rolling_accel_magnitude,
+                self.rolling_jerk_magnitude,)
 
     def set_state(self, s):
         (self.x,
@@ -363,7 +369,7 @@ class Agent:
          self.accel_magnitude,
          self.gforce_levels,
          self.max_gforce,
-         self.prev_gforce,
+         self.state_buffer,
          self.jerk,
          self.jerk_magnitude,
          self.closest_map_index,
@@ -382,15 +388,25 @@ class Agent:
          self.max_accel_historical,
          self.will_turn_across_opposing_lanes,
          self.experience_buffer,
-         self.should_add_previous_states) = s
+         self.should_add_previous_states,
+         self.rolling_velocity,
+         self.rolling_accel,
+         self.rolling_jerk,
+         self.rolling_velocity_magnitude,
+         self.rolling_accel_magnitude,
+         self.rolling_jerk_magnitude,) = s
 
     @log.catch
     def step(self, action):
         info = Box(default_box=True)
         if 'STRAIGHT_TEST' in os.environ:
-            accel = action[0]
             steer = 0
             brake = 0
+            # accel = MAX_METERS_PER_SEC_SQ
+        elif 'TURN_ONE_G' in os.environ:
+            _, accel, brake = action
+            steer = self.get_angle_for_accel(1)
+            accel = 0.05
         else:
             if self.discrete_actions is None:
                 steer, accel, brake = action
@@ -404,10 +420,6 @@ class Agent:
         self.prev_desired_accel = accel
         self.prev_desired_brake = brake
 
-        if 'STRAIGHT_TEST' in os.environ:
-            steer = 0
-            brake = 0
-            # accel = MAX_METERS_PER_SEC_SQ
 
         if '--simple-steer' in sys.argv and self.angles_ahead:
             accel = MAX_METERS_PER_SEC_SQ * 0.7
@@ -457,6 +469,8 @@ class Agent:
 
         self.prev_action = action
         self.episode_steps += 1
+
+        # log.debug(f'accel: {round(self.accel_magnitude, 2)} jerk {round(self.jerk_magnitude, 2)}')
 
         if done:
             self.num_episodes += 1
@@ -827,6 +841,13 @@ class Agent:
         if self.experience_buffer is None:
             self.experience_buffer = ExperienceBuffer()
         self.experience_buffer.reset()
+        self.state_buffer.clear()
+        self.rolling_velocity = np.array((0, 0))
+        self.rolling_accel = np.array((0, 0))
+        self.rolling_jerk = np.array((0, 0))
+        self.rolling_velocity_magnitude = 0
+        self.rolling_accel_magnitude = 0
+        self.rolling_jerk_magnitude = 0
         obz = self.get_blank_observation()
 
         return obz
@@ -1433,7 +1454,8 @@ class Agent:
             max_brake_change=self.max_brake_change,
             wait_for_action=self.wait_for_action,
         )
-        # log.debug(f'step took {time.time() - start}s')
+
+        # self.compute_rolling_state()
 
         info.stats.gforce = self.gforce
         self.total_episode_time += dt * n
@@ -1443,6 +1465,33 @@ class Agent:
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
 
         self.episode_gforces.append(self.gforce)
+
+    def compute_rolling_state(self):
+        self.state_buffer.append(
+            ([self.x, self.y], self.velocity, self.acceleration))
+        state_len = self.state_buffer.maxlen
+        if len(self.state_buffer) == state_len:
+            state_array = np.array(list(self.state_buffer))
+            prev_second_avg = state_array[:state_len // 2].T.mean(axis=2)
+            curr_second_avg = state_array[state_len // 2:].T.mean(axis=2)
+            curr_state = np.array(self.state_buffer[-1]).T
+            change_between_seconds = curr_state - prev_second_avg
+            rolling_velocity = change_between_seconds.T[0]
+            rolling_accel = change_between_seconds.T[1]
+            rolling_jerk = change_between_seconds.T[2]
+            self.rolling_velocity = rolling_velocity
+            self.rolling_accel = rolling_accel
+            self.rolling_jerk = rolling_jerk
+            self.rolling_velocity_magnitude = np.linalg.norm(
+                self.rolling_velocity)
+            self.rolling_accel_magnitude = np.linalg.norm(self.rolling_accel)
+            self.rolling_jerk_magnitude = np.linalg.norm(self.rolling_jerk)
+            # log.debug(f'v_avg: {round(average_velocity_mag, 2)} v_ins: {round(np.linalg.norm(self.velocity), 2)}')
+            # log.debug(f'a_avg: {round(average_accel_mag, 2)} a_ins: {round(self.accel_magnitude, 2)}')
+            # log.trace(
+            #     # f'v: {round(self.rolling_velocity_magnitude, 2)} '
+            #     f'a_roll: {round(self.rolling_accel_magnitude, 2)} a_ins: {round(self.accel_magnitude, 2)} '
+            #     f'j: {round(self.rolling_jerk_magnitude, 2)} ')
 
     def upcoming_opposing_lane_agents(self) -> bool:
         if (self.agent_index == 0 and
@@ -1456,7 +1505,7 @@ class Agent:
             return False
 
     def convert_discrete_actions(self, action):
-        comfort_accel = 1 * self.dt  # Comfortable g-force is around 0.1 = 1 m/s**2
+        comfort_accel = 1  # Comfortable g-force is around 0.1 = 1 m/s**2
         one_degree = 0.0174533
         steer, throttle, brake = 0,0,0
         if action == 0:
@@ -1470,7 +1519,7 @@ class Agent:
             steer = one_degree
         elif action == 3:
             # Small steer right
-            steer = -one_degree # 1 degree
+            steer = -one_degree
         elif action == 4:
             # Large steer left
             steer = self.get_angle_for_accel(comfort_accel)
@@ -1478,18 +1527,15 @@ class Agent:
             # Large steer right
             steer = -self.get_angle_for_accel(comfort_accel)
 
-        throttle = 0.5  # Just learn steer for now
+        throttle = 0.05
         return steer, throttle, brake
 
-    def get_angle_for_accel(self, desired_accel):
-        """
-        Based on velocity magnitude (s) change per change in
-        angle (a)
-        i.e. ds = ||[cos(a)*s - s, sin(a) * s]||2
-        using: cos**2 + sin**2 = 1
-        """
-        # TODO: Get slip angle from steer_angle and use that
-        return np.arccos(1 - desired_accel ** 2 / (2 * self.speed ** 2))
+    def get_angle_for_accel(self, comfort_accel):
+        return get_angle_for_accel(
+            desired_accel=comfort_accel, speed=self.speed,
+            vehicle_model=self.vehicle_model,
+            prev_angle_change=self.angle_change, dt=self.dt, angle=self.angle,
+            prev_accel=self.accel_magnitude)
 
 
 def get_closest_point(point, kd_tree):

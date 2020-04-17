@@ -85,7 +85,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 expect_normalized_actions=False,
                 expect_normalized_action_deltas=False,
                 decouple_step_time=True,
-                physics_steps_per_observation=1,
+                physics_steps_per_observation=12,
                 add_static_obstacle=self.static_obstacle,
                 is_one_waypoint_map=self.one_waypoint,
                 is_intersection_map=self.is_intersection_map,)
@@ -335,15 +335,18 @@ class Deepdrive2DPlayer(arcade.Window):
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = MAX_METERS_PER_SEC_SQ
+            self.accel = MAX_METERS_PER_SEC_SQ / self.env.physics_steps_per_observation
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -MAX_METERS_PER_SEC_SQ
+            self.accel = -MAX_METERS_PER_SEC_SQ / self.env.physics_steps_per_observation
         elif key == arcade.key.SPACE:
-            self.brake = 1.0
+            self.brake = 1.0 / self.env.physics_steps_per_observation
+
+        # Don't divide by physics steps here as it
+        # restricts our max turning radius
         elif key == arcade.key.LEFT or key == arcade.key.A:
-            self.steer = math.pi * PLAYER_TURN_RADIANS_PER_KEYSTROKE
+            self.steer = PLAYER_TURN_RADIANS_PER_KEYSTROKE
         elif key == arcade.key.RIGHT or key == arcade.key.D:
-            self.steer = -math.pi * PLAYER_TURN_RADIANS_PER_KEYSTROKE
+            self.steer = -PLAYER_TURN_RADIANS_PER_KEYSTROKE
 
     def on_key_release(self, key, modifiers):
         """Called when the user releases a key. """
