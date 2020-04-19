@@ -17,6 +17,12 @@ violations"""
 #  acceptable and 6.0 m/s3 as intolerable.
 #  For hospitals, 0.7 m/s3 is the recommended limit.
 # https://en.wikipedia.org/wiki/Jerk_(physics)#In_motion_control
+
+# Above appears to be way below what we measure and what is reported here as
+# acceptable. https://iopscience.iop.org/article/10.1088/0143-0807/37/6/065008/pdf
+# Importantly they depict the threshold
+# for admissible acceleration onset or jerk as j = 15g/s or ~150m/s^3.
+
 # So if in three seconds at 1aps
 # t: 0       1      2
 # v: 10  ->  20  -> 10

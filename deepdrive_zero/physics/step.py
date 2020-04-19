@@ -12,6 +12,7 @@ from deepdrive_zero.logs import log
 def physics_step(accel, add_longitudinal_friction, add_rotational_friction,
                  brake, curr_acceleration, curr_angle, curr_angle_change,
                  curr_angular_velocity, curr_gforce, curr_max_gforce,
+                 curr_max_jerk,
                  curr_speed, curr_velocity, curr_x, curr_y, dt, n, prev_accel,
                  prev_brake, prev_steer, steer, vehicle_model, ignore_brake,
                  constrain_controls, max_steer_change, max_accel_change,
@@ -27,6 +28,7 @@ def physics_step(accel, add_longitudinal_friction, add_rotational_friction,
         return _step(accel, add_longitudinal_friction, add_rotational_friction,
                      brake, constrain_controls, curr_angle, curr_angle_change,
                      curr_angular_velocity, curr_gforce, curr_max_gforce,
+                     curr_max_jerk,
                      curr_speed, curr_velocity, curr_x, curr_y, dt,
                      ignore_brake,
                      max_accel_change, max_steer_change, n, prev_accel,
@@ -36,7 +38,8 @@ def physics_step(accel, add_longitudinal_friction, add_rotational_friction,
 @njit(cache=CACHE_NUMBA, nogil=True)
 def _step(accel, add_longitudinal_friction, add_rotational_friction, brake,
           constrain_controls, curr_angle, curr_angle_change,
-          curr_angular_velocity, curr_gforce, curr_max_gforce, curr_speed,
+          curr_angular_velocity, curr_gforce, curr_max_gforce,
+          curr_max_jerk, curr_speed,
           curr_velocity, curr_x, curr_y, dt, ignore_brake, max_accel_change,
           max_steer_change, n, prev_accel, prev_brake, prev_steer, steer,
           vehicle_model):
@@ -81,18 +84,19 @@ def _step(accel, add_longitudinal_friction, add_rotational_friction, brake,
 
         gforce_outputs = get_gforce_levels(
             curr_x, curr_y, curr_angle, prev_x, prev_y, prev_angle, dt,
-            curr_velocity, accel, curr_max_gforce)
-        (curr_gforce, curr_max_gforce, new_jerk, new_acceleration,
+            curr_velocity, accel, curr_max_gforce, curr_max_jerk)
+        (curr_gforce, curr_max_gforce, curr_max_jerk,
+         new_jerk, new_acceleration,
          curr_angular_velocity, new_velocity) = gforce_outputs
     return (new_acceleration, curr_angle, curr_angle_change,
             curr_angular_velocity, curr_gforce, new_jerk,
-            curr_max_gforce, curr_speed, curr_x, curr_y, i_accel, i_brake,
+            curr_max_gforce, curr_max_jerk, curr_speed, curr_x, curr_y, i_accel, i_brake,
             i_steer, new_velocity)
 
 
 @njit(cache=CACHE_NUMBA, nogil=True)
 def get_gforce_levels(x, y, curr_angle, prev_x, prev_y, prev_angle, dt,
-                      curr_velocity, curr_accel, curr_max_gforce):
+                      curr_velocity, curr_accel, curr_max_gforce, curr_max_jerk):
     pos_change = np.array([prev_x - x, prev_y - y])
     prev_velocity = curr_velocity
     curr_velocity = pos_change / dt
@@ -103,4 +107,7 @@ def get_gforce_levels(x, y, curr_angle, prev_x, prev_y, prev_angle, dt,
     max_gforce = max(gforce, curr_max_gforce)
     # prev_gforce.append(self.gforce)
     jerk = (new_accel - curr_accel) / dt
-    return gforce, max_gforce, jerk, new_accel, angular_velocity, curr_velocity
+    jerk_magnitude = np.linalg.norm(jerk)
+    max_jerk = max(jerk_magnitude, curr_max_jerk)
+    return (gforce, max_gforce, max_jerk, jerk, new_accel, angular_velocity,
+            curr_velocity)

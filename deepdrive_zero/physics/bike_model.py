@@ -104,7 +104,7 @@ def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
 
 # @njit(cache=CACHE_NUMBA, nogil=True)
 def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
-                        dt, angle, prev_accel):
+                        aps, angle, prev_accel):
 
     """
     Returns change in angle that will result in the desired rotational
@@ -121,14 +121,16 @@ def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
         # Need speed to turn!
         return 0
 
-    # Get previous slip angle
+    dt = 1/aps
+
+    # # Get previous slip angle
     # cg_to_front_axle, cg_to_rear_axle = vehicle_model  # cg = Center of gravity
     # slip = cg_to_front_axle / (cg_to_front_axle + cg_to_rear_axle)
     # slip_angle = np.arctan(slip * np.tan(angle))
-
-    # additional_accel = 0
-
-    # # Subtract current rotational acceleration
+    #
+    # additional_accel = desired_accel
+    #
+    # # # Subtract current rotational acceleration
     # additional_accel += desired_accel - dt * speed / cg_to_rear_axle * np.sin(slip_angle)
     #
     # # Subtract current linear acceleration
@@ -143,6 +145,7 @@ def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
     # additional_accel += rot_friction_accel + long_friction_accel
 
     # Get angle that will lead to desired rotational accel
+    desired_accel /= ((speed + 1) ** 1.6 * 6)   # Magic tuning
     cos_theta = 1 - (dt * desired_accel) ** 2 / (2 * speed ** 2)
     theta = np.arccos(np.clip(cos_theta, -1, 1))
 
