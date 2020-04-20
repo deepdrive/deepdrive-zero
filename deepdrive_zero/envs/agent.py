@@ -1099,7 +1099,7 @@ class Agent:
                     # Inside the intersection
                     self.approaching_intersection = False
 
-            elif self.movement_pattern == 2:
+            elif self.movement_pattern == 3:
                 # up -> right
                 intersection_start_y = mp.waypoints[1][1]
                 intersection_end_x = mp.waypoints[2][0]
