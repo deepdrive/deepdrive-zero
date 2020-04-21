@@ -1,4 +1,5 @@
 import math
+from collections import deque
 from math import cos, sin, pi
 import os
 import sys
@@ -45,7 +46,6 @@ class Deepdrive2DPlayer(arcade.Window):
 
         arcade.set_background_color(arcade.csscolor.CORNFLOWER_BLUE)
         self.player_list = None
-        self.physics_engine = None
         self.human_controlled = False if env else True
         self.env: Deepdrive2DEnv = env
         self.steer = 0
@@ -61,6 +61,9 @@ class Deepdrive2DPlayer(arcade.Window):
         self.one_waypoint = one_waypoint
 
         self.env_config = env_config
+        self.updates = 0
+        self.physics_generators = None
+        self.prev_step_out = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -88,7 +91,9 @@ class Deepdrive2DPlayer(arcade.Window):
                 physics_steps_per_observation=12,
                 add_static_obstacle=self.static_obstacle,
                 is_one_waypoint_map=self.one_waypoint,
-                is_intersection_map=self.is_intersection_map,)
+                is_intersection_map=self.is_intersection_map,
+                being_played=True,
+            )
 
         self.env.configure_env(self.env_config)
 
@@ -104,12 +109,14 @@ class Deepdrive2DPlayer(arcade.Window):
 
         self.env.reset()
 
-        for i, agent in enumerate(self.env.all_agents):
+        self.physics_generators = []
+        agents = self.env.all_agents
+        for i, agent in enumerate(agents):
             sprite = arcade.Sprite(VEHICLE_PNG, CHARACTER_SCALING)
             sprite.center_x = agent.map.x_pixels[0]
             sprite.center_y = agent.map.y_pixels[0]
             self.player_list.append(sprite)
-
+            self.physics_generators.append(None)
 
     def on_draw(self):
         arcade.start_render()
@@ -362,45 +369,96 @@ class Deepdrive2DPlayer(arcade.Window):
         elif key == arcade.key.RIGHT or key == arcade.key.D:
             self.steer = 0
 
-    def update(self, _delta_time):
-        """ Movement and game logic """
-        env = self.env
-        for i, agent in enumerate(env.all_agents):
-            sprite = self.player_list[i]
+    # def update(self, _delta_time):
+    #     """ Movement and game logic """
+    #     env = self.env
+    #     for i, agent in enumerate(env.all_agents):
+    #         sprite = self.player_list[i]
+    #         if self.human_controlled:
+    #             if env.agent_index == 0:
+    #                 steer = self.steer
+    #                 accel = self.accel
+    #                 brake = self.brake
+    #             else:
+    #                 steer = 0
+    #                 accel = random()
+    #                 brake = 0
+    #
+    #             if self.physics_generators[i] is None:
+    #                 phys_gen = env.step([steer, accel, brake])
+    #                 self.physics_generators[i] = phys_gen
+    #             else:
+    #                 phys_gen = self.physics_generators[i]
+    #             if next(phys_gen, False) is False:
+    #                 self.physics_generators[i] = None
+    #
+    #             if agent.done:
+    #                 agent.reset()
+    #
+    #         sprite.center_x = agent.x * self.px_per_m
+    #         sprite.center_y = agent.y * self.px_per_m
+    #         sprite.angle = math.degrees(agent.angle)
+    #
+    #     self.updates += 1
 
-            # log.trace(f'v:{a.speed}')
-            # log.trace(f'a:{self.accel}')
-            # log.trace(f'dt2:{_delta_time}')
-
-            if self.human_controlled:
-                if env.agent_index == 0:
-                    steer = self.steer
-                    accel = self.accel
-                    brake = self.brake
-                else:
-                    steer = 0
-                    accel = random()
-                    brake = 0
-
-                # Prev obs for next agent!
-                obz, reward, done, info = env.step([steer, accel, brake])
-
-                if agent.done:
-                    agent.reset()
-
-            # log.debug(f'Deviation: '
-            #           f'{obz.lane_deviation / self.rough_pixels_per_meter}')
-
-
-            sprite.center_x = agent.x * self.px_per_m
-            sprite.center_y = agent.y * self.px_per_m
-
-            # TODO: Change rotation axis to rear axle?? (now at center)
-            sprite.angle = math.degrees(agent.angle)
+    # def update(self, _delta_time):
+    #     """ Movement and game logic """
+    #     env = self.env
+    #     for i, agent in enumerate(env.all_agents):
+    #         sprite = self.player_list[i]
+    #         if self.human_controlled:
+    #             if env.agent_index == 0:
+    #                 steer = self.steer
+    #                 accel = self.accel
+    #                 brake = self.brake
+    #             else:
+    #                 steer = 0
+    #                 accel = random()
+    #                 brake = 0
+    #
+    #             if self.queued_states is not None:
+    #                 q = self.queued_states[i]
+    #                 if not q:
+    #                     env.step([steer, accel, brake])
+    #                     self.add_to_queued_states(agent, agent_index=i)
+    #                 x, y, a = q.pop()
+    #             else:
+    #                 env.step([steer, accel, brake])
+    #                 x = agent.x
+    #                 y = agent.y
+    #                 a = agent.angle
+    #         else:
+    #             if self.queued_states is not None:
+    #                 q = self.queued_states[i]
+    #                 if not q or agent.x != q[0]:
+    #                     self.add_to_queued_states(agent, agent_index=i)
+    #                 x, y, a = q.pop()
+    #
+    #             if agent.done:
+    #                 agent.reset()
+    #
+    #         sprite.center_x = x * self.px_per_m
+    #         sprite.center_y = y * self.px_per_m
+    #         sprite.angle = math.degrees(a)
+    #     self.updates += 1
 
             # log.trace(f'x:{a.x}')
             # log.trace(f'y:{a.y}')
             # log.trace(f'angle:{self.sprite.angle}')
+
+    def add_to_queued_states(self, agent, agent_index):
+        self.queued_states[agent_index].clear()
+        pso = self.env.physics_steps_per_observation
+        # Calc interp values between prev_x and x
+        diff_x = agent.x - agent.prev_x
+        diff_y = agent.y - agent.prev_y
+        diff_a = agent.angle - agent.prev_angle
+        for j in range(pso):
+            interp = (j + 1) / pso
+            self.queued_states[agent_index].append([
+                agent.prev_x + interp * diff_x,
+                agent.prev_y + interp * diff_y,
+                agent.prev_angle + interp * diff_a])
 
 
 def start(env=None, fps=60, env_config=None):

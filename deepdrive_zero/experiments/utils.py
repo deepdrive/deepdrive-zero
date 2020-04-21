@@ -12,7 +12,7 @@ def run(train_fn, env_config, net_config=None, try_rollouts=0,
         train_fn()
     elif mode == '--play':
         from deepdrive_zero import player
-        env_config['physics_steps_per_observation'] = 1
+        # env_config['physics_steps_per_observation'] = 1
         player.start(env_config=env_config)
     elif mode == '--test':
         if not sys.argv[2:]:

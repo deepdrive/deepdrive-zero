@@ -209,9 +209,10 @@ class Agent:
         self.wall_dt: float = None
         self.last_sleep_time: float = None
         self.total_episode_time: float = 0
-        self.distance: float = None
+        self.distance_along_route: float = None
+        self.distance_traveled: float = 0
         self.distance_to_end: float = 0
-        self.prev_distance: float = None
+        self.prev_distance_along_route: float = None
         self.furthest_distance: float = 0
         self.velocity: np.array = np.array((0, 0))
         self.angular_velocity: float = 0
@@ -256,6 +257,10 @@ class Agent:
         self.rolling_velocity_magnitude = 0
         self.rolling_accel_magnitude = 0
         self.rolling_jerk_magnitude = 0
+        self.last_step_output = None
+        self.physics_interpolation_state = PhysicsInterpolationState(
+            total_steps=self.physics_steps_per_observation)
+        self.step_input = None
         # End of agent state -------------------------------------------------
 
         self.reset()
@@ -271,6 +276,9 @@ class Agent:
         return (self.x,
                 self.y,
                 self.angle,
+                self.prev_x,
+                self.prev_y,
+                self.prev_angle,
                 self.angle_to_waypoint,
                 self.front_to_waypoint,
                 self.start_x,
@@ -302,9 +310,10 @@ class Agent:
                 self.wall_dt,
                 self.last_sleep_time,
                 self.total_episode_time,
-                self.distance,
+                self.distance_along_route,
+                self.distance_traveled,
                 self.distance_to_end,
-                self.prev_distance,
+                self.prev_distance_along_route,
                 self.furthest_distance,
                 self.velocity,
                 self.angular_velocity,
@@ -344,6 +353,9 @@ class Agent:
         (self.x,
          self.y,
          self.angle,
+         self.prev_x,
+         self.prev_y,
+         self.prev_angle,
          self.angle_to_waypoint,
          self.front_to_waypoint,
          self.start_x,
@@ -375,9 +387,10 @@ class Agent:
          self.wall_dt,
          self.last_sleep_time,
          self.total_episode_time,
-         self.distance,
+         self.distance_along_route,
+         self.distance_traveled,
          self.distance_to_end,
-         self.prev_distance,
+         self.prev_distance_along_route,
          self.furthest_distance,
          self.velocity,
          self.angular_velocity,
@@ -823,13 +836,17 @@ class Agent:
         self.angle_change = 0
         self.x = self.start_x
         self.y = self.start_y
+        self.prev_x = self.x
+        self.prev_y = self.y
+        self.prev_angle = self.angle
         self.angle_change = 0
         self.speed = 0
         self.prev_speed = 0
         self.episode_reward = 0
         self.episode_steps = 0
-        self.distance = None
-        self.prev_distance = None
+        self.distance_along_route = None
+        self.distance_traveled = 0
+        self.prev_distance_along_route = None
         self.furthest_distance = 0
         self.velocity = np.array((0,0))
         self.angular_velocity = 0
@@ -942,12 +959,12 @@ class Agent:
                 lost = True
                 log.warning(f'Skipped waypoint {self.next_map_index} '
                             f'agent {self.agent_index}')
-            elif (self.furthest_distance - self.distance) > 2:
+            elif (self.furthest_distance - self.distance_along_route) > 2:
                 info.stats.done_only.backwards = 1
                 done = True
                 lost = True
                 log.warning(f'Negative progress agent {self.agent_index}')
-            elif abs(self.map.length - self.distance) < 1:
+            elif abs(self.map.route_length - self.distance_along_route) < 1:
                 info.stats.done_only.won = 1
                 done = True
                 won = True
@@ -1080,7 +1097,7 @@ class Agent:
         return ret, info
 
     def get_progress_reward(self):
-        frame_distance = self.distance - self.prev_distance
+        frame_distance = self.distance_along_route - self.prev_distance_along_route
         speed_reward = frame_distance * self.speed_reward_coeff
         return speed_reward
 
@@ -1106,7 +1123,7 @@ class Agent:
         self.closest_map_index = closest_map_index
         self.set_distance()
 
-        self.trip_pct = 100 * self.distance / self.map.length
+        self.trip_pct = 100 * self.distance_along_route / self.map.route_length
 
         half_lane_width = self.map.lane_width / 2
         left_lane_distance = right_lane_distance = half_lane_width
@@ -1132,7 +1149,7 @@ class Agent:
 
         info.stats.closest_map_index = closest_map_index
         info.stats.done_only.trip_pct = self.trip_pct
-        info.stats.distance = self.distance
+        info.stats.distance = self.distance_along_route
 
         observation = self.populate_observation(
             closest_map_point=closest_map_point,
@@ -1252,7 +1269,7 @@ class Agent:
         distances = self.map.distances
 
         return get_angles_ahead(total_points=len(distances),
-                                total_length=self.map.length,
+                                route_length=self.map.route_length,
                                 speed=self.speed,
                                 map_points=self.map.waypoints,
                                 ego_angle=self.angle,
@@ -1295,9 +1312,9 @@ class Agent:
             # Advance to next waypoint
             self.next_map_index += 1
 
-        self.prev_distance = self.distance
+        self.prev_distance_along_route = self.distance_along_route
         if 'STRAIGHT_TEST' in os.environ:
-            self.distance = self.x - self.start_x
+            self.distance_along_route = self.x - self.start_x
         elif self.is_one_waypoint_map:
             end = np.array([mp.x[-1], mp.y[-1]])
 
@@ -1305,7 +1322,7 @@ class Agent:
             pos = np.array([self.front_x, self.front_y])
             self.distance_to_end = np.linalg.norm(end - pos)
 
-            self.distance = mp.length - self.distance_to_end
+            self.distance_along_route = mp.route_length - self.distance_to_end
         elif self.is_intersection_map and self.env.agents is not None:
             # Add the next waypoint distance to the beginning of the array,
             # then add the remaining distances.
@@ -1324,18 +1341,18 @@ class Agent:
                 next_pos = np.array([mp.x[wi], mp.y[wi]])
                 dist = np.linalg.norm(next_pos - self.front_pos)
                 waypoint_distances[i] = dist
-            self.distance = (mp.distances[self.next_map_index] -
-                             abs(waypoint_distances[0]))
+            self.distance_along_route = (mp.distances[self.next_map_index] -
+                                         abs(waypoint_distances[0]))
             self.waypoint_distances = waypoint_distances
             # log.debug(waypoint_distances)
         else:
             # Assumes waypoints are very close, i.e. 1m apart
-            self.distance = mp.distances[self.closest_map_index]
+            self.distance_along_route = mp.distances[self.closest_map_index]
         # log.debug(f'distance {self.distance}')
-        self.furthest_distance = max(self.distance, self.furthest_distance)
-        if self.prev_distance is None:
+        self.furthest_distance = max(self.distance_along_route, self.furthest_distance)
+        if self.prev_distance_along_route is None:
             # Init prev distance
-            self.prev_distance = self.distance
+            self.prev_distance_along_route = self.distance_along_route
 
     def gen_map(self):
         # TODO: Move map to env.py. Right now the map is really just a couple
@@ -1368,9 +1385,7 @@ class Agent:
                        y_pixels=y_pixels,
                        waypoints=waypoints,
                        distances=distances,
-                       length=distances[-1],
-                       width=(MAP_WIDTH_PX + SCREEN_MARGIN) / self.px_per_m,
-                       height=(MAP_HEIGHT_PX + SCREEN_MARGIN) / self.px_per_m,
+                       route_length=distances[-1],
                        static_obst_pixels=self.static_obst_pixels,
                        lane_width=lane_width)
 
@@ -1452,40 +1467,23 @@ class Agent:
 
     def step_physics(self, steer, accel, brake, info):
         dt = self.dt
-        n = self.physics_steps_per_observation
         start = time.time()
         self.prev_speed = self.speed
-        (self.acceleration, self.angle, self.angle_change,
-         self.angular_velocity, self.gforce, self.jerk, self.max_gforce,
-         self.max_jerk,
-         self.speed, self.x, self.y, self.prev_accel, self.prev_brake,
-         self.prev_steer, self.velocity) = physics_step(
-            accel=accel,
-            add_longitudinal_friction=self.add_longitudinal_friction,
-            add_rotational_friction=self.add_rotational_friction,
-            brake=brake, curr_acceleration=self.acceleration,
-            curr_angle=self.angle, curr_angle_change=self.angle_change,
-            curr_angular_velocity=self.angular_velocity,
-            curr_gforce=self.gforce, curr_max_gforce=self.max_gforce,
-            curr_max_jerk=self.max_jerk,
-            curr_speed=self.speed, curr_velocity=self.velocity, curr_x=self.x,
-            curr_y=self.y, dt=dt, n=n, prev_accel=self.prev_accel,
-            prev_brake=self.prev_brake, prev_steer=self.prev_steer,
-            steer=steer, vehicle_model=self.vehicle_model,
-            ignore_brake=self.ignore_brake,
-            constrain_controls=self.constrain_controls,
-            max_steer_change=self.max_steer_change,
-            max_accel_change=self.max_accel_change,
-            max_brake_change=self.max_brake_change,
-            wait_for_action=self.wait_for_action,
-        )
+        self.prev_x = self.x
+        self.prev_y = self.y
+        self.prev_angle = self.angle
+
+        self.update_physics(steer, accel, brake, interpolation_steps,
+                            start_interpolation_index)
 
         # self.compute_rolling_state()
-        # log.debug(f'accel: {self.accel_magnitude} jerk: {self.jerk_magnitude}')
+
+        # log.debug(f'accel: {self.accel_magnitude} jerk: {self.jerk_magnitude} distance_traveled {self.distance_traveled}')
 
         info.stats.gforce = self.gforce
-        self.total_episode_time += dt * n
-        self.env.total_episode_time += dt * n
+        self.total_episode_time += dt * interpolation_steps
+        self.env.total_episode_time += dt * interpolation_steps
+
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
             self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)

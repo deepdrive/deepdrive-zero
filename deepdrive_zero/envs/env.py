@@ -16,8 +16,9 @@ from deepdrive_zero.envs.agent import Agent
 from deepdrive_zero.physics.collision_detection import check_collision_ego_obj,\
     check_collision_agents
 from deepdrive_zero.constants import USE_VOYAGE, MAP_WIDTH_PX, MAP_HEIGHT_PX, \
-    SCREEN_MARGIN, VEHICLE_HEIGHT, VEHICLE_WIDTH, PX_PER_M, \
-    MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY, FPS
+    SCREEN_MARGIN, VEHICLE_LENGTH, VEHICLE_WIDTH, PX_PER_M, \
+    MAX_METERS_PER_SEC_SQ, IS_DEBUG_MODE, GAME_OVER_PENALTY, FPS, \
+    PARTIAL_PHYSICS_STEP, COMPLETE_PHYSICS_STEP
 from deepdrive_zero.logs import log
 
 
@@ -42,7 +43,8 @@ class Deepdrive2DEnv(gym.Env):
                  gamma=0.99,
                  add_static_obstacle=False,
                  disable_gforce_penalty=False,
-                 forbid_deceleration=False,):
+                 forbid_deceleration=False,
+                 being_played=False,):
 
         self.logger = log
 
@@ -119,6 +121,8 @@ class Deepdrive2DEnv(gym.Env):
 
         self.agent_index: int = 0  # Current agent we are stepping
         self.discrete_actions = None
+        self.being_played = being_played
+        self.update_intermediate_physics = self.should_render or self.being_played
         # End env config -------------------------------------------------------
 
         # Env state ------------------------------------------------------------
@@ -135,6 +139,7 @@ class Deepdrive2DEnv(gym.Env):
         self.agents = None
         self.dummy_accel_agents = None
         self.all_agents = None  # agents + dummy_agents
+        self.last_step_output = None
         # End env state --------------------------------------------------------
 
     def get_state(self):
@@ -327,7 +332,13 @@ class Deepdrive2DEnv(gym.Env):
             # Random forward accel
             dummy_accel_agent.step([0, random.random(), 0])
 
+        self.last_step_output = ret
         return ret
+
+    def setup_step(self, action):
+
+        return agent.setup_step(action)
+
 
     def get_step_output(self, done, info, obs, reward):
         """ Return the observation that corresponds with the correct agent/action

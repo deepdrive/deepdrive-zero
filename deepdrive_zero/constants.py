@@ -3,10 +3,11 @@ import os
 import sys
 from os.path import join
 
-from box import Box
-
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 1000
+
+# Agents and waypoints will be spawned within margin and origin is at margin,
+# but agents can travel into the margin.
 SCREEN_MARGIN = 50
 MAP_WIDTH_PX = SCREEN_WIDTH - SCREEN_MARGIN * 2
 MAP_HEIGHT_PX = SCREEN_HEIGHT - SCREEN_MARGIN * 2
@@ -14,25 +15,30 @@ PLAYER_TURN_RADIANS_PER_KEYSTROKE = 2 * math.pi / 256
 SCREEN_TITLE = 'deepdrive-zero'
 CHARACTER_SCALING = 1/4
 USE_VOYAGE = True
-PX_PER_M = 19.559472386854488
+TESLA_LENGTH = 4.694
+TESLA_LENGTH_PX = 368
+VOYAGE_VAN_LENGTH = 5.17652
+VOYAGE_VAN_LENGTH_PX = 405
+PX_PER_M = VOYAGE_VAN_LENGTH_PX / VOYAGE_VAN_LENGTH * CHARACTER_SCALING
+SCREEN_WIDTH_METERS = SCREEN_WIDTH / PX_PER_M
 
 DIR = os.path.dirname(os.path.realpath(__file__))
 
 if USE_VOYAGE:
-    # https://www.convert-me.com/en/convert/acceleration    /ssixtymph_1.html?u=ssixtymph_1&v=7.4
-    # Pacifica Hybrid Max accel m/s^2 = 3.625
-    MAX_METERS_PER_SEC_SQ = 3.625  # 9.807 / 10 - 0.1
+    MAX_METERS_PER_SEC_SQ = 3.625  # 0-60 in 7.4s
     VEHICLE_WIDTH = 2.300675555555556
-    VEHICLE_HEIGHT = 5.17652
+    VEHICLE_LENGTH = VOYAGE_VAN_LENGTH
     VEHICLE_PNG = join(DIR, 'images/voyage-van-up.png')
 else:
     MAX_METERS_PER_SEC_SQ = 4.79
+    VEHICLE_WIDTH = 2.09  # Include side mirrors
+    VEHICLE_LENGTH = TESLA_LENGTH  # Include side mirrors
     VEHICLE_PNG = join(DIR, 'images/tesla-up.png')
-    # TODO: Run player to determine width and height
+
 
 MAX_PIXELS_PER_SEC_SQ = MAX_METERS_PER_SEC_SQ * PX_PER_M
-TESLA_LENGTH = 4.694
-VOYAGE_VAN_LENGTH = 5.17652
+
+
 MAP_IMAGE = join(DIR, 'images/map.png')
 
 MAX_BRAKE_G = 1
@@ -107,8 +113,5 @@ COMFORTABLE_ACTIONS_SMALL_STEER_RIGHT = {7, 8, 9}
 COMFORTABLE_ACTIONS_LARGE_STEER_LEFT = {10, 11, 12}
 COMFORTABLE_ACTIONS_LARGE_STEER_RIGHT = {13, 14, 15}
 COMFORTABLE_ACTIONS_LARGE_STEER = COMFORTABLE_ACTIONS_LARGE_STEER_LEFT | COMFORTABLE_ACTIONS_LARGE_STEER_RIGHT
-
-
-
 
 ACTIONS = COMFORTABLE_STEERING_ACTIONS  # TODO: Add accel and emergency actions

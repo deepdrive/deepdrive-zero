@@ -8,12 +8,22 @@ from deepdrive_zero.constants import USE_VOYAGE, VEHICLE_WIDTH, CACHE_NUMBA
 TUNED_FPS = 1 / 60  # The FPS we tuned friction ratios at
 ROTATIONAL_FRICTION = 0.95
 LONGITUDINAL_FRICTION = 0.999
+BRAKE_FRICTION = 0.96
 
 @njit(cache=CACHE_NUMBA, nogil=True)
 def bike_with_friction_step(
-        steer, accel, brake, dt,
-        x, y, angle, angle_change, speed, add_rotational_friction,
-        add_longitudinal_friction, vehicle_model):
+        steer,
+        accel,
+        brake,
+        dt,
+        x,
+        y,
+        angle,
+        angle_change,
+        speed,
+        add_rotational_friction,
+        add_longitudinal_friction,
+        vehicle_model):
     """
 
     :param steer: (float) Steering angle in radians
@@ -43,15 +53,15 @@ def bike_with_friction_step(
     friction_exponent = (dt / TUNED_FPS)
     if add_rotational_friction:
         # Causes steering to drift back to zero
-        angle_change = ROTATIONAL_FRICTION ** friction_exponent * angle_change
+        angle_change *= ROTATIONAL_FRICTION ** friction_exponent
     if add_longitudinal_friction:
-        speed = LONGITUDINAL_FRICTION ** friction_exponent * speed
+        speed *= LONGITUDINAL_FRICTION ** friction_exponent
 
     # TODO: We should just output the desired accel (+-) and allow higher magnitude
     #   negative accel than positive due to brake force. Otherwise network will
     #   be riding brakes more than reasonable (esp without disincentivizing this
     #   in the reward)
-    speed = 0.96 ** brake * speed
+    speed = BRAKE_FRICTION ** (brake * friction_exponent) * speed
 
     theta1 = angle
     theta2 = theta1 + pi / 2
