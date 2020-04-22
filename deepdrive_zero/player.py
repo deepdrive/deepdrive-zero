@@ -16,7 +16,8 @@ from deepdrive_zero.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN,
     MAP_WIDTH_PX, MAP_HEIGHT_PX, PLAYER_TURN_RADIANS_PER_KEYSTROKE, \
     SCREEN_TITLE, \
     CHARACTER_SCALING, MAX_PIXELS_PER_SEC_SQ, TESLA_LENGTH, VOYAGE_VAN_LENGTH, \
-    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE
+    USE_VOYAGE, VEHICLE_PNG, MAX_METERS_PER_SEC_SQ, MAP_IMAGE, \
+    PARTIAL_PHYSICS_STEP
 # Constants
 from deepdrive_zero.envs.env import Deepdrive2DEnv
 from deepdrive_zero.map_gen import get_intersection
@@ -88,7 +89,7 @@ class Deepdrive2DPlayer(arcade.Window):
                 expect_normalized_actions=False,
                 expect_normalized_action_deltas=False,
                 decouple_step_time=True,
-                physics_steps_per_observation=12,
+                physics_steps_per_observation=1,
                 add_static_obstacle=self.static_obstacle,
                 is_one_waypoint_map=self.one_waypoint,
                 is_intersection_map=self.is_intersection_map,
@@ -341,12 +342,14 @@ class Deepdrive2DPlayer(arcade.Window):
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
+
+        print('key pressed!')
         if key == arcade.key.UP or key == arcade.key.W:
-            self.accel = MAX_METERS_PER_SEC_SQ / self.env.physics_steps_per_observation
+            self.accel = MAX_METERS_PER_SEC_SQ
         elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.accel = -MAX_METERS_PER_SEC_SQ / self.env.physics_steps_per_observation
+            self.accel = -MAX_METERS_PER_SEC_SQ
         elif key == arcade.key.SPACE:
-            self.brake = 1.0 / self.env.physics_steps_per_observation
+            self.brake = 1
 
         # Don't divide by physics steps here as it
         # restricts our max turning radius
@@ -368,6 +371,39 @@ class Deepdrive2DPlayer(arcade.Window):
             self.steer = 0
         elif key == arcade.key.RIGHT or key == arcade.key.D:
             self.steer = 0
+
+    def update(self, _delta_time):
+        """ Movement and game logic """
+        env = self.env
+        for i, agent in enumerate(env.all_agents):
+            sprite = self.player_list[i]
+            if self.human_controlled:
+                # print(f'setting throttle to {self.accel} for agent {i}')
+                if env.agent_index == 1:
+                    steer = self.steer
+                    accel = self.accel
+                    brake = self.brake
+                else:
+                    steer = 0
+                    accel = random()
+                    brake = 0
+
+                if agent.update_intermediate_physics:
+                    if agent.last_step_output == PARTIAL_PHYSICS_STEP:
+                        agent.possibly_partial_step()
+                    else:
+                        env.step([steer, accel, brake])
+
+                else:
+                    env.step([steer, accel, brake])
+
+                if agent.done:
+                    agent.reset()
+
+            sprite.center_x = agent.x * self.px_per_m
+            sprite.center_y = agent.y * self.px_per_m
+            sprite.angle = math.degrees(agent.angle)
+
 
     # def update(self, _delta_time):
     #     """ Movement and game logic """

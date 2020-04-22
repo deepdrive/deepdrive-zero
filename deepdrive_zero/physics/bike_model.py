@@ -125,6 +125,8 @@ def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
     angle (a)
     i.e. ds = ||[cos(a)*s - s, sin(a) * s]||2
     remember: cos^2 + sin^2 = 1
+
+    NOT WORKING
     """
 
     if abs(speed) < 0.075:
@@ -137,14 +139,12 @@ def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
     # cg_to_front_axle, cg_to_rear_axle = vehicle_model  # cg = Center of gravity
     # slip = cg_to_front_axle / (cg_to_front_axle + cg_to_rear_axle)
     # slip_angle = np.arctan(slip * np.tan(angle))
-    #
-    # additional_accel = desired_accel
-    #
-    # # # Subtract current rotational acceleration
-    # additional_accel += desired_accel - dt * speed / cg_to_rear_axle * np.sin(slip_angle)
-    #
+
+    # # Subtract current rotational acceleration
+    # desired_accel -= dt * speed / cg_to_rear_axle * np.sin(slip_angle)
+
     # # Subtract current linear acceleration
-    # additional_accel -= prev_accel
+    # desired_accel -= prev_accel
 
     # friction_exponent = (dt / TUNED_FPS)
     # rot_friction_accel = ROTATIONAL_FRICTION ** friction_exponent * prev_angle_change
@@ -155,7 +155,7 @@ def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
     # additional_accel += rot_friction_accel + long_friction_accel
 
     # Get angle that will lead to desired rotational accel
-    desired_accel /= ((speed + 1) ** 1.6 * 6)   # Magic tuning
+    desired_accel /= ((speed + 1) ** 0.75 * 0.4)   # Magic tuning
     cos_theta = 1 - (dt * desired_accel) ** 2 / (2 * speed ** 2)
     theta = np.arccos(np.clip(cos_theta, -1, 1))
 
@@ -195,7 +195,7 @@ def get_angle_for_accel_pid(target_accel, current_accel, current_angle,
 
 def get_vehicle_model(width):
     """
-    :param width: Width of vehicle
+    :param width: Width of vehicle  # TODO: Should be length! Change after ablation test
     :return: Distance from center of gravity to front and rear axles
     """
     # Bias towards the front a bit
@@ -254,3 +254,6 @@ def test_bike_with_friction_step():
     assert speed == 0.9417362622231682
     assert angle_change == 0
 
+
+if __name__ == '__main__':
+    test_bike_with_friction_step()

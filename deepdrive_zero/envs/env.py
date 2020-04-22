@@ -123,6 +123,7 @@ class Deepdrive2DEnv(gym.Env):
         self.discrete_actions = None
         self.being_played = being_played
         self.update_intermediate_physics = self.should_render or self.being_played
+        self.render_choppy_but_realtime = False
         # End env config -------------------------------------------------------
 
         # Env state ------------------------------------------------------------
@@ -291,54 +292,29 @@ class Deepdrive2DEnv(gym.Env):
     def step(self, action):
         if self.total_steps == 0:
             log.info(self.env_config)
-        if IS_DEBUG_MODE:
-            return self._step(action)
-        else:
-            # Fail gracefully when running so that long training runs are
-            # not interrupted by transient errors
-            try:
-                return self._step(action)
-            except:
-                log.exception('Caught exception in step, ending episode')
-                obz = self.get_blank_observation()
-                done = True
-                if '--penalize-loss' in sys.argv:
-                    reward = GAME_OVER_PENALTY
-                else:
-                    reward = 0
-                info = {}
-
-                return obz, reward, done, info
-
-    def _step(self, action):
         self.start_step_time = time.time()
         agent = self.agents[self.agent_index]
-
         self.check_for_collisions()
-        obs, reward, done, info = agent.step(action)
+        step_out = agent.step(action)
+        if step_out == PARTIAL_PHYSICS_STEP:
+            return step_out
+        ret = self.finish_step()
+        return ret
+
+    def finish_step(self):
+        agent = self.agents[self.agent_index]
+        obs, reward, done, info = agent.last_step_output
         self.curr_reward = reward
         if done:
             self.num_episodes += 1
-
         self.episode_steps += 1
         self.total_steps += 1
-
         ret = self.get_step_output(done, info, obs, reward)
-
-        if self.should_render:
-            self.regulate_fps()
-
         for dummy_accel_agent in self.dummy_accel_agents:
             # Random forward accel
             dummy_accel_agent.step([0, random.random(), 0])
-
         self.last_step_output = ret
         return ret
-
-    def setup_step(self, action):
-
-        return agent.setup_step(action)
-
 
     def get_step_output(self, done, info, obs, reward):
         """ Return the observation that corresponds with the correct agent/action
@@ -406,12 +382,33 @@ class Deepdrive2DEnv(gym.Env):
         if not self._has_enabled_render:
             self._enable_render()
             self._has_enabled_render = True
+            # if self.physics_steps_per_observation != 1:
+            #     self.update_intermediate_physics = True
+            #     for agent in self.all_agents:
+            #         agent.update_intermediate_physics = True
+        agent = self.agents[self.agent_index]
+        if self.update_intermediate_physics:
+            # Only works for one agent!
 
+            if agent.step_input is None:
+                # First step does not call physics
+                return
+            while agent.possibly_partial_step() == PARTIAL_PHYSICS_STEP:
+                self.render_one_frame()
+            self.finish_step()
+        else:
+            self.render_one_frame()
+            if self.render_choppy_but_realtime:
+                time.sleep(1 / agent.aps)
+
+
+    def render_one_frame(self):
         platform_event_loop = pyglet.app.platform_event_loop
         # pyglet_event_loop = pyglet.app.event_loop
         timeout = pyglet.app.event_loop.idle()
         platform_event_loop.step(timeout)
-        time.sleep(self.target_dt)
+        if not self.render_choppy_but_realtime:
+            time.sleep(self.target_dt)
 
     def close(self):
         if self.should_render:
