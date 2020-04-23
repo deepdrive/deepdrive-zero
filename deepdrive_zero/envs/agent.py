@@ -186,6 +186,11 @@ class Agent:
         self.start_y = None
         self.start_angle = None
 
+        # Prev position
+        self.prev_x = None
+        self.prev_y = None
+        self.prev_angle = 0
+
         self.ego_rect: np.array = np.array(
             [0, 0] * 4)  # 4 points of ego corners
         self.ego_rect_tuple: tuple = ()  # 4 points of ego corners as tuple
