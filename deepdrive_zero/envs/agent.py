@@ -970,8 +970,7 @@ class Agent:
             info.done_only.harmful_jerk = 1
             done = True
             lost = True
-        elif (self.end_on_lane_violation and (left_lane_distance < 0 or
-                                              right_lane_distance < 0)):
+        elif self.end_on_lane_violation and right_lane_distance < -0.25:
             log.warning(f'Exited lane, game over agent {self.agent_index}')
             info.done_only.exited_lane = 1
             done = True
@@ -1075,10 +1074,10 @@ class Agent:
 
         lane_penalty = 0
         if left_lane_distance < 0.7:
-            lane_penalty += abs(left_lane_distance)
+            lane_penalty += (left_lane_distance + 1)**2
         if right_lane_distance < 0.7:
             # yes both can happen if you're orthogonal to the lane
-            lane_penalty += abs(right_lane_distance)
+            lane_penalty += (right_lane_distance + 1)**2
         lane_penalty *= self.lane_penalty_coeff
 
         # if self.agent_index == 1:

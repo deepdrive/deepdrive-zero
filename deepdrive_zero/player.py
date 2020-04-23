@@ -36,7 +36,8 @@ class Deepdrive2DPlayer(arcade.Window):
     def __init__(self, add_rotational_friction=True,
                  add_longitudinal_friction=True, env=None,
                  fps=60, static_obstacle=False, one_waypoint=False,
-                 is_intersection_map=False, env_config=None):
+                 is_intersection_map=False, env_config=None,
+                 end_on_lane_violation=False):
 
         # Call the parent class and set up the window
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
@@ -60,6 +61,7 @@ class Deepdrive2DPlayer(arcade.Window):
         self.static_obstacle = static_obstacle
         self.is_intersection_map = is_intersection_map
         self.one_waypoint = one_waypoint
+        self.end_on_lane_violation = end_on_lane_violation
 
         self.env_config = env_config
         self.updates = 0
@@ -379,7 +381,7 @@ class Deepdrive2DPlayer(arcade.Window):
             sprite = self.player_list[i]
             if self.human_controlled:
                 # print(f'setting throttle to {self.accel} for agent {i}')
-                if env.agent_index == 1:
+                if env.agent_index == 0:
                     steer = self.steer
                     accel = self.accel
                     brake = self.brake
@@ -498,6 +500,9 @@ class Deepdrive2DPlayer(arcade.Window):
 
 
 def start(env=None, fps=60, env_config=None):
+    if env_config is None:
+        env_config = dict(
+            end_on_lane_violation='--end-on-lane-violation' in sys.argv)
     player = Deepdrive2DPlayer(
         static_obstacle='--static-obstacle' in sys.argv,
         one_waypoint='--one-waypoint-map' in sys.argv,
