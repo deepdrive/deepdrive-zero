@@ -327,12 +327,12 @@ class Agent:
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
 
-            # set dummy agent intention.
-            # TODO: change dummy_agent_scenario to dummy_agent_intention in info
-            info.stats.dummy_agent_scenario = self.dummy_agent_intention #it will be set when get_observation() is called before
-
             if done:
                 info.stats.all_time.won = won
+
+        # set dummy agent intention.
+        # TODO: change dummy_agent_scenario to dummy_agent_intention in info
+        info.stats.dummy_agent_scenario = self.dummy_agent_intention  # it will be set when get_observation() is called before
 
         self.last_step_time = now
         self.episode_reward += reward
