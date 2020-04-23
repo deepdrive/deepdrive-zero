@@ -35,7 +35,6 @@ from deepdrive_zero.physics.step import physics_step
 from deepdrive_zero.utils import get_angles_ahead, get_angle, flatten_points, \
     np_rand, is_number
 
-
 class Agent:
     def __init__(self,
                  env,
@@ -100,6 +99,7 @@ class Agent:
         self.end_on_lane_violation = end_on_lane_violation
         self.dummy_random_scenario = dummy_random_scenario
         self.movement_pattern = 1
+        self.dummy_agent_intention = 1 # 1: straigh, 2: right, 3: left
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -296,7 +296,6 @@ class Agent:
         info.stats.brake = brake
         info.stats.speed = self.speed
         info.stats.episode_time = self.env.total_episode_time
-        info.stats.dummy_agent_scenario= self.movement_pattern
 
         now = time.time()
         if self.last_step_time is None:
@@ -327,6 +326,10 @@ class Agent:
             info.stats.lane_deviation = lane_deviation
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
+
+            # set dummy agent intention.
+            # TODO: change dummy_agent_scenario to dummy_agent_intention in info
+            info.stats.dummy_agent_scenario = self.dummy_agent_intention #it will be set when get_observation() is called before
 
             if done:
                 info.stats.all_time.won = won
@@ -638,6 +641,8 @@ class Agent:
                 ret.append(ang(p))
                 ret.append(dst(p - f))
 
+            # add position of other agent in global coordinate frame
+            ret += list(agent.ego_pos)
 
         if is_blank:
             ret = list(np.array(ret) * 0)
@@ -704,7 +709,7 @@ class Agent:
         # select scenario for dummy agent
         # scenarios:
         # 1: up -> down
-        # 2: up -> left
+        # 2: up -> left #from top, turn right to go to left side of the map
         # 3: up -> right
         # 4: left -> right
         # 5: left -> up
@@ -715,7 +720,7 @@ class Agent:
         if self.env.env_config['dummy_accel_agent_indices'] is not None:
             if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
                 if self.dummy_random_scenario:
-                    self.movement_pattern = np.random.choice([1, 2, 3])
+                    self.movement_pattern = random.choice([1, 2, 3])
                 else:
                     self.movement_pattern = 1
 
@@ -1067,6 +1072,9 @@ class Agent:
                 if min_ego_y > top_horiz[0][1]:  # any y coordinate will do
                     self.approaching_intersection = True
 
+                # set opponent intention
+                self.dummy_agent_intention = 1
+
             elif self.movement_pattern == 2:
                 # up -> left
                 intersection_start_y = mp.waypoints[1][1]
@@ -1079,6 +1087,12 @@ class Agent:
                     left_distance = min_ego_x - left_lane_x
                     right_distance = right_lane_x - max_ego_x
                     self.approaching_intersection = True
+
+                    if self.front_y > intersection_start_y + 2: # until 2m before intersection
+                        self.dummy_agent_intention = 1 #straight
+                    else:
+                        self.dummy_agent_intention = 2 # right
+
                 elif self.front_x < intersection_end_x:
                     # Exiting intersection: partially or complete
                     self.approaching_intersection = False
@@ -1089,15 +1103,18 @@ class Agent:
                         # Completely exited intersection
                         left_distance = min_ego_y - bottom_lane_y
                         right_distance = top_lane_y - max_ego_y
+                        self.dummy_agent_intention = 1  # after intersection -> straight
                     else:
                         # Partially exited, front has exited but back has not
                         if RIGHT_HAND_TRAFFIC:
                             front_y = front_left[1], front_right[1]
                             left_distance = min(front_y) - bottom_lane_y
                             right_distance = top_lane_y - max(front_y)
+                        self.dummy_agent_intention = 2  # yet in the intersection -> turn right
                 else:
                     # Inside the intersection
                     self.approaching_intersection = False
+                    self.dummy_agent_intention = 2 # inside intersection -> turn right
 
             elif self.movement_pattern == 3:
                 # up -> right
@@ -1111,6 +1128,7 @@ class Agent:
                     left_distance = min_ego_x - left_lane_x
                     right_distance = right_lane_x - max_ego_x
                     self.approaching_intersection = True
+                    self.dummy_agent_intention = 1  # before intersection -> straight
                 elif self.front_x > intersection_end_x:
                     # Exiting intersection: partially or complete
                     self.approaching_intersection = False
@@ -1121,15 +1139,18 @@ class Agent:
                         # Completely exited intersection
                         left_distance = min_ego_y - bottom_lane_y
                         right_distance = top_lane_y - max_ego_y
+                        self.dummy_agent_intention = 1  # after intersection -> straight
                     else:
                         # Partially exited, front has exited but back has not
                         if RIGHT_HAND_TRAFFIC:
                             front_y = front_left[1], front_right[1]
                             left_distance = min(front_y) - bottom_lane_y
                             right_distance = top_lane_y - max(front_y)
+                        self.dummy_agent_intention = 3  # inside intersection -> turn left
                 else:
                     # Inside the intersection
                     self.approaching_intersection = False
+                    self.dummy_agent_intention = 3  # inside intersection -> turn left
 
         # if self.agent_index == 0:
         #     log.trace(f'across: {self.will_turn_across_opposing_lanes}\t'

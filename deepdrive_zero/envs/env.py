@@ -84,6 +84,7 @@ class Deepdrive2DEnv(gym.Env):
         self.disable_gforce_penalty = disable_gforce_penalty
         self.contain_prev_actions_in_obs = contain_prev_actions_in_obs
 
+
         # The previous observation, reward, done, info for each agent
         # Useful for running / training the agents
         self.agent_step_outputs = []  # TODO: Use pre-allocated numpy array here
