@@ -42,7 +42,7 @@ class Agent:
                  env,
                  agent_index,
                  vehicle_width=VEHICLE_WIDTH,
-                 vehicle_height=VEHICLE_HEIGHT,
+                 vehicle_height=VEHICLE_LENGTH,
                  disable_gforce_penalty=False,
                  match_angle_only=False,
                  static_map=False,
