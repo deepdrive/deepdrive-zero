@@ -99,7 +99,8 @@ class Agent:
         self.end_on_lane_violation = end_on_lane_violation
         self.dummy_random_scenario = dummy_random_scenario
         self.movement_pattern = 1
-        self.dummy_agent_intention = 1 # 1: straigh, 2: right, 3: left
+        self.dummy_agent_intention = None # 1: straigh, 2: right, 3: left
+        self.prev_ego_pos = None
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -331,8 +332,12 @@ class Agent:
                 info.stats.all_time.won = won
 
         # set dummy agent intention.
-        # TODO: change dummy_agent_scenario to dummy_agent_intention in info
-        info.stats.dummy_agent_scenario = self.dummy_agent_intention  # it will be set when get_observation() is called before
+        # if self.agent_index == 1:
+        #     info.stats.dummy_agent_scenario = self.dummy_agent_intention  # it will be set when get_observation() is called before
+        #     # print(self.dummy_agent_intention)
+        # else:
+        #     info.stats.dummy_agent_scenario = 0 # 20 to show it is not dummy
+        info.stats.dummy_agent_scenario = self.movement_pattern
 
         self.last_step_time = now
         self.episode_reward += reward
@@ -642,7 +647,11 @@ class Agent:
                 ret.append(dst(p - f))
 
             # add position of other agent in global coordinate frame
-            ret += list(agent.ego_pos)
+            # if self.prev_ego_pos is None:
+            #     self.prev_ego_pos = agent.ego_pos
+            # ret += list(agent.ego_pos - self.prev_ego_pos)
+            # self.prev_ego_pos = agent.ego_pos
+            ret += list(agent.ego_pos/SCREEN_MARGIN)
 
         if is_blank:
             ret = list(np.array(ret) * 0)
@@ -720,7 +729,7 @@ class Agent:
         if self.env.env_config['dummy_accel_agent_indices'] is not None:
             if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
                 if self.dummy_random_scenario:
-                    self.movement_pattern = random.choice([1, 2, 3])
+                    self.movement_pattern = np.random.choice([1, 2, 3])#, p=[0.2, 0.4, 0.42])
                 else:
                     self.movement_pattern = 1
 
@@ -1088,8 +1097,8 @@ class Agent:
                     right_distance = right_lane_x - max_ego_x
                     self.approaching_intersection = True
 
-                    if self.front_y > intersection_start_y + 2: # until 2m before intersection
-                        self.dummy_agent_intention = 1 #straight
+                    if self.front_y > intersection_start_y + 3: # until 3m before intersection
+                        self.dummy_agent_intention = 0 #straight
                     else:
                         self.dummy_agent_intention = 2 # right
 
@@ -1103,7 +1112,7 @@ class Agent:
                         # Completely exited intersection
                         left_distance = min_ego_y - bottom_lane_y
                         right_distance = top_lane_y - max_ego_y
-                        self.dummy_agent_intention = 1  # after intersection -> straight
+                        self.dummy_agent_intention = 0  # after intersection -> straight
                     else:
                         # Partially exited, front has exited but back has not
                         if RIGHT_HAND_TRAFFIC:
@@ -1128,7 +1137,11 @@ class Agent:
                     left_distance = min_ego_x - left_lane_x
                     right_distance = right_lane_x - max_ego_x
                     self.approaching_intersection = True
-                    self.dummy_agent_intention = 1  # before intersection -> straight
+
+                    if self.front_y > intersection_start_y + 3: # until 3m before intersection
+                        self.dummy_agent_intention = 0 #straight
+                    else:
+                        self.dummy_agent_intention = 3  # before intersection -> straight
                 elif self.front_x > intersection_end_x:
                     # Exiting intersection: partially or complete
                     self.approaching_intersection = False
@@ -1139,7 +1152,7 @@ class Agent:
                         # Completely exited intersection
                         left_distance = min_ego_y - bottom_lane_y
                         right_distance = top_lane_y - max_ego_y
-                        self.dummy_agent_intention = 1  # after intersection -> straight
+                        self.dummy_agent_intention = 0  # after intersection -> straight
                     else:
                         # Partially exited, front has exited but back has not
                         if RIGHT_HAND_TRAFFIC:
