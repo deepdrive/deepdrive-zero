@@ -206,6 +206,8 @@ class Deepdrive2DEnv(gym.Env):
             self.dummy_accel_agent_indices = dummies
 
         #TODO: set dummy agent to continuous action space
+        dummy_agent_config = agent_config
+        dummy_agent_config['discrete_actions'] = None #to set continuous actions for dummy agent
         self.dummy_accel_agents: List[Agent] = [Agent(
                 env=self,
                 agent_index=i,
