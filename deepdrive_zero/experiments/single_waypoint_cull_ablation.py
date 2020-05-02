@@ -1,28 +1,23 @@
 import os
 import sys
 
+from deepdrive_zero.constants import FPS
 from deepdrive_zero.experiments import utils
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Last train run where we did speed => collision => comfort => yield 
-phases of fine-tuning ended up in a local minima where yield was only
-happening correctly about half the time (due to not forgetting old 
-straight agent tendency to yield). So trying to start from scratch with
-high level goals like waypoint finding, avoiding collisions, and yielding
-incented in the first phase, then more fine-grain things like gforce in
-the second phase. ALSO: We are moving from 100ms steps to 200ms steps which
-will help exploration, learning efficiency, and create less unrealistic and
-jerky actions."""
+notes = """Testing garbage-in-garbage-out (some things are worth forgetting) 
+ idea with single waypoint"""
+
 
 env_config = dict(
-    env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
+    env_name='deepdrive-2d-one-waypoint-v0',
     is_intersection_map=True,
     expect_normalized_action_deltas=False,
-    jerk_penalty_coeff=0,
-    gforce_penalty_coeff=0,
+    jerk_penalty_coeff=3.3e-5,
+    gforce_penalty_coeff=0.006 * 5,
     collision_penalty_coeff=4,
     lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
@@ -34,7 +29,7 @@ env_config = dict(
 )
 
 net_config = dict(
-    hidden_units=(256, 256),
+    hidden_units=(64, 64),
     activation=torch.nn.Tanh
 )
 
@@ -47,8 +42,12 @@ eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('pi_lr', 3e-6)
 # eg.add('vf_lr', 1e-5)
 # eg.add('boost_explore', 5)
-eg.add('epochs', 8000)
-eg.add('steps_per_epoch', 32000)
+pso = env_config['physics_steps_per_observation']
+effective_horizon_seconds = 10
+eg.add('gamma', 1 - pso / (effective_horizon_seconds * FPS))  # Lower gamma so seconds of effective horizon remains at 10s with current physics steps = 12 * 1/60s * 1 / (1-gamma)
+eg.add('episode_cull_ratio', 0)
+eg.add('epochs', 20000)
+eg.add('steps_per_epoch', 500)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')

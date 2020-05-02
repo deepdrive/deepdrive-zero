@@ -19,7 +19,7 @@ env_config = dict(
     jerk_penalty_coeff=0,
     gforce_penalty_coeff=0,
     collision_penalty_coeff=1,
-    end_on_harmful_gs=False,
+    gforce_threshold=None,
     incent_win=True,
     constrain_controls=False,
 )

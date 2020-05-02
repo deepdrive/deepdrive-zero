@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="PLAY dd0 all friction one waypoint DISABLE_GAME_OVER=1" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="PLAY dd0 all friction one waypoint DISABLE_GAME_OVER=1" type="PythonConfigurationType" factoryName="Python" singleton="false">
     <module name="deepdrive-2d" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

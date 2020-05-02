@@ -1,36 +1,35 @@
 import os
 import sys
 
+from deepdrive_zero.constants import COMFORTABLE_STEERING_ACTIONS
 from deepdrive_zero.experiments import utils
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Last train run where we did speed => collision => comfort => yield 
-phases of fine-tuning ended up in a local minima where yield was only
-happening correctly about half the time (due to not forgetting old 
-straight agent tendency to yield). So trying to start from scratch with
-high level goals like waypoint finding, avoiding collisions, and yielding
-incented in the first phase, then more fine-grain things like gforce in
-the second phase. ALSO: We are moving from 100ms steps to 200ms steps which
-will help exploration, learning efficiency, and create less unrealistic and
-jerky actions."""
+notes = """First discrete intersection test - works!"""
 
 env_config = dict(
     env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
     is_intersection_map=True,
     expect_normalized_action_deltas=False,
-    jerk_penalty_coeff=0,
-    gforce_penalty_coeff=0,
+    jerk_penalty_coeff=3.3e-4,
+    gforce_penalty_coeff=0.006 * 5,
     collision_penalty_coeff=4,
     lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
-    gforce_threshold=None,
+    gforce_threshold=1.0,
+
+    # https://iopscience.iop.org/article/10.1088/0143-0807/37/6/065008/pdf
+    # Importantly they depict the threshold
+    # for admissible acceleration onset or jerk as j = 15g/s or ~150m/s^3.
+    jerk_threshold=150.0,  # 15g/s
     incent_win=True,
     constrain_controls=False,
     incent_yield_to_oncoming_traffic=True,
     physics_steps_per_observation=12,
+    discrete_actions=COMFORTABLE_STEERING_ACTIONS,
 )
 
 net_config = dict(
@@ -47,8 +46,8 @@ eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('pi_lr', 3e-6)
 # eg.add('vf_lr', 1e-5)
 # eg.add('boost_explore', 5)
-eg.add('epochs', 8000)
-eg.add('steps_per_epoch', 32000)
+eg.add('epochs', 20000)
+eg.add('steps_per_epoch', 4000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')

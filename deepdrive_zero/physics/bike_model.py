@@ -5,12 +5,25 @@ from numba import njit
 
 from deepdrive_zero.constants import USE_VOYAGE, VEHICLE_WIDTH, CACHE_NUMBA
 
+TUNED_FPS = 1 / 60  # The FPS we tuned friction ratios at
+ROTATIONAL_FRICTION = 0.95
+LONGITUDINAL_FRICTION = 0.999
+BRAKE_FRICTION = 0.96
 
 @njit(cache=CACHE_NUMBA, nogil=True)
 def bike_with_friction_step(
-        steer, accel, brake, dt,
-        x, y, angle, angle_change, speed, add_rotational_friction,
-        add_longitudinal_friction, vehicle_model):
+        steer,
+        accel,
+        brake,
+        dt,
+        x,
+        y,
+        angle,
+        angle_change,
+        speed,
+        add_rotational_friction,
+        add_longitudinal_friction,
+        vehicle_model):
     """
 
     :param steer: (float) Steering angle in radians
@@ -37,18 +50,18 @@ def bike_with_friction_step(
     change_x, change_y, angle_change, speed = \
         f_KinBkMdl(state, steer, accel, vehicle_model, dt)
 
-    tuned_fps = 1 / 60  # The FPS we tuned friction ratios at
-    friction_exponent = (dt / tuned_fps)
+    friction_exponent = (dt / TUNED_FPS)
     if add_rotational_friction:
-        angle_change = 0.95 ** friction_exponent * angle_change
+        # Causes steering to drift back to zero
+        angle_change *= ROTATIONAL_FRICTION ** friction_exponent
     if add_longitudinal_friction:
-        speed = 0.999 ** friction_exponent * speed
+        speed *= LONGITUDINAL_FRICTION ** friction_exponent
 
     # TODO: We should just output the desired accel (+-) and allow higher magnitude
     #   negative accel than positive due to brake force. Otherwise network will
     #   be riding brakes more than reasonable (esp without disincentivizing this
     #   in the reward)
-    speed = 0.96 ** brake * speed
+    speed = BRAKE_FRICTION ** (brake * friction_exponent) * speed
 
     theta1 = angle
     theta2 = theta1 + pi / 2
@@ -70,36 +83,119 @@ def bike_with_friction_step(
 def f_KinBkMdl(state, steer_angle, accel, vehicle_model, dt):
     """
     process model
-    input: state at time k, z[k] := [x[k], y[k], psi[k], v[k]]
-    output: state at next time step z[k+1]
+    input: state at time k, z[k] := [x[k], y[k], angle_change[k], v[k]]
+    output: state of center of gravity at next time step z[k+1]
     # From https://github.com/MPC-Berkeley/barc/blob/master/workspace/src/barc/src/estimation/system_models.py
+    c.f.: https://www.coursera.org/lecture/intro-self-driving-cars/lesson-2-the-kinematic-bicycle-model-Bi8yE
     """
 
     # get states / inputs
     x = state[0]             # straight
     y = state[1]             # right
-    angle_change = state[2]  # angle change
-    speed = state[3]         # speed
+    angle_speed = state[2]  # radians per second
+    speed = state[3]         # meters per second
 
     # extract parameters
     # Distance from center of gravity to front and rear axles
-    (L_a, L_b) = vehicle_model
+    (cg_to_front_axle, cg_to_rear_axle) = vehicle_model
 
     # compute slip angle
-    slip_angle = np.arctan(L_a / (L_a + L_b) * np.tan(steer_angle))
+    slip = cg_to_front_axle / (cg_to_front_axle + cg_to_rear_axle)
+    slip_angle = np.arctan(slip * np.tan(steer_angle))
 
     # compute next state
-    change_x = dt * (speed * np.cos(angle_change + slip_angle))
-    change_y = dt * (speed * np.sin(angle_change + slip_angle))
-    angle_change = angle_change + dt * speed / L_b * np.sin(slip_angle)
-    speed_next = speed + dt * accel
+    change_x = dt * (speed * np.cos(angle_speed + slip_angle))
+    change_y = dt * (speed * np.sin(angle_speed + slip_angle))
+    angle_speed += dt * speed / cg_to_rear_axle * np.sin(slip_angle)
+    speed += dt * accel
 
-    return np.array([change_x, change_y, angle_change, speed_next])
+    return np.array([change_x, change_y, angle_speed, speed])
+
+
+# @njit(cache=CACHE_NUMBA, nogil=True)
+def get_angle_for_accel(desired_accel, speed, vehicle_model, prev_angle_change,
+                        aps, angle, prev_accel):
+
+    """
+    Returns change in angle that will result in the desired rotational
+    acceleration due to change in velocity vector direction for next step,
+    in other words the inverse bike model for steering.
+
+    Based on velocity magnitude (s) change per change in
+    angle (a)
+    i.e. ds = ||[cos(a)*s - s, sin(a) * s]||2
+    remember: cos^2 + sin^2 = 1
+
+    NOT WORKING
+    """
+
+    if abs(speed) < 0.075:
+        # Need speed to turn!
+        return 0
+
+    dt = 1/aps
+
+    # # Get previous slip angle
+    # cg_to_front_axle, cg_to_rear_axle = vehicle_model  # cg = Center of gravity
+    # slip = cg_to_front_axle / (cg_to_front_axle + cg_to_rear_axle)
+    # slip_angle = np.arctan(slip * np.tan(angle))
+
+    # # Subtract current rotational acceleration
+    # desired_accel -= dt * speed / cg_to_rear_axle * np.sin(slip_angle)
+
+    # # Subtract current linear acceleration
+    # desired_accel -= prev_accel
+
+    # friction_exponent = (dt / TUNED_FPS)
+    # rot_friction_accel = ROTATIONAL_FRICTION ** friction_exponent * prev_angle_change
+    #
+    # long_friction_accel = LONGITUDINAL_FRICTION ** friction_exponent * speed
+    #
+    # # Account for accel lost due to friction
+    # additional_accel += rot_friction_accel + long_friction_accel
+
+    # Get angle that will lead to desired rotational accel
+    desired_accel /= ((speed + 1) ** 0.75 * 0.4)   # Magic tuning
+    cos_theta = 1 - (dt * desired_accel) ** 2 / (2 * speed ** 2)
+    theta = np.arccos(np.clip(cos_theta, -1, 1))
+
+    # theta /= speed
+
+    # prev_angle_change /= dt  # magic, works for 1g only and not stable!
+
+    # theta /= 2
+
+    return theta
+
+
+def get_angle_for_accel_track(target_accel, current_accel, prev_steer, dt, speed):
+    # Slowly add more steer until we get to desired
+    delta = target_accel - current_accel
+    ret = 0
+    if delta > 0:
+        ret = min(prev_steer + 1 / (1 + prev_steer*2e3), prev_steer + 0.005)
+    elif delta < 0:
+        ret = prev_steer * 0.9
+    return ret
+
+
+def get_angle_for_accel_pid(target_accel, current_accel, current_angle,
+                            current_angle_change):
+    if pid.setpoint != target_accel:
+        pid.setpoint = target_accel
+    desired_angle = pid(current_accel)
+    if not pid.auto_mode:
+        pid.auto_mode = True
+    if throttle is None:
+        log.warn('PID output None, setting throttle to 0.')
+        throttle = 0.
+    throttle = min(max(throttle, 0.), 1.)
+    return throttle
 
 
 def get_vehicle_model(width):
     """
-    :param width: Width of vehicle
+    :param width: Width of vehicle  # TODO: Should be length! Change after ablation test
     :return: Distance from center of gravity to front and rear axles
     """
     # Bias towards the front a bit
@@ -158,3 +254,6 @@ def test_bike_with_friction_step():
     assert speed == 0.9417362622231682
     assert angle_change == 0
 
+
+if __name__ == '__main__':
+    test_bike_with_friction_step()

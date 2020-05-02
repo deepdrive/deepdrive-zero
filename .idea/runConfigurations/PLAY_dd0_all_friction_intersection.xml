@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="play dd0 all friction intersection" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="PLAY dd0 all friction intersection" type="PythonConfigurationType" factoryName="Python">
     <module name="deepdrive-2d" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

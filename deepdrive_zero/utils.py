@@ -17,11 +17,11 @@ def flatten_points(points):
 
 
 def get_angles_ahead(ego_angle, closest_map_index, map_points,
-                     seconds_ahead, speed, total_length, total_points,
+                     seconds_ahead, speed, route_length, total_points,
                      heading, ego_front):
     # TODO: Profile / numba
     num_indices = len(seconds_ahead)
-    points_per_meter = total_points / total_length
+    points_per_meter = total_points / route_length
     points_per_second = speed * points_per_meter
     seconds_per_index = 0.5
     points_per_index = points_per_second * seconds_per_index
