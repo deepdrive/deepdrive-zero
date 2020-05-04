@@ -335,6 +335,7 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_steps += 1
         self.total_steps += 1
 
+        # set dummy movement scenario here.
         info['stats']['dummy_agent_scenario'] = self.dummy_accel_agents[0].movement_pattern
         ret = self.get_step_output(done, info, obs, reward) # if len(self.agents)>1 -> one agent.step -> get the obs for other agent
 
