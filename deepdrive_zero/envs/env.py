@@ -289,8 +289,8 @@ class Deepdrive2DEnv(gym.Env):
         self.dummy_action = [0, 1, -random.random()] # reset dummy agent action. In this way it will have a constant action in each episode
         if self.agent_step_outputs:
             for agent in self.dummy_accel_agents:
-                if agent.done:
-                    agent.reset()
+                # if agent.done:
+                agent.reset()
             # Just reset the current agent and dummy agents
             return self.agents[self.agent_index].reset()
         else:
@@ -317,6 +317,9 @@ class Deepdrive2DEnv(gym.Env):
         self.start_step_time = time.time()
         agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
         self.check_for_collisions()
+        # fix ego car
+        # action = [0, 0, 0]
+
         step_out = agent.step(action)
         if step_out == PARTIAL_PHYSICS_STEP:
             return step_out
@@ -332,6 +335,7 @@ class Deepdrive2DEnv(gym.Env):
         self.episode_steps += 1
         self.total_steps += 1
 
+        info['stats']['dummy_agent_scenario'] = self.dummy_accel_agents[0].movement_pattern
         ret = self.get_step_output(done, info, obs, reward) # if len(self.agents)>1 -> one agent.step -> get the obs for other agent
 
         if self.should_render:
@@ -339,16 +343,19 @@ class Deepdrive2DEnv(gym.Env):
 
         # one step for dummy agents
         for dummy_accel_agent in self.dummy_accel_agents:
-            # Random forward accel
-            # _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
-
             # p-controller for steering
             steer = dummy_accel_agent.lateral_control()
             self.dummy_action[0] = steer
-            _, _, d, _ = dummy_accel_agent.step(self.dummy_action)
+            _, _, dummy_done, _ = dummy_accel_agent.step(self.dummy_action)
 
-            if d: #if done -> reset dummy agent
-                dummy_accel_agent.reset()
+            # if dummy_done: #if done -> reset dummy agent
+            #     dummy_accel_agent.reset()
+            # self.all_agents[0].reset()
+        # TODO: do we need to consider sth in reward when dummy is done?
+        if dummy_done:
+            ret = list(ret)
+            ret[2] = True
+
 
         self.last_step_output = ret
         return ret

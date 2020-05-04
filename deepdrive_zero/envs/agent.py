@@ -103,9 +103,10 @@ class Agent:
         self.physics_steps_per_observation = physics_steps_per_observation
         self.end_on_lane_violation = end_on_lane_violation
         self.dummy_random_scenario = dummy_random_scenario
-        self.movement_pattern = 1
+        self.movement_pattern = None
         self.dummy_agent_intention = None # 1: straigh, 2: right, 3: left
         self.prev_ego_pos = None
+        self.prev_ego_head = None
         self.discrete_actions = discrete_actions
 
         # Map type
@@ -559,6 +560,7 @@ class Agent:
         #     # print(self.dummy_agent_intention)
         # else:
         #     info.stats.dummy_agent_scenario = 0 # 20 to show it is not dummy
+
         info.stats.dummy_agent_scenario = self.movement_pattern
 
         self.last_step_time = now
@@ -742,7 +744,7 @@ class Agent:
             # to pass zero for inputs a all or a lot of the time with no problems.
             inputs.append(self.waypoint_distances[0])
             inputs.append(np.sum(self.waypoint_distances[:2]))
-            inputs += self.get_other_agent_inputs(is_blank) # QUESTION: why here? in the middle of infos from ego car. It is different from obs of the other agent form its point of view
+            # inputs += self.get_other_agent_inputs(is_blank)
             inputs += list(self.velocity)
             inputs += list(self.acceleration)
             # if self.agent_index == 0:
@@ -798,6 +800,7 @@ class Agent:
         if self.incent_yield_to_oncoming_traffic:
             inputs.append(float(self.will_turn_across_opposing_lanes))
 
+        inputs += self.get_other_agent_inputs(is_blank)  # QUESTION: why here? in the middle of infos from ego car. It is different from obs of the other agent form its point of view
 
         # if is_blank:
         #     common_inputs = np.array(common_inputs) * 0
@@ -859,7 +862,8 @@ class Agent:
         # TODO: Perhaps we should feed this into a transformer / LSTM / or
         #  use attention as the number of agents can be variable in length and
         #  may exceed the amount of input we want to pass to the net.
-        #  Also could do max-pool like OpenAI V
+        #  Also could do max-pool like Op
+        #  enAI V
         ret = []
         v = self.velocity
         ang = self.get_angle_to_point
@@ -885,11 +889,29 @@ class Agent:
                 ret.append(dst(p - f))
 
             # add position of other agent in global coordinate frame
-            # if self.prev_ego_pos is None:
-            #     self.prev_ego_pos = agent.ego_pos
-            # ret += list(agent.ego_pos - self.prev_ego_pos)
-            # self.prev_ego_pos = agent.ego_pos
-            # ret += list(agent.ego_pos/SCREEN_MARGIN)
+            if self.prev_ego_pos is None:
+                self.prev_ego_pos = agent.ego_pos
+                self.prev_ego_head = agent.heading
+
+            # ret += list(agent.ego_pos / SCREEN_MARGIN)
+            # ret += list(agent.heading)
+
+            # add history
+            hist = []
+            hist += list(agent.ego_pos - self.prev_ego_pos)
+            hist += list(agent.heading - self.prev_ego_head)
+            hist += list(agent.ego_pos)
+            hist += list(agent.heading)
+            ret += hist
+
+            # self.other_agent_movement_hist += hist
+            # self.other_agent_movement_hist = self.other_agent_movement_hist[-3*10:] #only keep last 10 time steps. each time step has 3 values for x, y, heading
+            # ret += self.other_agent_movement_hist
+
+            self.prev_ego_pos = agent.ego_pos
+            self.prev_ego_head = agent.heading
+
+            # # ret += list(agent.ego_pos/SCREEN_MARGIN)
 
         if is_blank:
             ret = list(np.array(ret) * 0)
@@ -971,12 +993,13 @@ class Agent:
         # 7: right -> left
         # 8: right -> up
         # 9: right -> down
-        if self.env.env_config['dummy_accel_agent_indices'] is not None:
-            if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
-                if self.dummy_random_scenario:
-                    self.movement_pattern = np.random.choice([1, 2, 3])#, p=[0.2, 0.4, 0.42])
-                else:
-                    self.movement_pattern = 1
+        if self.agent_index == 1:
+            if self.env.env_config['dummy_accel_agent_indices'] is not None:
+                if self.env.env_config['dummy_accel_agent_indices'][0] == 1:
+                    if self.dummy_random_scenario:
+                        self.movement_pattern = np.random.choice([1, 2, 3])#, p=[0.2, 0.4, 0.42])
+                    else:
+                        self.movement_pattern = 1
 
             # for debug
             # self.dummy_scenario = 2
@@ -1091,6 +1114,8 @@ class Agent:
             won = True
             log.success(f'Reached destination! '
                         f'Steps: {self.episode_steps}')
+
+        #TODO: if dummy is done -> env is done, won? lost? what about reward?
         if '--test-win' in sys.argv:
             won = True
         self.done = done
