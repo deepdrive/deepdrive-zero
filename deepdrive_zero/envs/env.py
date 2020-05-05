@@ -336,8 +336,13 @@ class Deepdrive2DEnv(gym.Env):
         self.total_steps += 1
 
         # set dummy movement scenario here.
-        info['stats']['dummy_agent_scenario'] = self.dummy_accel_agents[0].movement_pattern
+        if len(self.dummy_accel_agents) > 0:
+            info['stats']['dummy_agent_scenario'] = self.dummy_accel_agents[0].movement_pattern
+
+        # store agent_index
+        info['stats']['agent_index'] = self.agent_index
         ret = self.get_step_output(done, info, obs, reward) # if len(self.agents)>1 -> one agent.step -> get the obs for other agent
+
 
         if self.should_render:
             self.regulate_fps()
@@ -352,10 +357,10 @@ class Deepdrive2DEnv(gym.Env):
             # if dummy_done: #if done -> reset dummy agent
             #     dummy_accel_agent.reset()
             # self.all_agents[0].reset()
-        # TODO: do we need to consider sth in reward when dummy is done?
-        if dummy_done:
-            ret = list(ret)
-            ret[2] = True
+            # TODO: do we need to consider sth in reward when dummy is done?
+            if dummy_done:
+                ret = list(ret)
+                ret[2] = True
 
 
         self.last_step_output = ret
