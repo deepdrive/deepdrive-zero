@@ -55,6 +55,9 @@ class Agent:
                  collision_penalty_coeff=None,
                  speed_reward_coeff=None,
                  win_coefficient=None,
+                 steer_change_coef=None,
+                 accel_change_coef=None,
+                 pass_action_boundary_coef=None,
                  gforce_threshold=None,
                  jerk_threshold=None,
                  constrain_controls=None,
@@ -90,6 +93,9 @@ class Agent:
         self.collision_penalty_coeff = collision_penalty_coeff
         self.speed_reward_coeff = speed_reward_coeff
         self.win_coefficient = win_coefficient
+        self.steer_change_coef = steer_change_coef
+        self.accel_change_coef = accel_change_coef
+        self.pass_action_boundary_coef = pass_action_boundary_coef
         self.gforce_threshold = gforce_threshold
         self.jerk_threshold = jerk_threshold
         self.constrain_controls = constrain_controls
@@ -1172,11 +1178,16 @@ class Agent:
         self.jerk_magnitude = jerk_magnitude
 
         lane_penalty = 0
-        if left_lane_distance < 0.7:
-            lane_penalty += (left_lane_distance + 1)**2
-        if right_lane_distance < 0.7:
-            # yes both can happen if you're orthogonal to the lane
-            lane_penalty += (right_lane_distance + 1)**2
+        # if left_lane_distance < 0.7:
+        #     lane_penalty += (left_lane_distance + 1)**2
+        # if right_lane_distance < 0.7:
+        #     # yes both can happen if you're orthogonal to the lane
+        #     lane_penalty += (right_lane_distance + 1)**2
+        if left_lane_distance < 0:
+            lane_penalty += abs(left_lane_distance)
+        if right_lane_distance < 0:
+            lane_penalty += abs(right_lane_distance)
+
         lane_penalty *= self.lane_penalty_coeff
 
         # if self.agent_index == 1:
@@ -1202,18 +1213,14 @@ class Agent:
         ## penalize big change in action
         action, _, _, _, _ = self.step_input
 
-        steer_change_coef = 0.05
-        accel_change_coef = 0.0
-        steer_penalty = abs(self.prev_action[0] - action[0]) * steer_change_coef
-        accel_penalty = abs(self.prev_action[1] - action[1]) * accel_change_coef
+        steer_penalty = abs(self.prev_action[0] - action[0]) * self.steer_change_coef
+        accel_penalty = abs(self.prev_action[1] - action[1]) * self.accel_change_coef
 
         # penalize if action boundary is passed
         pass_action_boundary_penalty = 0
-        pass_action_boundary_coef = 0.05
         for i in range(3):
             if abs(action[i]) > 1:
-                pass_action_boundary_penalty += pass_action_boundary_coef * abs(action[i])
-
+                pass_action_boundary_penalty += self.pass_action_boundary_coef * abs(action[i])
 
         ret = (
            + speed_reward
