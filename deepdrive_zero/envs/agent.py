@@ -900,8 +900,8 @@ class Agent:
             hist = []
             hist += list(agent.ego_pos - self.prev_ego_pos)
             hist += list(agent.heading - self.prev_ego_head)
-            hist += list(agent.ego_pos)
-            hist += list(agent.heading)
+            # hist += list(agent.ego_pos / SCREEN_MARGIN)
+            # hist += list(agent.heading)
             ret += hist
 
             # self.other_agent_movement_hist += hist
@@ -1198,6 +1198,23 @@ class Agent:
             collision_penalty = 0
 
         win_reward = self.get_win_reward(won)
+
+        ## penalize big change in action
+        action, _, _, _, _ = self.step_input
+
+        steer_change_coef = 0.05
+        accel_change_coef = 0.0
+        steer_penalty = abs(self.prev_action[0] - action[0]) * steer_change_coef
+        accel_penalty = abs(self.prev_action[1] - action[1]) * accel_change_coef
+
+        # penalize if action boundary is passed
+        pass_action_boundary_penalty = 0
+        pass_action_boundary_coef = 0.05
+        for i in range(3):
+            if abs(action[i]) > 1:
+                pass_action_boundary_penalty += pass_action_boundary_coef * abs(action[i])
+
+
         ret = (
            + speed_reward
            + win_reward
@@ -1205,6 +1222,9 @@ class Agent:
            - collision_penalty
            - jerk_penalty
            - lane_penalty
+           - steer_penalty
+           - accel_penalty
+           - pass_action_boundary_penalty
         )
 
         # IDEA: Induce curriculum by zeroing things like static obstacle
@@ -1683,17 +1703,17 @@ class Agent:
                 if self.movement_pattern == 1: #up -> down
                     wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                     # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
-                    wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
+                    wps.append((mid_vert[0][0] - lane_width / 2, -20))
                 elif self.movement_pattern == 2: # up -> left
                     wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                     wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
                     wps.append((left_vert[0][0], top_horiz[0][1] - lane_width / 2))
-                    wps.append((6, mid_horiz[0][1] + lane_width / 2))
+                    wps.append((-20, mid_horiz[0][1] + lane_width / 2))
                 elif self.movement_pattern == 3: # up -> right
                     wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                     wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
                     wps.append((right_vert[0][0], bottom_horiz[0][1] + lane_width / 2))
-                    wps.append((50, bottom_horiz[0][1] + lane_width / 2))
+                    wps.append((70, bottom_horiz[0][1] + lane_width / 2))
                 # elif self.movement_pattern == 4: # left -> right
                 #     wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
                 #     wps.append((50, bottom_horiz[0][1] + lane_width / 2))

@@ -349,13 +349,14 @@ class Deepdrive2DEnv(gym.Env):
             self.dummy_action[0] = steer
             _, _, dummy_done, _ = dummy_accel_agent.step(self.dummy_action)
 
-            # if dummy_done: #if done -> reset dummy agent
-            #     dummy_accel_agent.reset()
-            # self.all_agents[0].reset()
+            if dummy_done: #if done -> reset dummy agent
+                # dummy_accel_agent.reset()
+                self.dummy_action = [0, 0, 0]
+
         # TODO: do we need to consider sth in reward when dummy is done?
-        if dummy_done:
-            ret = list(ret)
-            ret[2] = True
+        # if dummy_done:
+        #     ret = list(ret)
+        #     ret[2] = True
 
 
         self.last_step_output = ret
