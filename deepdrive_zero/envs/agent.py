@@ -1369,10 +1369,108 @@ class Agent:
                 # Default lane reward as there are no lanes in intersection.
                 # TODO: Discourage cutting into lanes when partially in the
                 #   intersection.
-        else:
-            # opponent agent -> may have different movement patterns: up->down, up->left, up->right
-            if self.movement_pattern == 1:
-                # up -> down
+        else: #agent index == 1 -> opponent or in self-play, other ego agent
+            if self.env.env_config['dummy_accel_agent_indices'] is not None:
+                # opponent agent -> may have different movement patterns: up->down, up->left, up->right
+                if self.movement_pattern == 1:
+                    # up -> down
+                    wp_x = mp.waypoints[0][0]
+                    left_lane_x = wp_x - half_lane_width
+                    right_lane_x = wp_x + half_lane_width
+                    right_distance = min_ego_x - left_lane_x
+                    left_distance = right_lane_x - max_ego_x
+                    lane_lines, _lane_width = self.intersection
+                    (left_vert, mid_vert, right_vert, top_horiz, mid_horiz,
+                     bottom_horiz) = lane_lines
+                    if min_ego_y > top_horiz[0][1]:  # any y coordinate will do
+                        self.approaching_intersection = True
+
+                    # set opponent intention
+                    self.dummy_agent_intention = 1
+
+                elif self.movement_pattern == 2:
+                    # up -> left
+                    intersection_start_y = mp.waypoints[1][1]
+                    intersection_end_x = mp.waypoints[2][0]
+                    if self.front_y > intersection_start_y:
+                        # Before entering intersection
+                        wp_x = mp.waypoints[0][0]
+                        left_lane_x = wp_x - half_lane_width
+                        right_lane_x = wp_x + half_lane_width
+                        left_distance = min_ego_x - left_lane_x
+                        right_distance = right_lane_x - max_ego_x
+                        self.approaching_intersection = True
+
+                        if self.front_y > intersection_start_y + 3: # until 3m before intersection
+                            self.dummy_agent_intention = 0 #straight
+                        else:
+                            self.dummy_agent_intention = 2 # right
+
+                    elif self.front_x < intersection_end_x:
+                        # Exiting intersection: partially or complete
+                        self.approaching_intersection = False
+                        wp_y = mp.waypoints[2][1]
+                        bottom_lane_y = wp_y - half_lane_width
+                        top_lane_y = wp_y + half_lane_width
+                        if self.back_x < intersection_end_x:  # intersection end, x coord
+                            # Completely exited intersection
+                            left_distance = min_ego_y - bottom_lane_y
+                            right_distance = top_lane_y - max_ego_y
+                            self.dummy_agent_intention = 0  # after intersection -> straight
+                        else:
+                            # Partially exited, front has exited but back has not
+                            if RIGHT_HAND_TRAFFIC:
+                                front_y = front_left[1], front_right[1]
+                                left_distance = min(front_y) - bottom_lane_y
+                                right_distance = top_lane_y - max(front_y)
+                            self.dummy_agent_intention = 2  # yet in the intersection -> turn right
+                    else:
+                        # Inside the intersection
+                        self.approaching_intersection = False
+                        self.dummy_agent_intention = 2 # inside intersection -> turn right
+
+                elif self.movement_pattern == 3:
+                    # up -> right
+                    intersection_start_y = mp.waypoints[1][1]
+                    intersection_end_x = mp.waypoints[2][0]
+                    if self.front_y > intersection_start_y:
+                        # Before entering intersection
+                        wp_x = mp.waypoints[0][0]
+                        left_lane_x = wp_x - half_lane_width
+                        right_lane_x = wp_x + half_lane_width
+                        left_distance = min_ego_x - left_lane_x
+                        right_distance = right_lane_x - max_ego_x
+                        self.approaching_intersection = True
+
+                        if self.front_y > intersection_start_y + 3: # until 3m before intersection
+                            self.dummy_agent_intention = 0 #straight
+                        else:
+                            self.dummy_agent_intention = 3  # before intersection -> straight
+                    elif self.front_x > intersection_end_x:
+                        # Exiting intersection: partially or complete
+                        self.approaching_intersection = False
+                        wp_y = mp.waypoints[2][1]
+                        bottom_lane_y = wp_y - half_lane_width
+                        top_lane_y = wp_y + half_lane_width
+                        if self.back_x > intersection_end_x:  # intersection end, x coord
+                            # Completely exited intersection
+                            left_distance = min_ego_y - bottom_lane_y
+                            right_distance = top_lane_y - max_ego_y
+                            self.dummy_agent_intention = 0  # after intersection -> straight
+                        else:
+                            # Partially exited, front has exited but back has not
+                            if RIGHT_HAND_TRAFFIC:
+                                front_y = front_left[1], front_right[1]
+                                left_distance = min(front_y) - bottom_lane_y
+                                right_distance = top_lane_y - max(front_y)
+                            self.dummy_agent_intention = 3  # inside intersection -> turn left
+                    else:
+                        # Inside the intersection
+                        self.approaching_intersection = False
+                        self.dummy_agent_intention = 3  # inside intersection -> turn left
+
+            else: #other agent is not dummy -> self-play -> other agent learns
+                # Straight agent
                 wp_x = mp.waypoints[0][0]
                 left_lane_x = wp_x - half_lane_width
                 right_lane_x = wp_x + half_lane_width
@@ -1383,90 +1481,6 @@ class Agent:
                  bottom_horiz) = lane_lines
                 if min_ego_y > top_horiz[0][1]:  # any y coordinate will do
                     self.approaching_intersection = True
-
-                # set opponent intention
-                self.dummy_agent_intention = 1
-
-            elif self.movement_pattern == 2:
-                # up -> left
-                intersection_start_y = mp.waypoints[1][1]
-                intersection_end_x = mp.waypoints[2][0]
-                if self.front_y > intersection_start_y:
-                    # Before entering intersection
-                    wp_x = mp.waypoints[0][0]
-                    left_lane_x = wp_x - half_lane_width
-                    right_lane_x = wp_x + half_lane_width
-                    left_distance = min_ego_x - left_lane_x
-                    right_distance = right_lane_x - max_ego_x
-                    self.approaching_intersection = True
-
-                    if self.front_y > intersection_start_y + 3: # until 3m before intersection
-                        self.dummy_agent_intention = 0 #straight
-                    else:
-                        self.dummy_agent_intention = 2 # right
-
-                elif self.front_x < intersection_end_x:
-                    # Exiting intersection: partially or complete
-                    self.approaching_intersection = False
-                    wp_y = mp.waypoints[2][1]
-                    bottom_lane_y = wp_y - half_lane_width
-                    top_lane_y = wp_y + half_lane_width
-                    if self.back_x < intersection_end_x:  # intersection end, x coord
-                        # Completely exited intersection
-                        left_distance = min_ego_y - bottom_lane_y
-                        right_distance = top_lane_y - max_ego_y
-                        self.dummy_agent_intention = 0  # after intersection -> straight
-                    else:
-                        # Partially exited, front has exited but back has not
-                        if RIGHT_HAND_TRAFFIC:
-                            front_y = front_left[1], front_right[1]
-                            left_distance = min(front_y) - bottom_lane_y
-                            right_distance = top_lane_y - max(front_y)
-                        self.dummy_agent_intention = 2  # yet in the intersection -> turn right
-                else:
-                    # Inside the intersection
-                    self.approaching_intersection = False
-                    self.dummy_agent_intention = 2 # inside intersection -> turn right
-
-            elif self.movement_pattern == 3:
-                # up -> right
-                intersection_start_y = mp.waypoints[1][1]
-                intersection_end_x = mp.waypoints[2][0]
-                if self.front_y > intersection_start_y:
-                    # Before entering intersection
-                    wp_x = mp.waypoints[0][0]
-                    left_lane_x = wp_x - half_lane_width
-                    right_lane_x = wp_x + half_lane_width
-                    left_distance = min_ego_x - left_lane_x
-                    right_distance = right_lane_x - max_ego_x
-                    self.approaching_intersection = True
-
-                    if self.front_y > intersection_start_y + 3: # until 3m before intersection
-                        self.dummy_agent_intention = 0 #straight
-                    else:
-                        self.dummy_agent_intention = 3  # before intersection -> straight
-                elif self.front_x > intersection_end_x:
-                    # Exiting intersection: partially or complete
-                    self.approaching_intersection = False
-                    wp_y = mp.waypoints[2][1]
-                    bottom_lane_y = wp_y - half_lane_width
-                    top_lane_y = wp_y + half_lane_width
-                    if self.back_x > intersection_end_x:  # intersection end, x coord
-                        # Completely exited intersection
-                        left_distance = min_ego_y - bottom_lane_y
-                        right_distance = top_lane_y - max_ego_y
-                        self.dummy_agent_intention = 0  # after intersection -> straight
-                    else:
-                        # Partially exited, front has exited but back has not
-                        if RIGHT_HAND_TRAFFIC:
-                            front_y = front_left[1], front_right[1]
-                            left_distance = min(front_y) - bottom_lane_y
-                            right_distance = top_lane_y - max(front_y)
-                        self.dummy_agent_intention = 3  # inside intersection -> turn left
-                else:
-                    # Inside the intersection
-                    self.approaching_intersection = False
-                    self.dummy_agent_intention = 3  # inside intersection -> turn left
 
         # if self.agent_index == 0:
         #     log.trace(f'across: {self.will_turn_across_opposing_lanes}\t'
@@ -1647,15 +1661,16 @@ class Agent:
             if self.agent_index == 0:
                 self.angle = 0
             elif self.agent_index == 1:
-                if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
-                    if self.movement_pattern == 1:
-                        self.angle = pi
-                    elif self.movement_pattern == 2:
-                        self.angle = pi
-                    elif self.movement_pattern == 3:
-                        self.angle = pi
-                    # elif self.movement_pattern == 4:
-                    #     self.angle = -pi/2
+                if self.env.env_config['dummy_accel_agent_indices'] is not None:
+                    if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
+                        if self.movement_pattern == 1:
+                            self.angle = pi
+                        elif self.movement_pattern == 2:
+                            self.angle = pi
+                        elif self.movement_pattern == 3:
+                            self.angle = pi
+                        # elif self.movement_pattern == 4:
+                        #     self.angle = -pi/2
                 else:
                     self.angle = pi
             else:
@@ -1706,25 +1721,26 @@ class Agent:
             wps.append((left_vert[0][0], mid_horiz[0][1] + lane_width / 2))
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
-            if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
-                if self.movement_pattern == 1: #up -> down
-                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
-                    # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
-                    wps.append((mid_vert[0][0] - lane_width / 2, -20))
-                elif self.movement_pattern == 2: # up -> left
-                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
-                    wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
-                    wps.append((left_vert[0][0], top_horiz[0][1] - lane_width / 2))
-                    wps.append((-20, mid_horiz[0][1] + lane_width / 2))
-                elif self.movement_pattern == 3: # up -> right
-                    wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
-                    wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
-                    wps.append((right_vert[0][0], bottom_horiz[0][1] + lane_width / 2))
-                    wps.append((70, bottom_horiz[0][1] + lane_width / 2))
-                # elif self.movement_pattern == 4: # left -> right
-                #     wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
-                #     wps.append((50, bottom_horiz[0][1] + lane_width / 2))
 
+            if self.env.env_config['dummy_accel_agent_indices'] is not None:
+                if self.env.env_config['dummy_accel_agent_indices'][0] == self.agent_index:
+                    if self.movement_pattern == 1: #up -> down
+                        wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                        # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
+                        wps.append((mid_vert[0][0] - lane_width / 2, -20))
+                    elif self.movement_pattern == 2: # up -> left
+                        wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                        wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
+                        wps.append((left_vert[0][0], top_horiz[0][1] - lane_width / 2))
+                        wps.append((-20, mid_horiz[0][1] + lane_width / 2))
+                    elif self.movement_pattern == 3: # up -> right
+                        wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
+                        wps.append((mid_vert[0][0] - lane_width / 2, top_horiz[0][1]))
+                        wps.append((right_vert[0][0], bottom_horiz[0][1] + lane_width / 2))
+                        wps.append((70, bottom_horiz[0][1] + lane_width / 2))
+                    # elif self.movement_pattern == 4: # left -> right
+                    #     wps.append((random.uniform(2, 20), bottom_horiz[0][1] + lane_width / 2))
+                    #     wps.append((50, bottom_horiz[0][1] + lane_width / 2))
             else:
                 wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
                 # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
