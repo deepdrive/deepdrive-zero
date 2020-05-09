@@ -520,10 +520,10 @@ class Agent:
                                             collided, info, left_lane_distance,
                                             right_lane_distance)
             reward, info = self.get_reward(
-                lane_deviation, won, lost, collided, info, steer, accel,
-                left_lane_distance, right_lane_distance
-            )
-            info.stats.lane_deviation = lane_deviation
+                won, lost, collided, info, steer, accel,
+                left_lane_distance, right_lane_distance)
+            info.stats.left_lane_distance = left_lane_distance
+            info.stats.right_lane_distance = right_lane_distance
             step_time = now - self.last_step_time
             # log.trace(f'step time {round(step_time, 3)}')
 
