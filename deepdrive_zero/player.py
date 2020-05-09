@@ -500,7 +500,7 @@ class Deepdrive2DPlayer(arcade.Window):
 
 
 def start(env=None, fps=60, env_config=None):
-    if env_config is None:
+    if not env and env_config is None:
         env_config = dict(
             end_on_lane_violation='--end-on-lane-violation' in sys.argv)
     player = Deepdrive2DPlayer(
