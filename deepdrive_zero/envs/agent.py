@@ -12,18 +12,28 @@ from scipy import spatial
 import numpy as np
 from box import Box
 
-from deepdrive_zero.constants import VEHICLE_WIDTH, VEHICLE_LENGTH, \
-    MAX_METERS_PER_SEC_SQ, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX, \
-    MAX_STEER_CHANGE_PER_SECOND, MAX_ACCEL_CHANGE_PER_SECOND, \
-    MAX_BRAKE_CHANGE_PER_SECOND, STEERING_RANGE, MAX_STEER, MIN_STEER, \
-    MAX_BRAKE_G, RIGHT_HAND_TRAFFIC, COMFORTABLE_STEERING_ACTIONS, ACTIONS, \
-    COMFORTABLE_ACTIONS, COMFORTABLE_ACTIONS_MAINTAIN_SPEED, \
-    COMFORTABLE_ACTIONS_DECREASE_SPEED, COMFORTABLE_ACTIONS_INCREASE_SPEED, \
-    COMFORTABLE_ACTIONS_DECAY_STEERING, COMFORTABLE_ACTIONS_SMALL_STEER_LEFT, \
-    COMFORTABLE_ACTIONS_SMALL_STEER_RIGHT, COMFORTABLE_ACTIONS_LARGE_STEER_LEFT, \
-    COMFORTABLE_ACTIONS_LARGE_STEER_RIGHT, PARTIAL_PHYSICS_STEP, \
-    COMPLETE_PHYSICS_STEP
-from deepdrive_zero.constants import IS_DEBUG_MODE, GAME_OVER_PENALTY, G_ACCEL
+from deepdrive_zero.constants import G_ACCEL, \
+    VEHICLE_WIDTH, VEHICLE_LENGTH, MAX_STEER_CHANGE_PER_SECOND, \
+    MAX_ACCEL_CHANGE_PER_SECOND, MAX_BRAKE_CHANGE_PER_SECOND, STEERING_RANGE, \
+    MAX_METERS_PER_SEC_SQ, MAX_BRAKE_G, PARTIAL_PHYSICS_STEP, MAX_STEER, \
+    MIN_STEER, RIGHT_HAND_TRAFFIC, MAP_WIDTH_PX, SCREEN_MARGIN, MAP_HEIGHT_PX
+from deepdrive_zero.discrete.comfortable_actions import COMFORTABLE_ACTIONS, \
+    COMFORTABLE_ACTIONS_IDLE, COMFORTABLE_ACTIONS_DECAY_STEERING, \
+    COMFORTABLE_ACTIONS_SMALL_STEER_LEFT, COMFORTABLE_ACTIONS_SMALL_STEER_RIGHT, \
+    COMFORTABLE_ACTIONS_LARGE_STEER_LEFT, COMFORTABLE_ACTIONS_LARGE_STEER_RIGHT, \
+    COMFORTABLE_ACTIONS_MAINTAIN_SPEED, COMFORTABLE_ACTIONS_DECREASE_SPEED, \
+    COMFORTABLE_ACTIONS_INCREASE_SPEED
+from deepdrive_zero.discrete.comfortable_actions2 import \
+    COMFORTABLE_ACTIONS2_IDLE, COMFORTABLE_ACTIONS2_DECAY_STEERING, \
+    COMFORTABLE_ACTIONS2_SMALL_STEER_LEFT, \
+    COMFORTABLE_ACTIONS2_SMALL_STEER_RIGHT, \
+    COMFORTABLE_ACTIONS2_LARGE_STEER_LEFT, \
+    COMFORTABLE_ACTIONS2_LARGE_STEER_RIGHT, COMFORTABLE_ACTIONS2_MAINTAIN_SPEED, \
+    COMFORTABLE_ACTIONS2_DECREASE_SPEED, COMFORTABLE_ACTIONS2_INCREASE_SPEED, \
+    COMFORTABLE_ACTIONS2_MICRO_STEER_LEFT, \
+    COMFORTABLE_ACTIONS2_MICRO_STEER_RIGHT, COMFORTABLE_ACTIONS2
+from deepdrive_zero.discrete.comfortable_steering_actions import \
+    COMFORTABLE_STEERING_ACTIONS
 from deepdrive_zero.experience_buffer import ExperienceBuffer
 from deepdrive_zero.logs import log
 from deepdrive_zero.map_gen import get_intersection
@@ -166,6 +176,10 @@ class Agent:
             self.convert_discrete_actions = self.convert_comfortable_steering_actions
         elif discrete_actions == COMFORTABLE_ACTIONS:
             self.convert_discrete_actions = self.convert_comfortable_actions
+        elif discrete_actions == COMFORTABLE_ACTIONS2:
+            self.convert_discrete_actions = self.convert_comfortable_actions2
+        elif discrete_actions is not None:
+            raise NotImplementedError(f'Discrete actions: {discrete_actions} not handled')
 
         self.update_intermediate_physics = (self.env.should_render or
                                             self.env.being_played)
@@ -1630,24 +1644,33 @@ class Agent:
         steer, throttle, brake = 0,0,0
         action = int(action)
 
+        debug_agent_index = 1
+
         # TODO: Adjust all of these to depend on actions per second
         #   NN learns to adjust, but we should decay steering for example in
         #   ~1.5 seconds, which with 0.9 ** x at 5 aps, is around 2 seconds.
-
+        if action == COMFORTABLE_ACTIONS_IDLE:
+            log.debug('idle') if self.agent_index == debug_agent_index else None
         # Steer
-        if action in COMFORTABLE_ACTIONS_DECAY_STEERING:
+        elif action in COMFORTABLE_ACTIONS_DECAY_STEERING:
+            # log.debug('decay steer') if self.agent_index == debug_agent_index else None
             steer = 0.9 * self.prev_steer
         elif action in COMFORTABLE_ACTIONS_SMALL_STEER_LEFT:
+            # log.debug('1 deg left') if self.agent_index == debug_agent_index else None
             steer = one_degree
         elif action in COMFORTABLE_ACTIONS_SMALL_STEER_RIGHT:
+            # log.debug('1 deg right') if self.agent_index == debug_agent_index else None
             steer = -one_degree
         elif action in COMFORTABLE_ACTIONS_LARGE_STEER_LEFT:
+            # log.debug('large left') if self.agent_index == debug_agent_index else None
             steer = self.get_angle_for_comfortable_turn()
         elif action in COMFORTABLE_ACTIONS_LARGE_STEER_RIGHT:
+            # log.debug('large right') if self.agent_index == debug_agent_index else None
             steer = -self.get_angle_for_comfortable_turn()
 
         # Accel
         if action in COMFORTABLE_ACTIONS_MAINTAIN_SPEED:
+            # log.debug('maintain') if self.agent_index == debug_agent_index else None
             if self.prev_speed < self.speed:
                 throttle = self.prev_throttle * 0.99
             elif self.prev_speed > self.speed:
@@ -1655,10 +1678,72 @@ class Agent:
             else:
                 throttle = self.prev_throttle
         elif action in COMFORTABLE_ACTIONS_DECREASE_SPEED:
+            # log.debug('slower') if self.agent_index == debug_agent_index else None
             throttle = 0
             if self.prev_throttle == 0:
                 brake = comfort_accel
         elif action in COMFORTABLE_ACTIONS_INCREASE_SPEED:
+            # log.debug('faster') if self.agent_index == debug_agent_index else None
+            throttle = comfort_accel
+            # throttle = min(throttle, MAX_METERS_PER_SEC_SQ, comfort_accel * self.dt)
+
+        return steer, throttle, brake
+
+    def convert_comfortable_actions2(self, action):
+        # noinspection DuplicatedCode
+        comfort_accel = 1  # Comfortable g-force is around 0.1 = 1 m/s**2
+        one_degree = 0.0174533
+        one_tenth_degree = one_degree / 10
+        steer, throttle, brake = 0,0,0
+        action = int(action)
+
+        debug_agent_index = 1
+
+        # TODO: Adjust all of these to depend on actions per second
+        #   NN learns to adjust, but we should decay steering for example in
+        #   ~1.5 seconds, which with 0.9 ** x at 5 aps, is around 2 seconds.
+        if action == COMFORTABLE_ACTIONS2_IDLE:
+            # log.debug('idle') if self.agent_index == debug_agent_index else None
+            pass
+        # Steer
+        elif action in COMFORTABLE_ACTIONS2_DECAY_STEERING:
+            # log.debug('decay steer') if self.agent_index == debug_agent_index else None
+            steer = 0.9 * self.prev_steer
+        elif action in COMFORTABLE_ACTIONS2_MICRO_STEER_LEFT:
+            # log.debug('1 deg left') if self.agent_index == debug_agent_index else None
+            steer = one_tenth_degree
+        elif action in COMFORTABLE_ACTIONS2_MICRO_STEER_RIGHT:
+            # log.debug('1 deg right') if self.agent_index == debug_agent_index else None
+            steer = -one_tenth_degree
+        elif action in COMFORTABLE_ACTIONS2_SMALL_STEER_LEFT:
+            # log.debug('1 deg left') if self.agent_index == debug_agent_index else None
+            steer = one_degree
+        elif action in COMFORTABLE_ACTIONS2_SMALL_STEER_RIGHT:
+            # log.debug('1 deg right') if self.agent_index == debug_agent_index else None
+            steer = -one_degree
+        elif action in COMFORTABLE_ACTIONS2_LARGE_STEER_LEFT:
+            # log.debug('large left') if self.agent_index == debug_agent_index else None
+            steer = self.get_angle_for_comfortable_turn()
+        elif action in COMFORTABLE_ACTIONS2_LARGE_STEER_RIGHT:
+            # log.debug('large right') if self.agent_index == debug_agent_index else None
+            steer = -self.get_angle_for_comfortable_turn()
+
+        # Accel
+        if action in COMFORTABLE_ACTIONS2_MAINTAIN_SPEED:
+            # log.debug('maintain') if self.agent_index == debug_agent_index else None
+            if self.prev_speed < self.speed:
+                throttle = self.prev_throttle * 0.99
+            elif self.prev_speed > self.speed:
+                throttle = self.prev_throttle * 1.01
+            else:
+                throttle = self.prev_throttle
+        elif action in COMFORTABLE_ACTIONS2_DECREASE_SPEED:
+            # log.debug('slower') if self.agent_index == debug_agent_index else None
+            throttle = 0
+            if self.prev_throttle == 0:
+                brake = comfort_accel
+        elif action in COMFORTABLE_ACTIONS2_INCREASE_SPEED:
+            # log.debug('faster') if self.agent_index == debug_agent_index else None
             throttle = comfort_accel
             # throttle = min(throttle, MAX_METERS_PER_SEC_SQ, comfort_accel * self.dt)
 
@@ -1702,7 +1787,8 @@ class Agent:
         #     vehicle_model=self.vehicle_model,
         #     prev_angle_change=self.angle_change, aps=self.aps, angle=self.angle,
         #     prev_accel=self.accel_magnitude)
-        # TODO: Automate this tuning with linear regression
+        # TODO: Automate this tuning with linear regression or analytically solve
+        #   with inverse kinematics for acceleration
         return pi / (30 * max(self.speed, 1) ** 2)
 
 
