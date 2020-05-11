@@ -1211,16 +1211,22 @@ class Agent:
         win_reward = self.get_win_reward(won)
 
         ## penalize big change in action
-        action, _, _, _, _ = self.step_input
+        if not self.discrete_actions:
+            action, _, _, _, _ = self.step_input
 
-        steer_penalty = abs(self.prev_action[0] - action[0]) * self.steer_change_coef
-        accel_penalty = abs(self.prev_action[1] - action[1]) * self.accel_change_coef
+            steer_penalty = abs(self.prev_action[0] - action[0]) * self.steer_change_coef
+            accel_penalty = abs(self.prev_action[1] - action[1]) * self.accel_change_coef
 
-        # penalize if action boundary is passed
-        pass_action_boundary_penalty = 0
-        for i in range(3):
-            if abs(action[i]) > 1:
-                pass_action_boundary_penalty += self.pass_action_boundary_coef * abs(action[i])
+            # penalize if action boundary is passed
+            pass_action_boundary_penalty = 0
+            for i in range(3):
+                if abs(action[i]) > 1:
+                    pass_action_boundary_penalty += self.pass_action_boundary_coef * abs(action[i])
+        else:
+            steer_penalty = 0
+            accel_penalty = 0
+            pass_action_boundary_penalty = 0
+
 
         ret = (
            + speed_reward
