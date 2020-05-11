@@ -185,7 +185,7 @@ class Deepdrive2DPlayer(arcade.Window):
             arcade.draw_rectangle_outline(
                 center_x=a.x * ppm, center_y=a.y * ppm,
                 width=a.vehicle_width * ppm,
-                height=a.vehicle_height * ppm, color=color.LIME_GREEN,
+                height=a.vehicle_length * ppm, color=color.LIME_GREEN,
                 border_width=2, tilt_angle=math.degrees(a.angle),
             )
             arcade.draw_points(point_list=(a.ego_rect * ppm).tolist(),
@@ -217,7 +217,7 @@ class Deepdrive2DPlayer(arcade.Window):
             )
 
             # Center to front length
-            ctf = a.vehicle_height / 2
+            # ctf = a.vehicle_length / 2
 
             arcade.draw_line(
                 start_x=a.x * ppm,

@@ -399,7 +399,7 @@ class Deepdrive2DEnv(gym.Env):
         else:
             self.render_one_frame()
             if self.render_choppy_but_realtime:
-                time.sleep(1 / agent.aps)
+                time.sleep(self.num_agents * self.target_dt)
 
 
     def render_one_frame(self):

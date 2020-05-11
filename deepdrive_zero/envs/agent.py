@@ -52,7 +52,7 @@ class Agent:
                  env,
                  agent_index,
                  vehicle_width=VEHICLE_WIDTH,
-                 vehicle_height=VEHICLE_LENGTH,
+                 vehicle_length=VEHICLE_LENGTH,
                  disable_gforce_penalty=False,
                  match_angle_only=False,
                  static_map=False,
@@ -145,8 +145,8 @@ class Agent:
 
         # All units in meters and radians unless otherwise specified
         self.vehicle_width: float = vehicle_width
-        self.vehicle_model:List[float] = get_vehicle_model(vehicle_width)
-        self.vehicle_height: float = vehicle_height
+        self.vehicle_model:List[float] = get_vehicle_model(vehicle_width)  # TODO: Use length instead. Need to retrain models to fix.
+        self.vehicle_length: float = vehicle_length
         if 'STRAIGHT_TEST' in os.environ:
             self.num_actions = 1  # Accel
         else:
@@ -527,10 +527,10 @@ class Agent:
 
             obs_data = self.get_observation(steer, accel, brake, info)
 
-            (lane_deviation, observation, closest_map_point,
+            (closest_waypoint_distance, observation, closest_map_point,
              left_lane_distance, right_lane_distance) = obs_data
 
-            done, won, lost = self.get_done(closest_map_point, lane_deviation,
+            done, won, lost = self.get_done(closest_map_point, closest_waypoint_distance,
                                             collided, info, left_lane_distance,
                                             right_lane_distance)
             reward, info = self.get_reward(
@@ -565,24 +565,24 @@ class Agent:
             episode_angle_accuracy = np.array(self.angle_accuracies).mean()
             episode_gforce_avg = np.array(self.episode_gforces).mean()
             episode_jerk_avg = np.array(self.episode_jerks).mean()
-            log.debug(f'Score {round(self.episode_reward, 2)}, '
-                      f'Rew/Step: {self.episode_reward / self.episode_steps}, '
-                      f'Steps: {self.episode_steps}, '
-                      # f'Closest map indx: {self.closest_map_index}, '
-                      f'Distance {round(self.distance_along_route, 2)}, '
-                      # f'Wp {self.next_map_index - 1}, '
-                      f'Angular velocity {round(self.angular_velocity, 2)}, '
-                      f'Speed: {round(self.speed, 2)}, '
-                      f'Max gforce: {round(self.max_gforce, 4)}, '
-                      f'Avg gforce: {round(episode_gforce_avg, 4)}, '
-                      f'Max jerk: {round(self.max_jerk, 4)}, '
-                      f'Avg jerk: {round(episode_jerk_avg, 4)}, '
-                      # f'Trip pct {round(self.trip_pct, 2)}, '
-                      f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
-                      f'Agent index {round(self.agent_index, 2)}, '
-                      f'Total steps {self.total_steps}, '
-                      f'Env ep# {self.env.num_episodes}, '
-                      f'Ep# {self.num_episodes}')
+            log.info(f'Score {round(self.episode_reward, 2)}, '
+                     f'Rew/Step: {self.episode_reward / self.episode_steps}, '
+                     f'Steps: {self.episode_steps}, '
+                     # f'Closest map indx: {self.closest_map_index}, '
+                     f'Distance {round(self.distance_along_route, 2)}, '
+                     # f'Wp {self.next_map_index - 1}, '
+                     f'Angular velocity {round(self.angular_velocity, 2)}, '
+                     f'Speed: {round(self.speed, 2)}, '
+                     f'Max gforce: {round(self.max_gforce, 4)}, '
+                     f'Avg gforce: {round(episode_gforce_avg, 4)}, '
+                     f'Max jerk: {round(self.max_jerk, 4)}, '
+                     f'Avg jerk: {round(episode_jerk_avg, 4)}, '
+                     # f'Trip pct {round(self.trip_pct, 2)}, '
+                     f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
+                     f'Agent index {round(self.agent_index, 2)}, '
+                     f'Total steps {self.total_steps}, '
+                     f'Env ep# {self.env.num_episodes}, '
+                     f'Ep# {self.num_episodes}')
         self.total_steps += 1
         self.set_calculated_props()
         ret = observation, reward, done, info.to_dict()
@@ -594,25 +594,25 @@ class Agent:
     def front_x(self):
         """Front middle x position of ego"""
         theta = pi / 2 + self.angle
-        return self.x + cos(theta) * self.vehicle_height / 2
+        return self.x + cos(theta) * self.vehicle_length / 2
 
     @property
     def front_y(self):
         """Front middle y position of ego"""
         theta = pi / 2 + self.angle
-        return self.y + sin(theta) * self.vehicle_height / 2
+        return self.y + sin(theta) * self.vehicle_length / 2
 
     @property
     def back_x(self):
-        """Front middle x position of ego"""
+        """Back middle x position of ego"""
         theta = pi / 2 + self.angle
-        return self.x - cos(theta) * self.vehicle_height / 2
+        return self.x - cos(theta) * self.vehicle_length / 2
 
     @property
     def back_y(self):
-        """Front middle y position of ego"""
+        """Back middle y position of ego"""
         theta = pi / 2 + self.angle
-        return self.y - sin(theta) * self.vehicle_height / 2
+        return self.y - sin(theta) * self.vehicle_length / 2
 
     @property
     def front_pos(self):
@@ -949,7 +949,7 @@ class Agent:
 
     def set_calculated_props(self):
         self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_length)
 
         self.ego_lines = get_lines_from_rect_points(self.ego_rect_tuple)
 
@@ -989,7 +989,8 @@ class Agent:
             info.done_only.harmful_jerk = 1
             done = True
             lost = True
-        elif self.end_on_lane_violation and right_lane_distance < -0.25:
+        elif self.end_on_lane_violation and (right_lane_distance < -0.25
+                                             or left_lane_distance < -0.25):
             log.warning(f'Exited lane, game over agent {self.agent_index}')
             info.done_only.exited_lane = 1
             done = True
@@ -1040,7 +1041,7 @@ class Agent:
         return done, won, lost
 
 
-    def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
+    def get_reward(self, won: bool, lost: bool,
                    collided: bool, info: Box, steer: float,
                    accel: float, left_lane_distance: float,
                    right_lane_distance: float) -> Tuple[float, Box]:
@@ -1053,6 +1054,9 @@ class Agent:
             angle_reward = 4 * pi - angle_diff
 
         angle_accuracy = 1 - angle_diff / (2 * pi)
+        if self.agent_index == 0:
+            # log.debug(f'angle accuracy {angle_accuracy}')
+            pass
 
         speed_reward = self.get_progress_reward()
         if (self.incent_yield_to_oncoming_traffic and
@@ -1091,13 +1095,36 @@ class Agent:
         jerk_penalty = self.jerk_penalty_coeff * jerk_magnitude
         self.jerk_magnitude = jerk_magnitude
 
-        lane_penalty = 0
-        if left_lane_distance < 0.7:
-            lane_penalty += (left_lane_distance + 1)**2
-        if right_lane_distance < 0.7:
+        # lane_penalty = 0
+        # if left_lane_distance < 0.7:
+        #     lane_penalty += (left_lane_distance + 1)**2
+        # if right_lane_distance < 0.7:
+        #     # yes both can happen if you're orthogonal to the lane
+        #     lane_penalty += (right_lane_distance + 1)**2
+        # lane_penalty *= self.lane_penalty_coeff
+
+        # """
+        # lane_penalty = 0
+        # if left_lane_distance < 0.7:
+        #     lane_penalty += (left_lane_distance + 1)**2
+        # if right_lane_distance < 0.7:
+        #     # yes both can happen if you're orthogonal to the lane
+        #     lane_penalty += (right_lane_distance + 1)**2
+        # lane_penalty *= self.lane_penalty_coeff
+        # """
+        lane_penalty2 = 0
+        lane_margin = 0.25
+        left_lane_margin_dist = left_lane_distance - lane_margin
+        if left_lane_margin_dist < 0:
+            lane_penalty2 += (abs(left_lane_margin_dist) + 1)**2
+        right_lane_margin_dist = right_lane_distance - lane_margin
+        if right_lane_margin_dist < 0:
             # yes both can happen if you're orthogonal to the lane
-            lane_penalty += (right_lane_distance + 1)**2
-        lane_penalty *= self.lane_penalty_coeff
+            lane_penalty2 += (abs(right_lane_margin_dist) + 1)**2
+        lane_penalty2 *= self.lane_penalty_coeff
+
+        # if self.agent_index == 0:
+        #     log.debug(f'lane penalty {lane_penalty} {lane_penalty2}')
 
         # if self.agent_index == 1:
         #     log.info(f'left distance {left_lane_distance} '
@@ -1124,7 +1151,7 @@ class Agent:
            - gforce_penalty
            - collision_penalty
            - jerk_penalty
-           - lane_penalty
+           - lane_penalty2
         )
 
         # IDEA: Induce curriculum by zeroing things like static obstacle
@@ -1136,7 +1163,7 @@ class Agent:
         #     log.debug(
         #         f'reward {ret} '
         #         # f'next waypoint {self.next_map_index} '
-        #         # f'distance {self.distance} '
+        #         f'distance {self.distance_along_route} '
         #         # f'rew/dist {round(ret/(self.distance - self.prev_distance),3)} '
         #         f'speed {speed_reward} '
         #         f'gforce {accel_penalty} '
@@ -1182,16 +1209,20 @@ class Agent:
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
         elif self.is_intersection_map:
+
             angles_ahead, left_lane_distance, right_lane_distance, = \
                 self.get_intersection_observation(half_lane_width,
                                                   left_lane_distance,
                                                   right_lane_distance)
+            if self.agent_index == 0:
+                log.trace(f'angle ahead {math.degrees(angles_ahead[0])}')
         else:
             self.trip_pct = 100 * closest_map_index / (len(self.map.waypoints) - 1)
             angles_ahead = self.get_angles_ahead(closest_map_index)
 
-        # log.trace(f'lane dist left {left_lane_distance} '
-        #          f'right {right_lane_distance}')
+        if self.agent_index == 0:
+            # log.debug(f'lane dist left {left_lane_distance} right {right_lane_distance}')
+            pass
 
         self.angles_ahead = angles_ahead
 
@@ -1201,7 +1232,7 @@ class Agent:
 
         observation = self.populate_observation(
             closest_map_point=closest_map_point,
-            lane_deviation=closest_waypoint_distance,
+            lane_deviation=0,
             angles_ahead=angles_ahead,
             steer=steer,
             brake=brake,
@@ -1504,7 +1535,8 @@ class Agent:
             wps.append((1.840549443086846, mid_horiz[0][1] + lane_width / 2))
         elif self.agent_index == 1:
             wps.append((mid_vert[0][0] - lane_width / 2, random.uniform(33, 47)))
-            # wps.append((mid_vert[0][0] - lane_width / 2, 40.139197872452702))
+            # wps.append((mid_vert[0][0] - lane_width / 2, 30.139197872452702))
+            # wps.append((mid_vert[0][0] - lane_width / 2, 15.139197872452702))
             wps.append((mid_vert[0][0] - lane_width / 2, 4.139197872452702))
         else:
             raise NotImplementedError('More than 2 agents not yet supported')
@@ -1537,7 +1569,7 @@ class Agent:
 
 
         self.ego_rect, self.ego_rect_tuple = get_rect(
-            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_height)
+            self.x, self.y, self.angle, self.vehicle_width, self.vehicle_length)
 
         if self.physics_interpolation_state.ready():
             self.episode_gforces.append(self.gforce)
@@ -1696,7 +1728,7 @@ class Agent:
         one_tenth_degree = one_degree / 10
         steer, throttle, brake = 0,0,0
         action = int(action)
-
+        # action = 18
         debug_agent_index = 1
 
         # TODO: Adjust all of these to depend on actions per second
@@ -1710,10 +1742,10 @@ class Agent:
             # log.debug('decay steer') if self.agent_index == debug_agent_index else None
             steer = 0.9 * self.prev_steer
         elif action in COMFORTABLE_ACTIONS2_MICRO_STEER_LEFT:
-            # log.debug('1 deg left') if self.agent_index == debug_agent_index else None
+            # log.debug('0.1 deg left') if self.agent_index == debug_agent_index else None
             steer = one_tenth_degree
         elif action in COMFORTABLE_ACTIONS2_MICRO_STEER_RIGHT:
-            # log.debug('1 deg right') if self.agent_index == debug_agent_index else None
+            # log.debug('0.1 deg right') if self.agent_index == debug_agent_index else None
             steer = -one_tenth_degree
         elif action in COMFORTABLE_ACTIONS2_SMALL_STEER_LEFT:
             # log.debug('1 deg left') if self.agent_index == debug_agent_index else None
