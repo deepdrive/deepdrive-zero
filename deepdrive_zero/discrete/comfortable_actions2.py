@@ -25,11 +25,9 @@ COMFORTABLE_ACTIONS2 = {
     19: 'LARGE_STEER_RIGHT_MAINTAIN_SPEED',
     20: 'LARGE_STEER_RIGHT_DECREASE_SPEED',
     21: 'LARGE_STEER_RIGHT_INCREASE_SPEED',
-    # TODO: Maintain speed (PID) * steer(decay, LR small steer, LR large steer)
-    # TODO: Decrease speed comfort (PID) * steer(decay, LR small steer, LR large steer) - brake + 0 accel
-    # TODO: Increase speed comfort (PID) * steer(decay, LR small steer, LR large steer)
-    # Total safe = 5 steer * 3 accel + idle = 16
 
+    # Total safe = 5 steer * 3 accel + idle = 16
+    # TODO: Decrease speed, zero steer?
     # TODO: Increase speed (max without losing traction)
     # TODO: Brake emergency stop
 }
