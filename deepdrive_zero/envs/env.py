@@ -294,8 +294,12 @@ class Deepdrive2DEnv(gym.Env):
             for agent in self.dummy_accel_agents:
                 # if agent.done:
                 agent.reset()
-            # Just reset the current agent and dummy agents
-            return self.agents[self.agent_index].reset()
+            ## Just reset the current agent if done
+            # return self.agents[self.agent_index].reset()
+
+            ## reset all agents if one is done
+            self.agents[1].reset()
+            return self.agents[0].reset() #return obs of agent0  and start with it in each reset
         else:
             # First reset, reset entire env
             self.episode_steps = 0
@@ -321,7 +325,10 @@ class Deepdrive2DEnv(gym.Env):
         agent = self.agents[self.agent_index] #select agent based on index- it will swith in every _step() call
         self.check_for_collisions()
         # fix ego car
-        # action = [0, 0, 0]
+        # if self.agent_index == 1:
+        #     action = [0, 1, -.7]
+        # else:
+        #     action = [0, 0.7, 0]
 
         step_out = agent.step(action)
         if step_out == PARTIAL_PHYSICS_STEP:
@@ -335,6 +342,7 @@ class Deepdrive2DEnv(gym.Env):
         self.curr_reward = reward
         if done:
             self.num_episodes += 1
+
         self.episode_steps += 1
         self.total_steps += 1
 
@@ -345,7 +353,6 @@ class Deepdrive2DEnv(gym.Env):
         # store agent_index
         info['stats']['agent_index'] = self.agent_index
         ret = self.get_step_output(done, info, obs, reward) # if len(self.agents)>1 -> one agent.step -> get the obs for other agent
-
 
         if self.should_render:
             self.regulate_fps()
