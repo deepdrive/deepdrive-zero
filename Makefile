@@ -9,7 +9,7 @@ PWD=$(shell pwd)
 
 build:
 	echo Please sure you have committed your changes locally.
-	read ready?
+	read press_when_done_commiting
 	rm -rf ./docker/repos || echo
 	git clone --depth 1 file:///$(SPINNINGUP_DIR) ./docker/repos/spinningup
 	git clone --depth 1 file:///$(PWD) docker/repos/deepdrive-zero
