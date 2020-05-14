@@ -8,7 +8,8 @@ BUILD_ARGS=--network=host -t $(TAG) -f Dockerfile .
 PWD=$(shell pwd)
 
 build:
-	echo Press any key if you have commited changes to your local repos
+	echo Please sure you have committed your changes locally.
+	read ready?
 	rm -rf ./docker/repos || echo
 	git clone --depth 1 file:///$(SPINNINGUP_DIR) ./docker/repos/spinningup
 	git clone --depth 1 file:///$(PWD) docker/repos/deepdrive-zero
