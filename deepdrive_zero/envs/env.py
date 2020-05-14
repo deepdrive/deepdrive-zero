@@ -69,9 +69,10 @@ class Deepdrive2DEnv(gym.Env):
             incent_win=incent_win,
             dummy_accel_agent_indices=None,
             wait_for_action=False,
-            incent_yield_to_oncoming_traffic=False,
+            incent_yield_to_oncoming_traffic=True,
             physics_steps_per_observation=physics_steps_per_observation,
             end_on_lane_violation=False,
+            lane_margin=0,
         )
 
         # All units in SI units (meters and radians) unless otherwise specified

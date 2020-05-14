@@ -42,6 +42,7 @@ from deepdrive_zero.physics.bike_model import bike_with_friction_step, \
 from deepdrive_zero.physics.collision_detection import get_rect, \
     get_lines_from_rect_points
 from deepdrive_zero.physics.interpolation_state import PhysicsInterpolationState
+from deepdrive_zero.physics.lane_distance import get_lane_distance
 from deepdrive_zero.physics.physics_step import physics_step
 from deepdrive_zero.utils import get_angles_ahead, get_angle, flatten_points, \
     np_rand, is_number
@@ -78,7 +79,8 @@ class Agent:
                  incent_yield_to_oncoming_traffic=None,
                  physics_steps_per_observation=None,
                  end_on_lane_violation=None,
-                 discrete_actions=None):
+                 discrete_actions=None,
+                 lane_margin=None,):
 
         self.env = env
 
@@ -112,6 +114,7 @@ class Agent:
         self.physics_steps_per_observation = physics_steps_per_observation
         self.end_on_lane_violation = end_on_lane_violation
         self.discrete_actions = discrete_actions
+        self.lane_margin = lane_margin
 
         # Map type
         self.is_one_waypoint_map: bool = env.is_one_waypoint_map
@@ -556,6 +559,8 @@ class Agent:
         self.episode_reward += reward
         self.prev_action = action
         self.episode_steps += 1
+        # if self.agent_index == 0:
+        #     log.info(f'reward {reward}')
         # log.debug(f'accel: {round(self.accel_magnitude, 2)} jerk {round(self.jerk_magnitude, 2)}')
         # log.info(f'Speed: {round(self.speed, 2)}')
         if done:
@@ -565,24 +570,24 @@ class Agent:
             episode_angle_accuracy = np.array(self.angle_accuracies).mean()
             episode_gforce_avg = np.array(self.episode_gforces).mean()
             episode_jerk_avg = np.array(self.episode_jerks).mean()
-            log.info(f'Score {round(self.episode_reward, 2)}, '
-                     f'Rew/Step: {self.episode_reward / self.episode_steps}, '
-                     f'Steps: {self.episode_steps}, '
-                     # f'Closest map indx: {self.closest_map_index}, '
-                     f'Distance {round(self.distance_along_route, 2)}, '
-                     # f'Wp {self.next_map_index - 1}, '
-                     f'Angular velocity {round(self.angular_velocity, 2)}, '
-                     f'Speed: {round(self.speed, 2)}, '
-                     f'Max gforce: {round(self.max_gforce, 4)}, '
-                     f'Avg gforce: {round(episode_gforce_avg, 4)}, '
-                     f'Max jerk: {round(self.max_jerk, 4)}, '
-                     f'Avg jerk: {round(episode_jerk_avg, 4)}, '
-                     # f'Trip pct {round(self.trip_pct, 2)}, '
-                     f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
-                     f'Agent index {round(self.agent_index, 2)}, '
-                     f'Total steps {self.total_steps}, '
-                     f'Env ep# {self.env.num_episodes}, '
-                     f'Ep# {self.num_episodes}')
+            log.debug(f'Score {round(self.episode_reward, 2)}, '
+                      f'Rew/Step: {self.episode_reward / self.episode_steps}, '
+                      f'Steps: {self.episode_steps}, '
+                      # f'Closest map indx: {self.closest_map_index}, '
+                      f'Distance {round(self.distance_along_route, 2)}, '
+                      # f'Wp {self.next_map_index - 1}, '
+                      f'Angular velocity {round(self.angular_velocity, 2)}, '
+                      f'Speed: {round(self.speed, 2)}, '
+                      f'Max gforce: {round(self.max_gforce, 4)}, '
+                      f'Avg gforce: {round(episode_gforce_avg, 4)}, '
+                      f'Max jerk: {round(self.max_jerk, 4)}, '
+                      f'Avg jerk: {round(episode_jerk_avg, 4)}, '
+                      # f'Trip pct {round(self.trip_pct, 2)}, '
+                      f'Angle accuracy {round(episode_angle_accuracy, 2)}, '
+                      f'Agent index {round(self.agent_index, 2)}, '
+                      f'Total steps {self.total_steps}, '
+                      f'Env ep# {self.env.num_episodes}, '
+                      f'Ep# {self.num_episodes}')
         self.total_steps += 1
         self.set_calculated_props()
         ret = observation, reward, done, info.to_dict()
@@ -1064,13 +1069,12 @@ class Agent:
                 self.upcoming_opposing_lane_agents()):
             # Even if other agent is turning across as well, and so won't
             # intersect (i.e. both agents turning left in right hand traffic)
-            # we should be cautious while making the left. The negative
-            # reward will have to be high enough so that we're cautious but
-            # eventually go so long as we can avoid colliding, which will
-            # be learned. Once the other agent has passed, we get distance
+            # we should be cautious while making the left.
+            # Once the other agent has passed, we get distance
             # reward for the turn which should incent being less cautious
             # when no other agent is approaching.
-            speed_reward *= -1
+            speed_reward = -abs(speed_reward)
+            # log.info('TURNING ACROSS')
 
         # TODO: Idea penalize residuals of a quadratic regression fit to history
         #  of actions. Currently penalizing jerk instead which may or may not
@@ -1112,16 +1116,16 @@ class Agent:
         #     lane_penalty += (right_lane_distance + 1)**2
         # lane_penalty *= self.lane_penalty_coeff
         # """
-        lane_penalty2 = 0
-        lane_margin = 0.25
+        lane_penalty = 0
+        lane_margin = self.lane_margin  # Consider increasing outside intersection
         left_lane_margin_dist = left_lane_distance - lane_margin
         if left_lane_margin_dist < 0:
-            lane_penalty2 += (abs(left_lane_margin_dist) + 1)**2
+            lane_penalty += abs(left_lane_margin_dist)
         right_lane_margin_dist = right_lane_distance - lane_margin
         if right_lane_margin_dist < 0:
             # yes both can happen if you're orthogonal to the lane
-            lane_penalty2 += (abs(right_lane_margin_dist) + 1)**2
-        lane_penalty2 *= self.lane_penalty_coeff
+            lane_penalty += abs(right_lane_margin_dist)
+        lane_penalty *= self.lane_penalty_coeff
 
         # if self.agent_index == 0:
         #     log.debug(f'lane penalty {lane_penalty} {lane_penalty2}')
@@ -1151,7 +1155,7 @@ class Agent:
            - gforce_penalty
            - collision_penalty
            - jerk_penalty
-           - lane_penalty2
+           - lane_penalty
         )
 
         # IDEA: Induce curriculum by zeroing things like static obstacle
@@ -1209,19 +1213,28 @@ class Agent:
             # log.info(f'angle ahead {math.degrees(angles_ahead[0])}')
             # log.info(f'angle {math.degrees(self.angle)}')
         elif self.is_intersection_map:
-
-            angles_ahead, left_lane_distance, right_lane_distance, = \
+            # angles_ahead, left_lane_distance1, right_lane_distance1, = \
+            #     self.get_intersection_observation(half_lane_width,
+            #                                       left_lane_distance,
+            #                                       right_lane_distance)
+            angles_ahead, left_lane_distance2, right_lane_distance2, = \
                 self.get_intersection_observation(half_lane_width,
                                                   left_lane_distance,
                                                   right_lane_distance)
-            if self.agent_index == 0:
-                log.trace(f'angle ahead {math.degrees(angles_ahead[0])}')
+            # if self.agent_index == 0:
+            #     log.trace(f'a {round(math.degrees(angles_ahead[0]), 2)} {round(math.degrees(angles_ahead2[0]), 2)}')
+            #     log.trace(f'l {round(left_lane_distance1, 2)} {round(left_lane_distance2, 2)}')
+            #     log.trace(f'r {round(right_lane_distance1, 2)} {round(right_lane_distance2, 2)}')
+
+            left_lane_distance = left_lane_distance2
+            right_lane_distance = right_lane_distance2
+
         else:
             self.trip_pct = 100 * closest_map_index / (len(self.map.waypoints) - 1)
             angles_ahead = self.get_angles_ahead(closest_map_index)
 
         if self.agent_index == 0:
-            # log.debug(f'lane dist left {left_lane_distance} right {right_lane_distance}')
+            # log.trace(f'lane dist left {left_lane_distance} right {right_lane_distance}')
             pass
 
         self.angles_ahead = angles_ahead
@@ -1293,6 +1306,129 @@ class Agent:
                 # Default lane reward as there are no lanes in intersection.
                 # TODO: Discourage cutting into lanes when partially in the
                 #   intersection.
+        else:
+            # Straight agent
+            wp_x = mp.waypoints[0][0]
+            left_lane_x = wp_x - half_lane_width
+            right_lane_x = wp_x + half_lane_width
+            right_distance = min_ego_x - left_lane_x
+            left_distance = right_lane_x - max_ego_x
+            lane_lines, _lane_width = self.intersection
+            (left_vert, mid_vert, right_vert, top_horiz, mid_horiz,
+             bottom_horiz) = lane_lines
+            if min_ego_y > top_horiz[0][1]:  # any y coordinate will do
+                self.approaching_intersection = True
+
+        # if self.agent_index == 0:
+        #     log.trace(f'across: {self.will_turn_across_opposing_lanes}\t'
+        #               f'l {round(left_distance, 2)}\t'
+        #               f'r {round(right_distance, 2)}')
+        # else:
+        #     log.trace(f'approach: {self.approaching_intersection}\t'
+        #              f'l {round(left_distance, 2)}\t'
+        #              f'r {round(right_distance, 2)}')
+
+        return angles_ahead, left_distance, right_distance
+
+
+    def get_intersection_observation2(self, half_lane_width, left_distance,
+                                      right_distance):
+        # TODO: Move other agent observations (like distances) here
+        a2w = self.get_angle_to_point
+        wi = self.next_map_index
+        mp = self.map
+        angles_ahead = [a2w(p) for p in mp.waypoints[wi:wi+2]]
+        self.will_turn_across_opposing_lanes = False
+        self.approaching_intersection = False
+
+        (back_left, back_right, front_left, front_right, max_ego_x, max_ego_y,
+         min_ego_x, min_ego_y) = self.get_rect_coords_info()
+
+        # TODO: For lane distance on arbitrary maps:
+        #  For each ego rect point, use a kd-tree to get the two closest
+        #  lane line points.
+        #    Then pass the line segment made up by those two points
+        #    to get_lane_distance() with just the one
+        #    ego point.
+        #  Finally choose the min left and right distance from all points.
+        #  The map should therefore have a string of points for each side of the
+        #  lane that are equidistant at 1m apart.
+        if self.agent_index == 0:
+            # Left turn agent
+            # N.B. Lane within intersection is diagonal
+            # https://user-images.githubusercontent.com/181225/81218014-5b6ba580-8f92-11ea-8c70-e65e27c9d5f4.jpeg
+            intersection_start_y = mp.waypoints[1][1]
+            intersection_end_x = mp.waypoints[2][0]
+            intersection_middle_x = mp.waypoints[1][0] - half_lane_width
+            intersection_middle_lane_y = mp.waypoints[2][1] - half_lane_width
+            min_right_distance = math.inf
+            min_left_distance = math.inf
+            reached_upper_left_half = False
+            inside_lower_right_half = False
+            for pt in self.ego_rect:
+                # Assumes that we go from bottom and take left. Need proper
+                # 1m spaced map points per above to generalize lane distance
+                if pt[1] <= intersection_start_y:
+                    # Before intersection
+                    wp_x = mp.waypoints[0][0]
+                    left_lane_x = wp_x - half_lane_width
+                    min_left_distance = min(min_left_distance, pt[0] - left_lane_x)
+                    wp_x = mp.waypoints[0][0]
+                    right_lane_x = wp_x + half_lane_width
+                    min_right_distance = min(min_right_distance, right_lane_x - pt[0])
+                elif pt[1] <= intersection_middle_lane_y:
+                    # Lower half of intersection
+                    diag_left_top = \
+                        (mp.waypoints[2][0], intersection_middle_lane_y)
+                    diag_left_bottom = \
+                        (mp.waypoints[1][0] - half_lane_width, mp.waypoints[1][1])
+                    min_left_distance = min(min_left_distance, get_lane_distance(
+                        p0=diag_left_bottom,
+                        p1=diag_left_top,
+                        ego_rect_pts=pt.reshape(1,2),
+                        is_left_lane_line=True,))
+                    wp_x = mp.waypoints[0][0]
+                    right_lane_x = wp_x + half_lane_width
+                    min_right_distance = min(min_right_distance, right_lane_x - pt[0])
+                    inside_lower_right_half = True
+                elif pt[0] >= intersection_middle_x:
+                    # Upper right half of intersection
+                    diag_right_top = \
+                        (intersection_middle_x, mp.waypoints[2][1] + half_lane_width)
+                    diag_right_bottom = \
+                        (mp.waypoints[1][0] + half_lane_width, intersection_middle_lane_y)
+                    min_right_distance = min(min_right_distance, get_lane_distance(
+                        p0=diag_right_bottom,
+                        p1=diag_right_top,
+                        ego_rect_pts=pt.reshape(1,2),
+                        is_left_lane_line=False,))
+                    wp_y = mp.waypoints[2][1]
+                    bottom_lane_y = wp_y - half_lane_width
+                    min_left_distance = min(min_left_distance, pt[1] - bottom_lane_y)
+                    inside_lower_right_half = True
+                elif pt[0] >= intersection_end_x:
+                    # Upper left half of intersection
+                    wp_y = mp.waypoints[2][1]
+                    bottom_lane_y = wp_y - half_lane_width
+                    min_left_distance = min(min_left_distance, pt[1] - bottom_lane_y)
+                    top_lane_y = wp_y + half_lane_width
+                    min_right_distance = min(min_right_distance, top_lane_y - pt[1])
+                    reached_upper_left_half = True
+                elif pt[0] < intersection_end_x:
+                    # Exited intersection
+                    wp_y = mp.waypoints[2][1]
+                    bottom_lane_y = wp_y - half_lane_width
+                    top_lane_y = wp_y + half_lane_width
+                    min_left_distance = min(min_left_distance, pt[1] - bottom_lane_y)
+                    min_right_distance = min(min_right_distance, top_lane_y - pt[1])
+                if min_left_distance != math.inf:
+                    left_distance = float(min_left_distance)  # float64 causing issues?
+                if min_right_distance != math.inf:
+                    right_distance = float(min_right_distance)   # float64 causing issues?
+
+                self.will_turn_across_opposing_lanes = \
+                    (inside_lower_right_half and not reached_upper_left_half)
+            # log.debug(f'left dist {left_distance} right dist {right_distance}')
         else:
             # Straight agent
             wp_x = mp.waypoints[0][0]
