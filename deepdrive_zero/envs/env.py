@@ -298,8 +298,9 @@ class Deepdrive2DEnv(gym.Env):
             return self.agents[self.agent_index].reset()
 
             ## reset all agents if one is done
-            # self.agents[1].reset()
-            # return self.agents[0].reset() #return obs of agent0  and start with it in each reset
+            # for agent in self.agents:
+            #     agent.reset()
+            # return self.get_blank_observation()
         else:
             # First reset, reset entire env
             self.episode_steps = 0
