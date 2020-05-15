@@ -5,7 +5,7 @@
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
-      <env name="LOGURU_LEVEL" value="DEBUG" />
+      <env name="LOGURU_LEVEL" value="TRACE" />
       <env name="DISABLE_GAME_OVER" value="1" />
     </envs>
     <option name="SDK_HOME" value="" />
