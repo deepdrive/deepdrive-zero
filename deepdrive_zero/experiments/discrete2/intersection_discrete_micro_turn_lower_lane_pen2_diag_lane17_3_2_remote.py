@@ -49,7 +49,7 @@ eg.add('resume', '/home/c2/models/intersection_discrete_micro_turn_lower_lane_pe
 # eg.add('vf_lr', 1e-5)
 # eg.add('boost_explore', 5)
 eg.add('epochs', 20000)
-eg.add('steps_per_epoch', 4000)
+eg.add('steps_per_epoch', 8000)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')
