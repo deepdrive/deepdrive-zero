@@ -42,7 +42,7 @@ net_config = dict(
 eg = ExperimentGrid(name=experiment_name)
 eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('seed', 0)
-eg.add('resume', '/home/c2/models/intersection_discrete_micro_turn_lower_lane_pen2_diag_lane17_3_2_s0_2020_05-14_10-36.22.708927_snapshot3')
+eg.add('resume', '/home/c2/models/intersection_discrete_micro_turn_lower_lane_pen2_diag_lane17_3_2_s0_2020_05-14_10-36.22.708927_snapshot2')
 # eg.add('reinitialize_optimizer_on_resume', True)
 # eg.add('num_inputs_to_add', 0)
 # eg.add('pi_lr', 3e-6)
