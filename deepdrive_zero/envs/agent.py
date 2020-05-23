@@ -209,6 +209,7 @@ class Agent:
         self.ego_lines: tuple = ()  # 4 edges of ego
         self.collided_with: list = []
         self.done: bool = False
+        self.won: bool = False
         self.prev_desired_accel = 0
         self.prev_desired_steer = 0
         self.prev_desired_brake = 0
@@ -790,7 +791,7 @@ class Agent:
                 # Previous outputs after physical constraints applied
 
                 self.prev_steer,
-                self.prev_accel,
+                self.prev_throttle,
                 self.prev_brake,
             ]
 
@@ -984,6 +985,7 @@ class Agent:
         self.episode_jerks = []
         self.collided_with = []
         self.done = False
+        self.won = False
         self.prev_throttle = 0
         self.prev_steer = 0
         self.prev_brake = 0
@@ -1125,6 +1127,7 @@ class Agent:
         if '--test-win' in sys.argv:
             won = True
         self.done = done
+        self.won = won
         return done, won, lost
 
     def get_reward(self, lane_deviation: float,  won: bool, lost: bool,
@@ -1188,7 +1191,8 @@ class Agent:
         if right_lane_distance < 0:
             lane_penalty += abs(right_lane_distance)
 
-        lane_penalty *= self.lane_penalty_coeff
+        lane_penalty_coeff = self.lane_penalty_coeff * self.total_steps / 100e6
+        lane_penalty *= lane_penalty_coeff
 
         # if self.agent_index == 1:
         #     log.info(f'left distance {left_lane_distance} '
@@ -1214,14 +1218,20 @@ class Agent:
         if not self.discrete_actions:
             action, _, _, _, _ = self.step_input
 
-            steer_penalty = abs(self.prev_action[0] - action[0]) * self.steer_change_coef
-            accel_penalty = abs(self.prev_action[1] - action[1]) * self.accel_change_coef
+            steer_change_coef = self.steer_change_coef * self.total_steps / 100e6
+            accel_change_coef = self.accel_change_coef * self.total_steps / 100e6
+
+            delta_steer = abs(self.prev_action[0] - action[0])
+            delta_accel = abs(self.prev_action[1] - action[1])
+            steer_penalty = delta_steer * steer_change_coef
+            accel_penalty = delta_accel * accel_change_coef
 
             # penalize if action boundary is passed
             pass_action_boundary_penalty = 0
+            pass_action_boundary_coef = self.pass_action_boundary_coef * self.total_steps / 100e6
             for i in range(3):
                 if abs(action[i]) > 1:
-                    pass_action_boundary_penalty += self.pass_action_boundary_coef * abs(action[i])
+                    pass_action_boundary_penalty += pass_action_boundary_coef * abs(action[i])
         else:
             steer_penalty = 0
             accel_penalty = 0

@@ -295,11 +295,20 @@ class Deepdrive2DEnv(gym.Env):
                 # if agent.done:
                 agent.reset()
             ## Just reset the current agent if done
-            return self.agents[self.agent_index].reset()
+            # self.agents[abs(self.agent_index - 1)].reset()
+            # return self.agents[self.agent_index].reset()
 
-            ## reset all agents if one is done
-            # for agent in self.agents:
-            #     agent.reset()
+            ## reset all agents if one is done. if agent won -> stay for other agent to win or done else reset both
+            if self.agents[self.agent_index].won: #if done is because of win
+                #do not reset until other agent is done (lose or win)
+                if self.agents[abs(self.agent_index - 1)].done:
+                    for agent in self.agents:
+                        agent.reset()
+
+            else:
+                for agent in self.agents:
+                    agent.reset()
+            return self.agents[0].reset()
             # return self.get_blank_observation()
         else:
             # First reset, reset entire env
@@ -328,7 +337,7 @@ class Deepdrive2DEnv(gym.Env):
 
         ## fix ego car
         # if self.agent_index == 1:
-        #     action = [0, 1, -.7]
+        #     action = [0, 0, 0]
         # else:
         #     action = [0, 0.3, 0]
 
