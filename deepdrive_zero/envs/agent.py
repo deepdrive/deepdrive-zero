@@ -47,17 +47,20 @@ class Agent:
                  static_map=False,
                  add_rotational_friction=True,
                  add_longitudinal_friction=True,
+                 curriculum=False,
 
                  # Env config params set by env
+                 curriculum_length=50e6,
                  jerk_penalty_coeff=None,
                  gforce_penalty_coeff=None,
                  lane_penalty_coeff=None,
                  collision_penalty_coeff=None,
                  speed_reward_coeff=None,
                  win_coefficient=None,
-                 steer_change_coef=None,
-                 accel_change_coef=None,
-                 pass_action_boundary_coef=None,
+                 steer_change_coeff=None,
+                 accel_change_coeff=None,
+                 pass_action_boundary_coeff=None,
+
                  gforce_threshold=None,
                  jerk_threshold=None,
                  constrain_controls=None,
@@ -87,15 +90,17 @@ class Agent:
         self.px_per_m = env.px_per_m
 
         # Env config params
+        self.curriculum = curriculum
+        self.curriculum_length = curriculum_length
         self.jerk_penalty_coeff = jerk_penalty_coeff
         self.gforce_penalty_coeff = gforce_penalty_coeff
         self.lane_penalty_coeff = lane_penalty_coeff
         self.collision_penalty_coeff = collision_penalty_coeff
         self.speed_reward_coeff = speed_reward_coeff
         self.win_coefficient = win_coefficient
-        self.steer_change_coef = steer_change_coef
-        self.accel_change_coef = accel_change_coef
-        self.pass_action_boundary_coef = pass_action_boundary_coef
+        self.steer_change_coeff = steer_change_coeff
+        self.accel_change_coeff = accel_change_coeff
+        self.pass_action_boundary_coeff = pass_action_boundary_coeff
         self.gforce_threshold = gforce_threshold
         self.jerk_threshold = jerk_threshold
         self.constrain_controls = constrain_controls
@@ -1191,7 +1196,10 @@ class Agent:
         if right_lane_distance < 0:
             lane_penalty += abs(right_lane_distance)
 
-        lane_penalty_coeff = self.lane_penalty_coeff * self.total_steps / 100e6
+        if self.curriculum:
+            lane_penalty_coeff = self.lane_penalty_coeff * self.total_steps / self.curriculum_length
+        else:
+            lane_penalty_coeff = self.lane_penalty_coeff
         lane_penalty *= lane_penalty_coeff
 
         # if self.agent_index == 1:
@@ -1218,25 +1226,32 @@ class Agent:
         if not self.discrete_actions:
             action, _, _, _, _ = self.step_input
 
-            steer_change_coef = self.steer_change_coef * self.total_steps / 100e6
-            accel_change_coef = self.accel_change_coef * self.total_steps / 100e6
+            if self.curriculum:
+                steer_change_coeff = self.steer_change_coeff * self.total_steps / self.curriculum_length
+                accel_change_coeff = self.accel_change_coeff * self.total_steps / self.curriculum_length
+            else:
+                steer_change_coeff = self.steer_change_coeff
+                accel_change_coeff = self.accel_change_coeff
 
             delta_steer = abs(self.prev_action[0] - action[0])
             delta_accel = abs(self.prev_action[1] - action[1])
-            steer_penalty = delta_steer * steer_change_coef
-            accel_penalty = delta_accel * accel_change_coef
+            steer_penalty = delta_steer * steer_change_coeff
+            accel_penalty = delta_accel * accel_change_coeff
 
             # penalize if action boundary is passed
             pass_action_boundary_penalty = 0
-            pass_action_boundary_coef = self.pass_action_boundary_coef * self.total_steps / 100e6
+            if self.curriculum:
+                pass_action_boundary_coeff = self.pass_action_boundary_coeff * self.total_steps / 100e6
+            else:
+                pass_action_boundary_coeff = self.pass_action_boundary_coeff
+
             for i in range(3):
                 if abs(action[i]) > 1:
-                    pass_action_boundary_penalty += pass_action_boundary_coef * abs(action[i])
+                    pass_action_boundary_penalty += pass_action_boundary_coeff * abs(action[i])
         else:
             steer_penalty = 0
             accel_penalty = 0
             pass_action_boundary_penalty = 0
-
 
         ret = (
            + speed_reward

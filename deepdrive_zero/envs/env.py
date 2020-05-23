@@ -55,15 +55,17 @@ class Deepdrive2DEnv(gym.Env):
 
         # Env config -----------------------------------------------------------
         self.env_config = dict(
+            curriculum=False,
+            curriculum_length=50e6,
             jerk_penalty_coeff=0.10,
             gforce_penalty_coeff=0.031,
             lane_penalty_coeff=0.02,
             collision_penalty_coeff=0.31,
             speed_reward_coeff=0.50,
             win_coefficient=1,
-            steer_change_coef=0.05,
-            accel_change_coef=0.01,
-            pass_action_boundary_coef=0.05,
+            steer_change_coeff=0.05,
+            accel_change_coeff=0.01,
+            pass_action_boundary_coeff=0.05,
             gforce_threshold=1,
             jerk_threshold=None,
             constrain_controls=False,
