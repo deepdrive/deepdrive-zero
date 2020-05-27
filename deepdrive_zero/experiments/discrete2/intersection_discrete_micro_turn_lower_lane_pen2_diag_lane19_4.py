@@ -8,7 +8,7 @@ from spinup import ppo_pytorch
 import torch
 
 experiment_name = os.path.basename(__file__)[:-3]
-notes = """Adding another layer to the NN"""
+notes = """Now increase jerk and lane penalty"""
 
 env_config = dict(
     env_name='deepdrive-2d-intersection-w-gs-allow-decel-v0',
