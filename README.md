@@ -129,6 +129,26 @@ Some steps along the way should be:
 
 The Arcade package is used for rendering, but is decoupled from physics so as to allow running the sim quickly without rendering. We use Numba to speed up physics calculations which allows iterating in Python (with the option to do ahead of time compilation on predefined numeric types) while maintaining the performance of a compiled binary.
 
+### Bibtex
+
+## Citing
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3871907.svg)](https://doi.org/10.5281/zenodo.3871907)
+
+Bibtex
+```
+@software{craig_quiter_2020_3871907,
+  author       = {Craig Quiter},
+  title        = {Deepdrive Zero},
+  month        = jun,
+  year         = 2020,
+  publisher    = {Zenodo},
+  version      = {alpha},
+  doi          = {10.5281/zenodo.3871907},
+  url          = {https://doi.org/10.5281/zenodo.3871907}
+}
+```
+
 ### Experimental Notebook
 
 * Spinning up SAC was not able to accurately match (80%) even a single input, whereas pytorch SAC is able to get 99.68% at 10k steps and 99.14% at 240 steps, fluctuating in between.
