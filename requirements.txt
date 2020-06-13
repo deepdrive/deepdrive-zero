@@ -1,9 +1,0 @@
-numpy
-scipy
-arcade
-loguru
-python-box
-numba
-matplotlib
-gym
-retry

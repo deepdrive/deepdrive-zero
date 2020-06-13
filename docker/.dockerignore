@@ -1,9 +1,0 @@
-deepdrive_zero/logs
-**/*.pyc
-**/*.nbi
-**/*.nbc
-__pycache__
-**/__pycache__
-*.pyc
-*.nbi
-*.nbc
