@@ -215,3 +215,21 @@ Pytorch SAC does best when auto entropy tuning is on (which spinning up does not
 * What does work is letting the agent steer and accelerate through the full range of the vehicle in a single time step, which is basically letting it perform infeasible actions if the time step is fixed. So next, I'm going to try gamma tuning with constrained controls so that the future estimated value does not interfere as much with learning short term consequences of actions which with our mostly per frame reward should be fine. We can always tune it back up. c.f. OpenAI Dota paper. Another thing that's a little more crazy to try is to not fix the time step, but let actions play out, i.e. a high steering angle change just takes more time. This seems like a good idea in theory in that we can explore with larger actions and timesteps, and then refine our actions over time to smaller ones after exploration sufficient to reach the longer term goals like reaching waypoints and not colliding. Perhaps a higher gamma would help also, but at 0.99, ~100 steps, we should be planning 10 seconds into the future so in theory higher gamma should not do anything in the intersection environment which takes 6 to 7 seconds to complete successfully.
 * Lowering gamma (0.95, 0.8) and lam (0.835, 0.8) led to quicker learning during the first 50 epochs or so, but eventually converged to worse performance than higher lam - see experiments/intersection_2_agents_lower_gamma
 * What does work super well multiplying a `boost_explore` coefficient to action standard deviations when resuming a model! This allowed agents that had a tendency to collide to "unlearn" this by increasing the collision penalty while not needing to retrain from scratch. Without `boost_explore`, increasing the collision penalty or changing any reward for that matter has little to no effect as the action entropy is too low. Tried `boost_explore` of 1.1 which was not enough then 10 which worked well. See deepdrive_zero/experiments/intersection_2_agents_fine_tune_collision_resume_add_comfort5.py
+
+#### Experimental update and summary
+
+* Things we tried that didn't work:
+
+  * Forward rollouts, training on the best or worst. Even for eval this doesn't work well once the policy is biased towards oscillations. Taking the worst rollout ends up with the same performance as not doing rollouts. Taking the best leads to exponentially decreasing returns!
+
+  * Gamma tuning: Lowering gamma at all does not seem to work well, I'm guessing due to gamma being used in Generalized Advantage Estimation as well and introducing too much variance?
+ 
+  * Outputting action deltas and not allowing the next action to be too far from the current (thereby reducing oscillations). In this case exploration is seemingly limited too much to learn to achieve long term goals. However I found a bug with my implementation of this idea that restricted actions 10x more than I wanted, so it may actually still work!
+ 
+* Things that sort of worked:
+Shifting advantages to be pessimistic (works well at first, then converges to same performance - probably should be annealed somehow?).
+
+  * Increasing std deviations of actions - this effectively increases exploration and allows a policy to learn new long term goals. 
+
+* Things that have worked:
+  * Ending episode on g-force. (Haven't tried jerk yet). Ending the episode instead of giving negative reward allows the policy to still reach high level goals. Recently I haven't been doing this as I was preferring the tunability of negative reward, but I should start adding it again right?
