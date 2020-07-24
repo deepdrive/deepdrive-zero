@@ -1,7 +1,5 @@
 # Deepdrive Zero alpha
 
-_A 100x faster-than-realtime self-driving environment built for experimenting with deep RL, all in Python, accelerated with Numba_
-
 <p align="center">
     <img src="https://user-images.githubusercontent.com/181225/88427805-8226c480-cda8-11ea-916a-35b6685209c5.gif"><br/>
     <i>Example intersection agents trained with PPO. Details at <a href="https://smooth.deepdrive.io">smooth.deepdrive.io</a></i>
