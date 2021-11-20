@@ -27,6 +27,7 @@ env_config = dict(
     lane_penalty_coeff=0.02,
     speed_reward_coeff=0.50,
     gforce_threshold=None,
+    end_on_lane_violation=False,
     incent_win=True,
     constrain_controls=False,
     incent_yield_to_oncoming_traffic=True,
@@ -48,7 +49,7 @@ eg.add('env_name', env_config['env_name'], '', False)
 # eg.add('vf_lr', 1e-5)
 # eg.add('boost_explore', 5)
 eg.add('epochs', 8000)
-eg.add('steps_per_epoch', 32000)
+eg.add('steps_per_epoch', 500)
 eg.add('ac_kwargs:hidden_sizes', net_config['hidden_units'], 'hid')
 eg.add('ac_kwargs:activation', net_config['activation'], '')
 eg.add('notes', notes, '')
